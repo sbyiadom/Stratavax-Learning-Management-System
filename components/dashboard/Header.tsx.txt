@@ -1,0 +1,180 @@
+'use client'
+
+import { useState } from 'react'
+import { useSession, signOut } from 'next-auth/react'
+import Link from 'next/link'
+import { 
+  Bell, 
+  Search, 
+  User, 
+  LogOut, 
+  Settings,
+  ChevronDown,
+  Github,
+  FileSpreadsheet
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+export default function Header() {
+  const { data: session } = useSession()
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+
+  const handleExportExcel = async () => {
+    try {
+      const response = await fetch('/api/exports/courses')
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `course-progress-${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Export failed:', error)
+      alert('Failed to export. Please try again.')
+    }
+  }
+
+  const handleGitHubConnect = async () => {
+    // In a real app, this would redirect to GitHub OAuth
+    // For now, show a message
+    alert('GitHub integration would open OAuth flow here')
+  }
+
+  return (
+    <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
+      <div className="px-6 py-4 flex items-center justify-between">
+        {/* Search Bar */}
+        <div className="flex-1 max-w-2xl">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="search"
+              placeholder="Search courses, lessons..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        {/* Right side buttons and user menu */}
+        <div className="flex items-center space-x-4">
+          {/* Export Button */}
+          <Button
+            onClick={handleExportExcel}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Export Excel
+          </Button>
+
+          {/* GitHub Integration */}
+          <Button
+            onClick={handleGitHubConnect}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Github className="w-4 h-4" />
+            Connect GitHub
+          </Button>
+
+          {/* Notifications */}
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="relative"
+              onClick={() => setNotificationsOpen(!notificationsOpen)}
+            >
+              <Bell className="w-5 h-5" />
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                3
+              </span>
+            </Button>
+            
+            {notificationsOpen && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                <div className="px-4 py-2 border-b border-gray-100">
+                  <h3 className="font-semibold text-gray-900">Notifications</h3>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {[
+                    { id: 1, text: 'New course "Advanced React" is available', time: '2 hours ago' },
+                    { id: 2, text: 'Assessment score: 95% on JavaScript Basics', time: '1 day ago' },
+                    { id: 3, text: 'Complete your profile to get personalized recommendations', time: '2 days ago' },
+                  ].map((notification) => (
+                    <div key={notification.id} className="px-4 py-3 hover:bg-gray-50 cursor-pointer">
+                      <p className="text-sm text-gray-900">{notification.text}</p>
+                      <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-4 py-2 border-t border-gray-100">
+                  <Button variant="ghost" size="sm" className="w-full text-sm">
+                    View all notifications
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* User Menu */}
+          <div className="relative">
+            <Button
+              variant="ghost"
+              className="flex items-center space-x-2"
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+            >
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="hidden md:block text-left">
+                <p className="text-sm font-medium text-gray-900">
+                  {session?.user?.name || 'User'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {session?.user?.email || 'user@example.com'}
+                </p>
+              </div>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </Button>
+
+            {userMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                <Link
+                  href="/dashboard/profile"
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => setUserMenuOpen(false)}
+                >
+                  <User className="w-4 h-4 mr-3" />
+                  Your Profile
+                </Link>
+                <Link
+                  href="/dashboard/settings"
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => setUserMenuOpen(false)}
+                >
+                  <Settings className="w-4 h-4 mr-3" />
+                  Settings
+                </Link>
+                <div className="border-t border-gray-100 my-1"></div>
+                <button
+                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                >
+                  <LogOut className="w-4 h-4 mr-3" />
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}

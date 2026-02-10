@@ -1,0 +1,221 @@
+'use client'
+
+import { Filter, X } from 'lucide-react'
+import { useState } from 'react'
+
+export default function CourseFilters() {
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [selectedFilters, setSelectedFilters] = useState({
+    category: '',
+    difficulty: '',
+    price: 'all',
+    duration: 'any'
+  })
+
+  const categories = [
+    'All Categories',
+    'Web Development',
+    'Data Science',
+    'Design',
+    'Mobile Development',
+    'Database',
+    'Business'
+  ]
+
+  const difficulties = ['All Levels', 'Beginner', 'Intermediate', 'Advanced']
+  const prices = ['All Prices', 'Free', 'Paid']
+  const durations = ['Any Duration', '0-20 hours', '21-40 hours', '41+ hours']
+
+  const handleFilterChange = (filterType: string, value: string) => {
+    setSelectedFilters(prev => ({
+      ...prev,
+      [filterType]: value
+    }))
+  }
+
+  const clearFilters = () => {
+    setSelectedFilters({
+      category: '',
+      difficulty: '',
+      price: 'all',
+      duration: 'any'
+    })
+  }
+
+  const hasActiveFilters = Object.values(selectedFilters).some(value => 
+    value !== '' && value !== 'all' && value !== 'any'
+  )
+
+  return (
+    <div className="mb-6">
+      {/* Filter Button for Mobile */}
+      <div className="lg:hidden mb-4">
+        <button
+          onClick={() => setIsFilterOpen(!isFilterOpen)}
+          className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
+        >
+          <Filter className="h-4 w-4" />
+          Filters
+          {hasActiveFilters && (
+            <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+              Active
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Filter Panel */}
+      <div className={`${isFilterOpen ? 'block' : 'hidden'} lg:block`}>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filter Courses
+            </h3>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                <X className="h-4 w-4" />
+                Clear all
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Category Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category
+              </label>
+              <select
+                value={selectedFilters.category}
+                onChange={(e) => handleFilterChange('category', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {categories.map((category) => (
+                  <option key={category} value={category === 'All Categories' ? '' : category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Difficulty Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Difficulty
+              </label>
+              <select
+                value={selectedFilters.difficulty}
+                onChange={(e) => handleFilterChange('difficulty', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {difficulties.map((difficulty) => (
+                  <option key={difficulty} value={difficulty === 'All Levels' ? '' : difficulty}>
+                    {difficulty}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Price Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Price
+              </label>
+              <div className="flex space-x-2">
+                {prices.map((price) => (
+                  <button
+                    key={price}
+                    onClick={() => handleFilterChange('price', price.toLowerCase())}
+                    className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                      selectedFilters.price === price.toLowerCase() || 
+                      (price === 'All Prices' && selectedFilters.price === 'all')
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {price}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Duration Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Duration
+              </label>
+              <select
+                value={selectedFilters.duration}
+                onChange={(e) => handleFilterChange('duration', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {durations.map((duration) => (
+                  <option key={duration} value={duration === 'Any Duration' ? 'any' : duration}>
+                    {duration}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Active Filters Display */}
+          {hasActiveFilters && (
+            <div className="mt-6 pt-6 border-t">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Active Filters:</h4>
+              <div className="flex flex-wrap gap-2">
+                {selectedFilters.category && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                    {selectedFilters.category}
+                    <button
+                      onClick={() => handleFilterChange('category', '')}
+                      className="ml-1 hover:text-blue-900"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+                {selectedFilters.difficulty && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                    {selectedFilters.difficulty}
+                    <button
+                      onClick={() => handleFilterChange('difficulty', '')}
+                      className="ml-1 hover:text-green-900"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+                {selectedFilters.price !== 'all' && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
+                    {selectedFilters.price === 'free' ? 'Free' : 'Paid'}
+                    <button
+                      onClick={() => handleFilterChange('price', 'all')}
+                      className="ml-1 hover:text-yellow-900"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+                {selectedFilters.duration !== 'any' && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
+                    {selectedFilters.duration}
+                    <button
+                      onClick={() => handleFilterChange('duration', 'any')}
+                      className="ml-1 hover:text-purple-900"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

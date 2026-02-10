@@ -1,0 +1,132 @@
+import { Octokit } from '@octokit/rest'
+import { createClient } from '@/lib/supabase/server'
+
+const octokit = new Octokit({
+  auth: process.env.GITHUB_TOKEN
+})
+
+export async function syncCourseFromGitHub(
+  courseId: string,
+  repoUrl: string
+) {
+  const supabase = await createClient()
+  
+  try {
+    // Parse GitHub repo info
+    const repoMatch = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/)
+    if (!repoMatch) throw new Error('Invalid GitHub URL')
+    
+    const [, owner, repo] = repoMatch
+    
+    // Fetch repository structure
+    const { data: contents } = await octokit.repos.getContent({
+      owner,
+      repo,
+      path: ''
+    })
+    
+    // Parse course structure from GitHub
+    const modules = await parseGitHubStructure(contents, owner, repo)
+    
+    // Save modules and lessons to database
+    for (const module of modules) {
+      // Insert module
+      const { data: moduleData } = await supabase
+        .from('modules')
+        .insert({
+          course_id: courseId,
+          title: module.title,
+          module_order: module.order,
+          description: module.description
+        })
+        .select()
+        .single()
+      
+      // Insert lessons
+      for (const lesson of module.lessons) {
+        await supabase
+          .from('lessons')
+          .insert({
+            module_id: moduleData.id,
+            title: lesson.title,
+            content_type: lesson.type,
+            content_url: lesson.url,
+            lesson_order: lesson.order,
+            duration_minutes: lesson.duration || 0
+          })
+      }
+    }
+    
+    return { success: true, modules: modules.length }
+  } catch (error) {
+    console.error('Error syncing from GitHub:', error)
+    throw error
+  }
+}
+
+async function parseGitHubStructure(
+  contents: any[],
+  owner: string,
+  repo: string
+) {
+  const modules = []
+  
+  // Look for module folders
+  const moduleFolders = contents.filter(item => 
+    item.type === 'dir' && item.name.match(/^module-?\d+/i)
+  )
+  
+  // Sort modules
+  moduleFolders.sort((a, b) => {
+    const numA = parseInt(a.name.replace(/\D/g, '')) || 0
+    const numB = parseInt(b.name.replace(/\D/g, '')) || 0
+    return numA - numB
+  })
+  
+  for (let i = 0; i < moduleFolders.length; i++) {
+    const folder = moduleFolders[i]
+    
+    // Get module contents
+    const { data: moduleContents } = await octokit.repos.getContent({
+      owner,
+      repo,
+      path: folder.path
+    })
+    
+    const lessons = []
+    const lessonFiles = Array.isArray(moduleContents) 
+      ? moduleContents.filter(item => 
+          item.type === 'file' && 
+          (item.name.endsWith('.md') || item.name.endsWith('.mp4'))
+        )
+      : []
+    
+    // Sort lessons
+    lessonFiles.sort((a, b) => {
+      const numA = parseInt(a.name.match(/\d+/)?.[0] || '0')
+      const numB = parseInt(b.name.match(/\d+/)?.[0] || '0')
+      return numA - numB
+    })
+    
+    for (let j = 0; j < lessonFiles.length; j++) {
+      const file = lessonFiles[j]
+      
+      lessons.push({
+        title: file.name.replace('.md', '').replace('.mp4', '').replace(/-/g, ' '),
+        type: file.name.endsWith('.md') ? 'article' : 'video',
+        url: `https://raw.githubusercontent.com/${owner}/${repo}/main/${file.path}`,
+        order: j + 1,
+        duration: file.name.endsWith('.md') ? 10 : 30 // Estimate
+      })
+    }
+    
+    modules.push({
+      title: folder.name.replace(/-/g, ' ').replace(/module/i, 'Module '),
+      description: `Module ${i + 1}: ${folder.name}`,
+      order: i + 1,
+      lessons
+    })
+  }
+  
+  return modules
+}

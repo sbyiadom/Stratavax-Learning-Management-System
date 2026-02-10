@@ -1,0 +1,136 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+
+interface MicrosoftFormResponse {
+  id: string
+  title: string
+  questions: Array<{
+    id: string
+    title: string
+    type: string
+    choices?: Array<{
+      id: string
+      displayText: string
+    }>
+  }>
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { formId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const formId = params.formId
+    const microsoftToken = session.microsoftToken // This would come from your Microsoft OAuth setup
+
+    if (!microsoftToken) {
+      return NextResponse.json(
+        { error: 'Microsoft token not found. Please connect your Microsoft account.' },
+        { status: 400 }
+      )
+    }
+
+    // Fetch form details from Microsoft Forms API
+    // Note: This is a simplified example. You'll need to implement the actual Microsoft Forms API integration
+    // based on your specific requirements and authentication setup.
+
+    const mockForm: MicrosoftFormResponse = {
+      id: formId,
+      title: 'Sample Assessment Form',
+      questions: [
+        {
+          id: 'q1',
+          title: 'What is the capital of France?',
+          type: 'choice',
+          choices: [
+            { id: '1', displayText: 'London' },
+            { id: '2', displayText: 'Berlin' },
+            { id: '3', displayText: 'Paris' },
+            { id: '4', displayText: 'Madrid' },
+          ],
+        },
+        {
+          id: 'q2',
+          title: 'Explain the concept of React hooks in your own words.',
+          type: 'text',
+        },
+      ],
+    }
+
+    // For demo purposes, return mock data
+    // In production, you would make actual API calls to Microsoft Forms
+    // Example:
+    // const response = await fetch(`https://forms.office.com/formapi/api/forms/${formId}`, {
+    //   headers: {
+    //     'Authorization': `Bearer ${microsoftToken}`,
+    //     'Content-Type': 'application/json',
+    //   },
+    // })
+
+    return NextResponse.json({ form: mockForm })
+  } catch (error) {
+    console.error('Microsoft Forms API error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch form data' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { formId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const formId = params.formId
+    const body = await request.json()
+    const { responses } = body
+
+    const microsoftToken = session.microsoftToken
+
+    if (!microsoftToken) {
+      return NextResponse.json(
+        { error: 'Microsoft token not found' },
+        { status: 400 }
+      )
+    }
+
+    // Submit responses to Microsoft Forms
+    // Note: This is a simplified example
+    // In production, you would make actual API calls to submit to Microsoft Forms
+
+    // Mock submission
+    const submissionId = `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    // Calculate a mock score based on responses (for demo)
+    let score = 0
+    if (responses.q1 === '3') score += 50 // Paris is correct
+    if (responses.q2 && responses.q2.length > 10) score += 50 // Basic validation for text response
+
+    return NextResponse.json({
+      success: true,
+      submissionId,
+      score,
+      message: 'Form submitted successfully',
+    })
+  } catch (error) {
+    console.error('Form submission error:', error)
+    return NextResponse.json(
+      { error: 'Failed to submit form' },
+      { status: 500 }
+    )
+  }
+}

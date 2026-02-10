@@ -1,0 +1,81 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import ExcelJS from 'exceljs'
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Fetch user's courses and progress
+    const { data: userProgress, error: progressError } = await supabase
+      .from('user_progress')
+      .select(`
+        *,
+        courses (*),
+        lessons (*)
+      `)
+      .eq('user_id', session.user.id)
+      .order('last_accessed', { ascending: false })
+
+    if (progressError) {
+      throw progressError
+    }
+
+    // Create Excel workbook
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('Course Progress')
+
+    // Add headers
+    worksheet.columns = [
+      { header: 'Course', key: 'course', width: 30 },
+      { header: 'Lesson', key: 'lesson', width: 40 },
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Progress', key: 'progress', width: 15 },
+      { header: 'Last Accessed', key: 'last_accessed', width: 20 },
+      { header: 'Score', key: 'score', width: 15 },
+    ]
+
+    // Add data rows
+    for (const progress of userProgress || []) {
+      worksheet.addRow({
+        course: progress.courses?.title || 'Unknown',
+        lesson: progress.lessons?.title || 'Unknown',
+        status: progress.completed ? 'Completed' : 'In Progress',
+        progress: `${progress.progress}%`,
+        last_accessed: new Date(progress.last_accessed).toLocaleDateString(),
+        score: progress.score || 'N/A',
+      })
+    }
+
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true }
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' }
+    }
+
+    // Generate buffer
+    const buffer = await workbook.xlsx.writeBuffer()
+
+    // Return as downloadable file
+    return new NextResponse(buffer, {
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="course-progress-${new Date().toISOString().split('T')[0]}.xlsx"`,
+      },
+    })
+  } catch (error) {
+    console.error('Excel export error:', error)
+    return NextResponse.json(
+      { error: 'Failed to generate Excel export' },
+      { status: 500 }
+    )
+  }
+}

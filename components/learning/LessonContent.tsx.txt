@@ -1,0 +1,285 @@
+'use client'
+
+import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import { 
+  PlayCircle, 
+  FileText, 
+  Download,
+  Code,
+  CheckCircle,
+  XCircle
+} from 'lucide-react'
+
+interface LessonContentProps {
+  lesson: {
+    id: number
+    title: string
+    content: string
+    contentType: 'video' | 'article' | 'quiz'
+    videoUrl?: string
+    resources?: Array<{
+      name: string
+      type: string
+      size?: string
+      url?: string
+    }>
+  }
+  courseId: string
+}
+
+export default function LessonContent({ lesson, courseId }: LessonContentProps) {
+  const [showQuiz, setShowQuiz] = useState(false)
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({})
+
+  // Mock quiz data
+  const mockQuiz = {
+    questions: [
+      {
+        id: 1,
+        question: 'What is the primary purpose of the useState hook?',
+        options: [
+          'To manage side effects',
+          'To add state to functional components',
+          'To handle routing',
+          'To create custom hooks'
+        ],
+        correctAnswer: 'To add state to functional components'
+      },
+      {
+        id: 2,
+        question: 'Which hook should you use for data fetching?',
+        options: [
+          'useState',
+          'useEffect',
+          'useContext',
+          'useReducer'
+        ],
+        correctAnswer: 'useEffect'
+      },
+      {
+        id: 3,
+        question: 'Can hooks be called inside loops or conditions?',
+        options: [
+          'Yes, always',
+          'No, never',
+          'Only in development mode',
+          'Only with special permissions'
+        ],
+        correctAnswer: 'No, never'
+      }
+    ]
+  }
+
+  const handleQuizSubmit = () => {
+    let score = 0
+    mockQuiz.questions.forEach(q => {
+      if (quizAnswers[q.id.toString()] === q.correctAnswer) {
+        score++
+      }
+    })
+    alert(`Quiz submitted! Score: ${score}/${mockQuiz.questions.length}`)
+    setShowQuiz(false)
+  }
+
+  const renderContent = () => {
+    switch (lesson.contentType) {
+      case 'video':
+        return (
+          <div className="bg-black rounded-xl overflow-hidden aspect-video mb-6">
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <PlayCircle className="h-16 w-16 text-white/50 mx-auto mb-4" />
+                <p className="text-white/70">Video Player</p>
+                <p className="text-white/50 text-sm mt-2">URL: {lesson.videoUrl}</p>
+              </div>
+            </div>
+          </div>
+        )
+      
+      case 'article':
+        return (
+          <div className="prose prose-lg max-w-none bg-white rounded-xl p-8 shadow-lg mb-6">
+            <ReactMarkdown>{lesson.content}</ReactMarkdown>
+          </div>
+        )
+      
+      case 'quiz':
+        return (
+          <div className="bg-white rounded-xl p-8 shadow-lg mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">Quiz: {lesson.title}</h2>
+              <button
+                onClick={() => setShowQuiz(!showQuiz)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                {showQuiz ? 'Hide Quiz' : 'Take Quiz'}
+              </button>
+            </div>
+            
+            {showQuiz && (
+              <div className="space-y-6">
+                {mockQuiz.questions.map((q) => (
+                  <div key={q.id} className="border rounded-lg p-6">
+                    <h3 className="font-semibold text-lg mb-4">
+                      Question {q.id}: {q.question}
+                    </h3>
+                    <div className="space-y-3">
+                      {q.options.map((option, index) => (
+                        <label key={index} className="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`question-${q.id}`}
+                            value={option}
+                            checked={quizAnswers[q.id.toString()] === option}
+                            onChange={(e) => setQuizAnswers({
+                              ...quizAnswers,
+                              [q.id.toString()]: e.target.value
+                            })}
+                            className="h-4 w-4 text-blue-600"
+                          />
+                          <span className="ml-3">{option}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                
+                <div className="flex justify-between pt-6 border-t">
+                  <button
+                    onClick={() => setQuizAnswers({})}
+                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    Clear Answers
+                  </button>
+                  <button
+                    onClick={handleQuizSubmit}
+                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
+                  >
+                    Submit Quiz
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {!showQuiz && (
+              <div className="text-center py-12">
+                <div className="inline-block p-4 bg-blue-100 rounded-full mb-4">
+                  <FileText className="h-12 w-12 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Ready to test your knowledge?</h3>
+                <p className="text-gray-600 mb-6">
+                  This quiz will help reinforce what you've learned in this lesson.
+                </p>
+                <button
+                  onClick={() => setShowQuiz(true)}
+                  className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+                >
+                  Start Quiz
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      
+      default:
+        return (
+          <div className="bg-white rounded-xl p-8 shadow-lg mb-6">
+            <p className="text-gray-600">Content type not supported.</p>
+          </div>
+        )
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">{lesson.title}</h1>
+        <div className="flex items-center text-sm text-gray-600">
+          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full mr-3">
+            {lesson.contentType.toUpperCase()}
+          </span>
+          <span>Lesson ID: {lesson.id}</span>
+        </div>
+      </div>
+
+      {renderContent()}
+
+      {/* Resources Section */}
+      {lesson.resources && lesson.resources.length > 0 && (
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <h2 className="text-xl font-bold mb-4 flex items-center">
+            <Download className="h-5 w-5 mr-2" />
+            Lesson Resources
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {lesson.resources.map((resource, index) => (
+              <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center mr-3">
+                      {resource.type === 'pdf' ? (
+                        <FileText className="h-5 w-5 text-red-500" />
+                      ) : resource.type === 'code' ? (
+                        <Code className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <Download className="h-5 w-5 text-blue-500" />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{resource.name}</h4>
+                      <p className="text-sm text-gray-500">
+                        {resource.type.toUpperCase()} • {resource.size || 'External Link'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {'url' in resource ? (
+                    <a
+                      href={resource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Open
+                    </a>
+                  ) : (
+                    <button className="text-blue-600 hover:text-blue-800">
+                      Download
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <h3 className="font-semibold text-lg mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50">
+            <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
+            <span className="font-medium">Mark Complete</span>
+          </button>
+          
+          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50">
+            <FileText className="h-8 w-8 text-blue-500 mb-2" />
+            <span className="font-medium">Take Notes</span>
+          </button>
+          
+          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50">
+            <Code className="h-8 w-8 text-purple-500 mb-2" />
+            <span className="font-medium">Code Exercises</span>
+          </button>
+          
+          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50">
+            <XCircle className="h-8 w-8 text-red-500 mb-2" />
+            <span className="font-medium">Report Issue</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
