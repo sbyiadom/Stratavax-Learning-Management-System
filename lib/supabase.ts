@@ -47,4 +47,3 @@ export type Assessment = {
   submitted_at: string
   responses: Record<string, any>
 }
-
