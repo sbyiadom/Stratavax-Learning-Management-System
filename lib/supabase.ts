@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
@@ -47,3 +47,4 @@ export type Assessment = {
   submitted_at: string
   responses: Record<string, any>
 }
+
