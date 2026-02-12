@@ -1,3 +1,4 @@
+// app/(dashboard)/layout.tsx - FIXED VERSION
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
