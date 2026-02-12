@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { useSession, signOut } from 'next-auth/react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { 
   Bell, 
   Search, 
@@ -14,11 +14,42 @@ import {
   FileSpreadsheet
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { createClient } from '@/lib/supabase'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 export default function Header() {
-  const { data: session } = useSession()
+  const router = useRouter()
+  const [user, setUser] = useState<SupabaseUser | null>(null)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  const supabase = createClient()
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+      setLoading(false)
+    }
+
+    getUser()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase])
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
 
   const handleExportExcel = async () => {
     try {
@@ -39,9 +70,44 @@ export default function Header() {
   }
 
   const handleGitHubConnect = async () => {
-    // In a real app, this would redirect to GitHub OAuth
-    // For now, show a message
-    alert('GitHub integration would open OAuth flow here')
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      }
+    })
+    
+    if (error) {
+      console.error('GitHub connection failed:', error)
+      alert('Failed to connect GitHub. Please try again.')
+    }
+  }
+
+  // Get user display info
+  const userDisplayName = user?.user_metadata?.full_name || 
+                         user?.user_metadata?.name || 
+                         user?.email?.split('@')[0] || 
+                         'User'
+  
+  const userEmail = user?.email || 'user@example.com'
+  const userAvatar = user?.user_metadata?.avatar_url
+
+  if (loading) {
+    return (
+      <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
+        <div className="px-6 py-4 flex items-center justify-between">
+          <div className="flex-1 max-w-2xl">
+            <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="w-24 h-9 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="w-32 h-9 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="w-10 h-10 bg-gray-100 rounded-full animate-pulse" />
+            <div className="w-32 h-10 bg-gray-100 rounded-lg animate-pulse" />
+          </div>
+        </div>
+      </header>
+    )
   }
 
   return (
@@ -130,15 +196,23 @@ export default function Header() {
               className="flex items-center space-x-2"
               onClick={() => setUserMenuOpen(!userMenuOpen)}
             >
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-blue-600" />
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
+                {userAvatar ? (
+                  <img 
+                    src={userAvatar} 
+                    alt={userDisplayName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-5 h-5 text-blue-600" />
+                )}
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-gray-900">
-                  {session?.user?.name || 'User'}
+                  {userDisplayName}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {session?.user?.email || 'user@example.com'}
+                  {userEmail}
                 </p>
               </div>
               <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -164,7 +238,10 @@ export default function Header() {
                 </Link>
                 <div className="border-t border-gray-100 my-1"></div>
                 <button
-                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  onClick={() => {
+                    setUserMenuOpen(false)
+                    handleSignOut()
+                  }}
                   className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                 >
                   <LogOut className="w-4 h-4 mr-3" />
