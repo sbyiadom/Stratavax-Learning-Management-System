@@ -4,10 +4,6 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "outputDirectory": ".next",
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL_NEW": "@supabase_url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW": "@supabase_anon_key"
-  },
   "regions": ["iad1"],
   "headers": [
     {
@@ -29,4 +25,3 @@
     }
   ]
 }
-
