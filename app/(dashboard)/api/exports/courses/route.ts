@@ -12,94 +12,38 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch user's courses and progress
-    const { data: enrollments, error: enrollmentsError } = await supabase
+    // Fetch user's enrollments
+    const { data: enrollments } = await supabase
       .from('enrollments')
       .select(`
         *,
         courses (*)
       `)
       .eq('user_id', user.id)
-      .order('enrolled_at', { ascending: false })
 
-    if (enrollmentsError) {
-      throw enrollmentsError
-    }
-
-    // Create Excel workbook
     const workbook = new ExcelJS.Workbook()
-    workbook.creator = 'Stratavax LMS'
-    workbook.created = new Date()
-    workbook.modified = new Date()
+    const worksheet = workbook.addWorksheet('Course Progress')
 
-    // Course Progress Sheet
-    const progressSheet = workbook.addWorksheet('Course Progress')
-
-    // Add headers
-    progressSheet.columns = [
+    worksheet.columns = [
       { header: 'Course Title', key: 'title', width: 40 },
       { header: 'Enrolled Date', key: 'enrolled_at', width: 20 },
       { header: 'Progress (%)', key: 'progress', width: 15 },
       { header: 'Status', key: 'status', width: 15 },
-      { header: 'Last Updated', key: 'updated_at', width: 20 },
     ]
 
-    // Style header row
-    progressSheet.getRow(1).font = { bold: true, size: 12 }
-    progressSheet.getRow(1).fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE0E0E0' }
-    }
-    progressSheet.getRow(1).border = {
-      bottom: { style: 'thin' },
-      top: { style: 'thin' },
-      left: { style: 'thin' },
-      right: { style: 'thin' }
-    }
+    worksheet.getRow(1).font = { bold: true }
 
-    // Add data rows
     enrollments?.forEach((enrollment) => {
-      progressSheet.addRow({
-        title: enrollment.courses?.title || 'Unknown Course',
+      worksheet.addRow({
+        title: enrollment.courses?.title || 'Unknown',
         enrolled_at: new Date(enrollment.enrolled_at).toLocaleDateString(),
         progress: enrollment.progress_percentage || 0,
-        status: enrollment.status === 'active' ? 'In Progress' : 'Completed',
-        updated_at: new Date(enrollment.updated_at).toLocaleDateString(),
+        status: enrollment.status,
       })
     })
 
-    // Add summary sheet
-    const summarySheet = workbook.addWorksheet('Summary')
-    
-    summarySheet.columns = [
-      { header: 'Metric', key: 'metric', width: 30 },
-      { header: 'Value', key: 'value', width: 20 },
-    ]
-
-    summarySheet.getRow(1).font = { bold: true }
-    
-    summarySheet.addRow({ metric: 'Total Courses', value: enrollments?.length || 0 })
-    summarySheet.addRow({ 
-      metric: 'Completed Courses', 
-      value: enrollments?.filter(e => e.status === 'completed').length || 0 
-    })
-    summarySheet.addRow({ 
-      metric: 'Average Progress', 
-      value: `${Math.round(
-        (enrollments?.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) || 0) / 
-        (enrollments?.length || 1)
-      )}%` 
-    })
-    summarySheet.addRow({ 
-      metric: 'Report Generated', 
-      value: new Date().toLocaleString() 
-    })
-
-    // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer()
 
-    // Return as downloadable file
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -107,9 +51,9 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Excel export error:', error)
+    console.error('Export error:', error)
     return NextResponse.json(
-      { error: 'Failed to generate Excel export' },
+      { error: 'Failed to generate export' },
       { status: 500 }
     )
   }
