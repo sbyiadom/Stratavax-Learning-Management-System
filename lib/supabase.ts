@@ -1,48 +1,42 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 // Flexible environment variable detection
-// This will work with ANY naming convention in ANY project
 const supabaseUrl = (() => {
-  // Try new variables first (for second project)
   if (process.env.NEXT_PUBLIC_SUPABASE_URL_NEW) {
     return process.env.NEXT_PUBLIC_SUPABASE_URL_NEW
   }
-  // Fall back to standard variables (for first project)
   if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return process.env.NEXT_PUBLIC_SUPABASE_URL
   }
-  // Last resort fallback
   return process.env.SUPABASE_URL || ''
 })()
 
 const supabaseAnonKey = (() => {
-  // Try new variables first (for second project)
   if (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW) {
     return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW
   }
-  // Fall back to standard variables (for first project)
   if (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   }
-  // Last resort fallback
   return process.env.SUPABASE_ANON_KEY || ''
 })()
 
-// Validate that we have the required values
 if (!supabaseUrl) {
-  throw new Error(
-    'Missing Supabase URL. Please set NEXT_PUBLIC_SUPABASE_URL_NEW or NEXT_PUBLIC_SUPABASE_URL'
-  )
+  throw new Error('Missing Supabase URL. Please set NEXT_PUBLIC_SUPABASE_URL_NEW or NEXT_PUBLIC_SUPABASE_URL')
 }
 
 if (!supabaseAnonKey) {
-  throw new Error(
-    'Missing Supabase Anon Key. Please set NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW or NEXT_PUBLIC_SUPABASE_ANON_KEY'
-  )
+  throw new Error('Missing Supabase Anon Key. Please set NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW or NEXT_PUBLIC_SUPABASE_ANON_KEY')
 }
 
-// Create the Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Create and export the Supabase client
+export const createClient = () => {
+  return createSupabaseClient(supabaseUrl, supabaseAnonKey)
+}
+
+// Singleton instance for convenience
+const supabase = createClient()
+export default supabase
 
 // Database types
 export type Course = {
@@ -54,11 +48,23 @@ export type Course = {
   duration: number
   image_url: string
   created_at: string
+  instructor?: any
+  modules?: Module[]
+}
+
+export type Module = {
+  id: string
+  course_id: string
+  title: string
+  description: string
+  order: number
+  lessons?: Lesson[]
+  created_at: string
 }
 
 export type Lesson = {
   id: string
-  course_id: string
+  module_id: string
   title: string
   content: string
   order: number
@@ -71,10 +77,23 @@ export type UserProgress = {
   id: string
   user_id: string
   course_id: string
+  module_id: string
   lesson_id: string
-  completed: boolean
-  progress: number
-  last_accessed: string
+  is_completed: boolean
+  progress_percentage?: number
+  last_accessed_at: string
+  completed_at?: string
+  created_at: string
+}
+
+export type Enrollment = {
+  id: string
+  user_id: string
+  course_id: string
+  progress_percentage: number
+  status: 'not_started' | 'in_progress' | 'completed'
+  enrolled_at: string
+  completed_at?: string
 }
 
 export type Assessment = {
