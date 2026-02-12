@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { createServerClient } from '@/lib/supabase'
+import { cookies } from 'next/headers'
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const supabase = createServerClient()
     
-    if (!session?.user) {
+    // Get user session
+    const cookieStore = cookies()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -26,7 +29,7 @@ export async function POST(request: NextRequest) {
       .from('assessments')
       .insert({
         lesson_id: lessonId,
-        user_id: session.user.id,
+        user_id: user.id,
         form_id: formId,
         score: score || 0,
         responses: responses || {},
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
     await supabase
       .from('user_progress')
       .upsert({
-        user_id: session.user.id,
+        user_id: user.id,
         lesson_id: lessonId,
         completed: true,
         progress: 100,
@@ -70,9 +73,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const supabase = createServerClient()
     
-    if (!session?.user) {
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -82,7 +87,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('assessments')
       .select('*')
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
 
     if (lessonId) {
       query = query.eq('lesson_id', lessonId)
