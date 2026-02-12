@@ -1,8 +1,47 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW!
+// Flexible environment variable detection
+// This will work with ANY naming convention in ANY project
+const supabaseUrl = (() => {
+  // Try new variables first (for second project)
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL_NEW) {
+    return process.env.NEXT_PUBLIC_SUPABASE_URL_NEW
+  }
+  // Fall back to standard variables (for first project)
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return process.env.NEXT_PUBLIC_SUPABASE_URL
+  }
+  // Last resort fallback
+  return process.env.SUPABASE_URL || ''
+})()
 
+const supabaseAnonKey = (() => {
+  // Try new variables first (for second project)
+  if (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW) {
+    return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW
+  }
+  // Fall back to standard variables (for first project)
+  if (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  }
+  // Last resort fallback
+  return process.env.SUPABASE_ANON_KEY || ''
+})()
+
+// Validate that we have the required values
+if (!supabaseUrl) {
+  throw new Error(
+    'Missing Supabase URL. Please set NEXT_PUBLIC_SUPABASE_URL_NEW or NEXT_PUBLIC_SUPABASE_URL'
+  )
+}
+
+if (!supabaseAnonKey) {
+  throw new Error(
+    'Missing Supabase Anon Key. Please set NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW or NEXT_PUBLIC_SUPABASE_ANON_KEY'
+  )
+}
+
+// Create the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Database types
