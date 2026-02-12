@@ -36,28 +36,34 @@ export default function HomePage() {
 
   const popularCourses = [
     {
+      id: 1,
       title: 'Web Development Fundamentals',
       category: 'Web Development',
       students: 1250,
       rating: 4.8,
       duration: '40 hours',
-      price: 0
+      price: 0,
+      slug: 'web-dev-fundamentals'
     },
     {
+      id: 2,
       title: 'React Masterclass',
       category: 'Web Development',
       students: 890,
       rating: 4.9,
       duration: '60 hours',
-      price: 49.99
+      price: 49.99,
+      slug: 'react-masterclass'
     },
     {
+      id: 3,
       title: 'Python for Data Science',
       category: 'Data Science',
       students: 2100,
       rating: 4.7,
       duration: '50 hours',
-      price: 0
+      price: 0,
+      slug: 'python-data-science'
     }
   ]
 
@@ -65,7 +71,7 @@ export default function HomePage() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white">
-        <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:20px_20px]" />
+        <div className="absolute inset-0 bg-grid-white" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
           <div className="text-center">
             <h1 className="text-4xl lg:text-6xl font-bold mb-6">
@@ -99,7 +105,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
-              Why Choose LearnHub?
+              Why Choose Stratavax?
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               We provide everything you need to master new skills and advance your career
@@ -145,8 +151,8 @@ export default function HomePage() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {popularCourses.map((course, index) => (
-              <div key={index} className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+            {popularCourses.map((course) => (
+              <div key={course.id} className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition-shadow">
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-4">
                     <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
@@ -177,8 +183,8 @@ export default function HomePage() {
                   </div>
                   
                   <Link
-                    href={`/courses/${index + 1}`}
-                    className="block w-full py-3 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 font-semibold"
+                    href={`/courses/${course.slug}`}
+                    className="block w-full py-3 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 font-semibold transition-colors"
                   >
                     Enroll Now
                   </Link>
@@ -196,7 +202,7 @@ export default function HomePage() {
             Ready to Start Your Learning Journey?
           </h2>
           <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto">
-            Join over 50,000 learners who have transformed their careers with LearnHub
+            Join over 50,000 learners who have transformed their careers with Stratavax
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -224,7 +230,7 @@ export default function HomePage() {
                 <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center mr-2">
                   <BookOpen className="h-5 w-5" />
                 </div>
-                <span className="text-xl font-bold">LearnHub</span>
+                <span className="text-xl font-bold">Stratavax</span>
               </div>
               <p className="text-gray-400">
                 Empowering learners worldwide with quality education.
@@ -234,36 +240,36 @@ export default function HomePage() {
             <div>
               <h4 className="font-semibold mb-4">Platform</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="/courses" className="hover:text-white">Courses</a></li>
-                <li><a href="/pricing" className="hover:text-white">Pricing</a></li>
-                <li><a href="/instructors" className="hover:text-white">For Instructors</a></li>
-                <li><a href="/enterprise" className="hover:text-white">Enterprise</a></li>
+                <li><Link href="/courses" className="hover:text-white">Courses</Link></li>
+                <li><Link href="/pricing" className="hover:text-white">Pricing</Link></li>
+                <li><Link href="/instructors" className="hover:text-white">For Instructors</Link></li>
+                <li><Link href="/enterprise" className="hover:text-white">Enterprise</Link></li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="/about" className="hover:text-white">About</a></li>
-                <li><a href="/careers" className="hover:text-white">Careers</a></li>
-                <li><a href="/blog" className="hover:text-white">Blog</a></li>
-                <li><a href="/contact" className="hover:text-white">Contact</a></li>
+                <li><Link href="/about" className="hover:text-white">About</Link></li>
+                <li><Link href="/careers" className="hover:text-white">Careers</Link></li>
+                <li><Link href="/blog" className="hover:text-white">Blog</Link></li>
+                <li><Link href="/contact" className="hover:text-white">Contact</Link></li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="/help" className="hover:text-white">Help Center</a></li>
-                <li><a href="/faq" className="hover:text-white">FAQ</a></li>
-                <li><a href="/terms" className="hover:text-white">Terms</a></li>
-                <li><a href="/privacy" className="hover:text-white">Privacy</a></li>
+                <li><Link href="/help" className="hover:text-white">Help Center</Link></li>
+                <li><Link href="/faq" className="hover:text-white">FAQ</Link></li>
+                <li><Link href="/terms" className="hover:text-white">Terms</Link></li>
+                <li><Link href="/privacy" className="hover:text-white">Privacy</Link></li>
               </ul>
             </div>
           </div>
           
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>© {new Date().getFullYear()} LearnHub. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Stratavax Learning. All rights reserved.</p>
           </div>
         </div>
       </footer>
