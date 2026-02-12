@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase' // ✅ Use Supabase, not NextAuth
 
 export async function GET(
   request: NextRequest,
@@ -16,7 +16,7 @@ export async function GET(
 
     const formId = params.formId
     
-    // Return mock data for now
+    // Mock form data - replace with actual Microsoft Forms API call
     const mockForm = {
       id: formId,
       title: 'Course Assessment',
@@ -95,6 +95,7 @@ export async function POST(
       .single()
 
     if (error) {
+      console.error('Error saving assessment:', error)
       return NextResponse.json(
         { error: 'Failed to save assessment' },
         { status: 500 }
