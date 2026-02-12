@@ -11,19 +11,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get GitHub token from user metadata or database
-    // For this example, we'll assume it's stored in user_metadata
+    // Get GitHub token from user metadata
     const githubToken = user.user_metadata?.github_token
 
     if (!githubToken) {
       return NextResponse.json(
-        { error: 'GitHub account not connected. Please connect your GitHub account first.' },
+        { error: 'GitHub account not connected' },
         { status: 400 }
       )
     }
 
-    // Fetch user's GitHub repositories
-    const response = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100', {
+    const response = await fetch('https://api.github.com/user/repos', {
       headers: {
         'Authorization': `Bearer ${githubToken}`,
         'Accept': 'application/vnd.github.v3+json',
@@ -31,18 +29,11 @@ export async function GET(request: NextRequest) {
     })
 
     if (!response.ok) {
-      if (response.status === 401) {
-        return NextResponse.json(
-          { error: 'GitHub token expired. Please reconnect your GitHub account.' },
-          { status: 401 }
-        )
-      }
-      throw new Error('Failed to fetch GitHub repositories')
+      throw new Error('Failed to fetch repositories')
     }
 
     const repos = await response.json()
 
-    // Format the response
     const formattedRepos = repos.map((repo: any) => ({
       id: repo.id,
       name: repo.name,
@@ -54,14 +45,9 @@ export async function GET(request: NextRequest) {
       language: repo.language,
       updated_at: repo.updated_at,
       private: repo.private,
-      default_branch: repo.default_branch,
     }))
 
-    return NextResponse.json({ 
-      success: true, 
-      repositories: formattedRepos,
-      count: formattedRepos.length 
-    })
+    return NextResponse.json({ success: true, repositories: formattedRepos })
   } catch (error) {
     console.error('GitHub API error:', error)
     return NextResponse.json(
