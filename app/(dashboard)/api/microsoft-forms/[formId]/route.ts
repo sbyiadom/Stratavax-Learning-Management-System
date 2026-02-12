@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase' // ✅ Use Supabase, not NextAuth
+import { createServerClient } from '@/lib/supabase'  // ✅ Use Supabase, not NextAuth
 
 export async function GET(
   request: NextRequest,
@@ -16,7 +16,7 @@ export async function GET(
 
     const formId = params.formId
     
-    // Mock form data - replace with actual Microsoft Forms API call
+    // Mock form data
     const mockForm = {
       id: formId,
       title: 'Course Assessment',
@@ -76,8 +76,8 @@ export async function POST(
 
     // Calculate score
     let score = 0
-    if (responses.q1 === 'useEffect') score += 50
-    if (responses.q2 === 'paris') score += 50
+    if (responses?.q1 === 'useEffect') score += 50
+    if (responses?.q2 === 'paris') score += 50
 
     // Save assessment
     const { data, error } = await supabase
@@ -86,7 +86,7 @@ export async function POST(
         user_id: user.id,
         form_id: params.formId,
         lesson_id: lessonId,
-        responses,
+        responses: responses || {},
         score,
         max_score: 100,
         submitted_at: new Date().toISOString(),
