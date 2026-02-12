@@ -1,22 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 
-interface MicrosoftFormResponse {
-  id: string
-  title: string
-  questions: Array<{
-    id: string
-    title: string
-    type: string
-    required?: boolean
-    choices?: Array<{
-      id: string
-      displayText: string
-      value?: string
-    }>
-  }>
-}
-
 export async function GET(
   request: NextRequest,
   { params }: { params: { formId: string } }
@@ -32,15 +16,8 @@ export async function GET(
 
     const formId = params.formId
     
-    // In a production environment, you would:
-    // 1. Get the Microsoft token from user metadata or database
-    // 2. Make an actual API call to Microsoft Forms API
-    // 3. Handle token refresh and error cases
-    
-    // For now, return mock data for demonstration
-    // This should be replaced with actual Microsoft Forms API integration
-    
-    const mockForm: MicrosoftFormResponse = {
+    // Return mock data for now
+    const mockForm = {
       id: formId,
       title: 'Course Assessment',
       questions: [
@@ -68,19 +45,10 @@ export async function GET(
             { id: '4', displayText: 'Madrid', value: 'madrid' },
           ],
         },
-        {
-          id: 'q3',
-          title: 'Explain the concept of closures in JavaScript.',
-          type: 'text',
-          required: false,
-        },
       ],
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      form: mockForm 
-    })
+    return NextResponse.json({ success: true, form: mockForm })
   } catch (error) {
     console.error('Microsoft Forms API error:', error)
     return NextResponse.json(
@@ -103,45 +71,32 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const formId = params.formId
     const body = await request.json()
     const { responses, lessonId } = body
 
-    if (!responses) {
-      return NextResponse.json(
-        { error: 'Responses are required' },
-        { status: 400 }
-      )
-    }
-
-    // Calculate score based on correct answers
+    // Calculate score
     let score = 0
-    let maxScore = 0
+    if (responses.q1 === 'useEffect') score += 50
+    if (responses.q2 === 'paris') score += 50
 
-    // Mock scoring logic - replace with actual form configuration
-    if (responses.q1 === 'useEffect') score += 1
-    if (responses.q2 === 'paris') score += 1
-    maxScore = 2
-
-    // Save assessment submission
+    // Save assessment
     const { data, error } = await supabase
       .from('assessments')
       .insert({
         user_id: user.id,
-        form_id: formId,
-        lesson_id: lessonId || null,
+        form_id: params.formId,
+        lesson_id: lessonId,
         responses,
         score,
-        max_score: maxScore,
+        max_score: 100,
         submitted_at: new Date().toISOString(),
       })
       .select()
       .single()
 
     if (error) {
-      console.error('Error saving assessment:', error)
       return NextResponse.json(
-        { error: 'Failed to save assessment submission' },
+        { error: 'Failed to save assessment' },
         { status: 500 }
       )
     }
@@ -150,7 +105,6 @@ export async function POST(
       success: true,
       submissionId: data.id,
       score,
-      maxScore,
       message: 'Form submitted successfully',
     })
   } catch (error) {
