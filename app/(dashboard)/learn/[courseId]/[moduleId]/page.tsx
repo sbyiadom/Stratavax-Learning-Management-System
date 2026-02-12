@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase'  // Fixed import path
+import { createClient } from '@/lib/supabase' // Fixed import path
 import LessonContent from '@/components/learning/LessonContent'
 import CourseSidebar from '@/components/learning/CourseSidebar'
 import ProgressTracker from '@/components/learning/ProgressTracker'
@@ -308,3 +308,4 @@ export default function LearningPage() {
     </div>
   )
 }
+
