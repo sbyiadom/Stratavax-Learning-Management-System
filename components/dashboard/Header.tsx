@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { 
@@ -11,49 +11,48 @@ import {
   Settings,
   ChevronDown,
   Github,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase'
-import type { User as SupabaseUser } from '@supabase/supabase-js'
+import { toast } from 'react-hot-toast'
+import type { User } from '@supabase/supabase-js'
 
-export default function Header() {
+interface HeaderProps {
+  user: User
+}
+
+export default function Header({ user }: HeaderProps) {
   const router = useRouter()
-  const [user, setUser] = useState<SupabaseUser | null>(null)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
+  const [connectingGitHub, setConnectingGitHub] = useState(false)
 
   const supabase = createClient()
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
-      setLoading(false)
-    }
-
-    getUser()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null)
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [supabase])
-
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    router.push('/login')
+    toast.success('Signed out successfully')
+    router.push('/')
     router.refresh()
   }
 
   const handleExportExcel = async () => {
+    setExporting(true)
     try {
-      const response = await fetch('/api/exports/courses')
+      const response = await fetch('/api/exports/courses', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error('Export failed')
+      }
+      
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -63,23 +62,33 @@ export default function Header() {
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
+      
+      toast.success('Export completed successfully')
     } catch (error) {
       console.error('Export failed:', error)
-      alert('Failed to export. Please try again.')
+      toast.error('Failed to export. Please try again.')
+    } finally {
+      setExporting(false)
     }
   }
 
   const handleGitHubConnect = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+    setConnectingGitHub(true)
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        }
+      })
+      
+      if (error) {
+        toast.error('Failed to connect GitHub')
       }
-    })
-    
-    if (error) {
-      console.error('GitHub connection failed:', error)
-      alert('Failed to connect GitHub. Please try again.')
+    } catch (error) {
+      toast.error('Something went wrong')
+    } finally {
+      setConnectingGitHub(false)
     }
   }
 
@@ -89,26 +98,8 @@ export default function Header() {
                          user?.email?.split('@')[0] || 
                          'User'
   
-  const userEmail = user?.email || 'user@example.com'
+  const userEmail = user?.email || ''
   const userAvatar = user?.user_metadata?.avatar_url
-
-  if (loading) {
-    return (
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
-        <div className="px-6 py-4 flex items-center justify-between">
-          <div className="flex-1 max-w-2xl">
-            <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="w-24 h-9 bg-gray-100 rounded-lg animate-pulse" />
-            <div className="w-32 h-9 bg-gray-100 rounded-lg animate-pulse" />
-            <div className="w-10 h-10 bg-gray-100 rounded-full animate-pulse" />
-            <div className="w-32 h-10 bg-gray-100 rounded-lg animate-pulse" />
-          </div>
-        </div>
-      </header>
-    )
-  }
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
@@ -133,9 +124,14 @@ export default function Header() {
             variant="outline"
             size="sm"
             className="flex items-center gap-2"
+            disabled={exporting}
           >
-            <FileSpreadsheet className="w-4 h-4" />
-            Export Excel
+            {exporting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="w-4 h-4" />
+            )}
+            {exporting ? 'Exporting...' : 'Export Excel'}
           </Button>
 
           {/* GitHub Integration */}
@@ -144,9 +140,14 @@ export default function Header() {
             variant="outline"
             size="sm"
             className="flex items-center gap-2"
+            disabled={connectingGitHub}
           >
-            <Github className="w-4 h-4" />
-            Connect GitHub
+            {connectingGitHub ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Github className="w-4 h-4" />
+            )}
+            {connectingGitHub ? 'Connecting...' : 'Connect GitHub'}
           </Button>
 
           {/* Notifications */}
