@@ -1,17 +1,16 @@
 'use client'
 
 import { createClient } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 import { createContext, useContext, useEffect, useState } from 'react'
-import { Session, SupabaseClient } from '@supabase/supabase-js'
-import { Database } from '@/lib/database.types'
-import { Toaster } from 'react-hot-toast'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 
-type SupabaseContext = {
-  supabase: SupabaseClient<Database>
-  session: Session | null
+type SupabaseContextType = {
+  supabase: SupabaseClient
+  user: User | null
 }
 
-const Context = createContext<SupabaseContext | undefined>(undefined)
+const Context = createContext<SupabaseContextType | undefined>(undefined)
 
 export default function SupabaseProvider({
   children,
@@ -19,36 +18,29 @@ export default function SupabaseProvider({
   children: React.ReactNode
 }) {
   const [supabase] = useState(() => createClient())
-  const [session, setSession] = useState<Session | null>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null)
+      router.refresh()
     })
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
     })
 
-    return () => subscription.unsubscribe()
-  }, [supabase])
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase, router])
 
   return (
-    <Context.Provider value={{ supabase, session }}>
+    <Context.Provider value={{ supabase, user }}>
       {children}
-      <Toaster 
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-        }}
-      />
     </Context.Provider>
   )
 }
