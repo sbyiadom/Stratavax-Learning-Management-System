@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { 
   Bell, 
   Search, 
-  User, 
+  User as UserIcon,  // Renamed this import to UserIcon
   LogOut, 
   Settings,
   ChevronDown,
@@ -17,11 +17,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase'
 import { toast } from 'react-hot-toast'
-import type { User } from '@supabase/supabase-js'
+import type { User } from '@supabase/supabase-js'  // This stays as User
 
 interface HeaderProps {
   user: User
-  // Optional profile prop if you need it
   profile?: any
 }
 
@@ -94,7 +93,7 @@ export default function Header({ user, profile }: HeaderProps) {
     }
   }
 
-  // Get user display info - use profile if available, otherwise fallback to user metadata
+  // Get user display info
   const userDisplayName = profile?.first_name && profile?.last_name 
     ? `${profile.first_name} ${profile.last_name}`
     : user?.user_metadata?.full_name || 
@@ -209,7 +208,7 @@ export default function Header({ user, profile }: HeaderProps) {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <User className="w-5 h-5 text-blue-600" />
+                  <UserIcon className="w-5 h-5 text-blue-600" />  {/* Changed from User to UserIcon */}
                 )}
               </div>
               <div className="hidden md:block text-left">
@@ -230,7 +229,7 @@ export default function Header({ user, profile }: HeaderProps) {
                   className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   onClick={() => setUserMenuOpen(false)}
                 >
-                  <User className="w-4 h-4 mr-3" />
+                  <UserIcon className="w-4 h-4 mr-3" />  {/* Changed from User to UserIcon */}
                   Your Profile
                 </Link>
                 <Link
