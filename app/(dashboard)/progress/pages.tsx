@@ -52,7 +52,12 @@ export default function ProgressPage() {
       
       if (error) throw error
       
-      setEnrollments((data as any) || [])
+      // Use type assertion with 'as' keyword
+      if (data) {
+        setEnrollments(data as unknown as Enrollment[])
+      } else {
+        setEnrollments([])
+      }
     } catch (error) {
       console.error('Error fetching progress:', error)
     } finally {
