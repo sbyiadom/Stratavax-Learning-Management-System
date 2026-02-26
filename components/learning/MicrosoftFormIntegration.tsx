@@ -1,279 +1,142 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
+import { useState } from 'react'
+import { useSupabase } from '@/app/providers'
 import { Button } from '@/components/ui/button'
-import { Loader2, ExternalLink, CheckCircle } from 'lucide-react'
+import { FileText, Loader2 } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 
 interface MicrosoftFormIntegrationProps {
-  formId: string
   lessonId: string
-  onSubmissionComplete?: (score: number) => void
+  courseId: string
 }
 
-interface Question {
-  id: string
-  title: string
-  type: 'choice' | 'text' | 'rating'
-  choices?: Array<{
-    id: string
-    displayText: string
-  }>
-}
-
-interface FormData {
-  id: string
-  title: string
-  questions: Question[]
-}
-
-export default function MicrosoftFormIntegration({
-  formId,
-  lessonId,
-  onSubmissionComplete,
-}: MicrosoftFormIntegrationProps) {
-  const { data: session } = useSession()
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [formData, setFormData] = useState<FormData | null>(null)
-  const [responses, setResponses] = useState<Record<string, any>>({})
-  const [submitted, setSubmitted] = useState(false)
-  const [score, setScore] = useState<number | null>(null)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    fetchFormData()
-  }, [formId])
+export default function MicrosoftFormIntegration({ lessonId, courseId }: MicrosoftFormIntegrationProps) {
+  const { supabase, user } = useSupabase()
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState<any>(null)
+  const [showForm, setShowForm] = useState(false)
 
   const fetchFormData = async () => {
+    setLoading(true)
     try {
-      setLoading(true)
-      const response = await fetch(`/api/microsoft-forms/${formId}`)
+      // Fetch form integration data from your API
+      const response = await fetch(`/api/microsoft-forms/${lessonId}`)
       
       if (!response.ok) {
-        throw new Error('Failed to fetch form')
+        throw new Error('Failed to fetch form data')
       }
-
+      
       const data = await response.json()
-      setFormData(data.form)
-    } catch (err) {
-      console.error('Error fetching form:', err)
-      setError('Failed to load assessment form. Please try again.')
+      setFormData(data)
+      setShowForm(true)
+    } catch (error) {
+      console.error('Error fetching form:', error)
+      toast.error('Failed to load form. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleResponseChange = (questionId: string, value: any) => {
-    setResponses(prev => ({
-      ...prev,
-      [questionId]: value
-    }))
-  }
-
-  const handleSubmit = async () => {
+  const submitFormResponse = async (responses: any) => {
+    setLoading(true)
     try {
-      setSubmitting(true)
-      setError('')
-
-      // First submit to Microsoft Forms (mock for now)
-      const formResponse = await fetch(`/api/microsoft-forms/${formId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ responses }),
-      })
-
-      const formResult = await formResponse.json()
-
-      if (!formResponse.ok) {
-        throw new Error(formResult.error || 'Form submission failed')
-      }
-
-      // Save to our database
-      const assessmentResponse = await fetch('/api/assessments/submit', {
+      const response = await fetch(`/api/microsoft-forms/${lessonId}/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          lessonId,
-          formId,
-          score: formResult.score || 0,
           responses,
+          courseId,
+          userId: user?.id
         }),
       })
 
-      const assessmentResult = await assessmentResponse.json()
-
-      if (!assessmentResponse.ok) {
-        throw new Error(assessmentResult.error || 'Assessment save failed')
+      if (!response.ok) {
+        throw new Error('Failed to submit form')
       }
 
-      setScore(formResult.score || 0)
-      setSubmitted(true)
+      toast.success('Form submitted successfully!')
       
-      if (onSubmissionComplete) {
-        onSubmissionComplete(formResult.score || 0)
-      }
+      // Mark lesson as complete or update progress
+      await supabase
+        .from('user_progress')
+        .upsert({
+          user_id: user?.id,
+          lesson_id: lessonId,
+          course_id: courseId,
+          is_completed: true,
+          completed_at: new Date().toISOString(),
+          last_accessed_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,lesson_id'
+        })
 
-      // Show success message
-      alert('Assessment submitted successfully!')
-    } catch (err: any) {
-      console.error('Submission error:', err)
-      setError(err.message || 'Failed to submit assessment')
+    } catch (error) {
+      console.error('Error submitting form:', error)
+      toast.error('Failed to submit form. Please try again.')
     } finally {
-      setSubmitting(false)
+      setLoading(false)
     }
   }
 
-  const openInNewTab = () => {
-    // This would be the actual Microsoft Forms URL
-    window.open(`https://forms.office.com/Pages/DesignPageV2.aspx?origin=NeoPortalPage&subpage=design&id=${formId}`, '_blank')
-  }
-
-  if (loading) {
+  if (!user) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-      </div>
-    )
-  }
-
-  if (error && !formData) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-700">{error}</p>
-        <Button onClick={fetchFormData} variant="outline" className="mt-2">
-          Retry
-        </Button>
-      </div>
-    )
-  }
-
-  if (submitted) {
-    return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-        <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-green-900 mb-2">
-          Assessment Completed!
-        </h3>
-        <p className="text-green-700 mb-4">
-          Your score: <span className="font-bold">{score}%</span>
-        </p>
-        <p className="text-sm text-green-600">
-          Your responses have been saved. You can review your progress in the dashboard.
-        </p>
+      <div className="text-center py-8">
+        <p className="text-gray-500">Please sign in to access forms</p>
       </div>
     )
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">
-            {formData?.title || 'Assessment'}
-          </h3>
-          <p className="text-sm text-gray-600 mt-1">
-            Complete this assessment to continue
-          </p>
-        </div>
-        <Button
-          onClick={openInNewTab}
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
-        >
-          <ExternalLink className="w-4 h-4" />
-          Open in Microsoft Forms
-        </Button>
+    <div className="border rounded-lg p-6 bg-white">
+      <div className="flex items-center gap-3 mb-4">
+        <FileText className="w-6 h-6 text-blue-500" />
+        <h3 className="text-lg font-semibold">Microsoft Form</h3>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+      {!showForm ? (
+        <div className="text-center py-4">
+          <p className="text-gray-600 mb-4">
+            This lesson includes a Microsoft Form. Click below to open it.
+          </p>
+          <Button
+            onClick={fetchFormData}
+            disabled={loading}
+            className="flex items-center gap-2 mx-auto"
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileText className="w-4 h-4" />
+            )}
+            {loading ? 'Loading...' : 'Open Form'}
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Microsoft Form Embed */}
+          {formData?.embedUrl && (
+            <iframe
+              src={formData.embedUrl}
+              className="w-full h-[600px] border-0"
+              title="Microsoft Form"
+            />
+          )}
+
+          {/* Manual submission button if needed */}
+          <div className="flex justify-end">
+            <Button
+              onClick={() => submitFormResponse({})}
+              disabled={loading}
+              variant="outline"
+            >
+              {loading ? 'Submitting...' : 'Mark as Completed'}
+            </Button>
+          </div>
         </div>
       )}
-
-      <div className="space-y-6">
-        {formData?.questions.map((question) => (
-          <div key={question.id} className="border border-gray-100 rounded-lg p-4">
-            <h4 className="font-medium text-gray-900 mb-3">{question.title}</h4>
-            
-            {question.type === 'choice' && question.choices && (
-              <div className="space-y-2">
-                {question.choices.map((choice) => (
-                  <label
-                    key={choice.id}
-                    className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name={question.id}
-                      value={choice.id}
-                      checked={responses[question.id] === choice.id}
-                      onChange={(e) => handleResponseChange(question.id, e.target.value)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
-                    <span className="ml-3 text-gray-700">{choice.displayText}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {question.type === 'text' && (
-              <textarea
-                value={responses[question.id] || ''}
-                onChange={(e) => handleResponseChange(question.id, e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={4}
-                placeholder="Type your answer here..."
-              />
-            )}
-
-            {question.type === 'rating' && (
-              <div className="flex items-center space-x-2">
-                {[1, 2, 3, 4, 5].map((rating) => (
-                  <button
-                    key={rating}
-                    type="button"
-                    onClick={() => handleResponseChange(question.id, rating)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      responses[question.id] === rating
-                        ? 'bg-blue-100 text-blue-600 border-2 border-blue-500'
-                        : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                    }`}
-                  >
-                    {rating}
-                  </button>
-                ))}
-                <span className="ml-4 text-sm text-gray-500">
-                  {responses[question.id] ? `${responses[question.id]}/5` : 'Select rating'}
-                </span>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-6 pt-6 border-t border-gray-200 flex justify-end">
-        <Button
-          onClick={handleSubmit}
-          disabled={submitting || Object.keys(responses).length === 0}
-          className="min-w-[120px]"
-        >
-          {submitting ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Submitting...
-            </>
-          ) : (
-            'Submit Assessment'
-          )}
-        </Button>
-      </div>
     </div>
   )
 }
