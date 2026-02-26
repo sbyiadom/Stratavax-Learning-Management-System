@@ -18,7 +18,7 @@ export default function CommunityPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-600">
-              Join study groups to learn with peers
+              Join study groups to learn with peers. Connect with fellow students taking the same courses.
             </p>
           </CardContent>
         </Card>
@@ -32,7 +32,7 @@ export default function CommunityPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-600">
-              Participate in course discussions
+              Participate in course discussions. Ask questions and share knowledge with the community.
             </p>
           </CardContent>
         </Card>
@@ -46,7 +46,7 @@ export default function CommunityPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-600">
-              Upcoming webinars and workshops
+              Upcoming webinars, workshops, and live sessions. Stay tuned for community events.
             </p>
           </CardContent>
         </Card>
