@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase-server'  // Fixed import
+import { createServerClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import DashboardHeader from '@/components/dashboard/Header'
 import DashboardSidebar from '@/components/dashboard/Sidebar'
@@ -16,16 +16,17 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
-  // Optional: Fetch user profile data
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', session.user.id)
-    .single()
+  // Optional: Fetch user profile data (remove if not needed in layout)
+  // const { data: profile } = await supabase
+  //   .from('profiles')
+  //   .select('*')
+  //   .eq('id', session.user.id)
+  //   .single()
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader user={session.user} profile={profile} />
+      {/* Fixed: removed profile prop since HeaderProps doesn't have it */}
+      <DashboardHeader user={session.user} />
       <div className="flex">
         <DashboardSidebar />
         <main className="flex-1 p-6 lg:p-8">
@@ -35,4 +36,3 @@ export default async function DashboardLayout({
     </div>
   )
 }
-
