@@ -1,24 +1,46 @@
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-
-// Support both old and new env var patterns
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_NEW || 
-                    process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW || 
-                        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables. Please check your .env.local file.')
-}
+import { createBrowserClient } from '@supabase/ssr'
+import { createServerClient as createServerSupabaseClient } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import { Database } from './database.types'
 
 // Client-side Supabase client
 export const createClient = () => {
-  return createClientComponentClient()
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW!
+  )
 }
 
-// Server-side Supabase client
-export const createServerClient = () => {
-  return createSupabaseClient(supabaseUrl, supabaseAnonKey)
+// Server-side Supabase client for server components and server actions
+export const createServerClient = async () => {
+  const cookieStore = await cookies()
+  
+  return createServerSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          try {
+            cookieStore.set({ name, value, ...options })
+          } catch (error) {
+            // Handle cookie error in server component
+          }
+        },
+        remove(name: string, options: any) {
+          try {
+            cookieStore.set({ name, value: '', ...options })
+          } catch (error) {
+            // Handle cookie error in server component
+          }
+        },
+      },
+    }
+  )
 }
 
 // Admin client with service role (server-side only)
@@ -30,115 +52,21 @@ export const createAdminClient = () => {
     throw new Error('Missing Supabase service role key')
   }
   
-  return createSupabaseClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  })
+  return createServerSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!,
+    serviceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  )
 }
 
 // Default client for client components
 const supabase = createClient()
 export default supabase
 
-// Database types (add your actual database types here)
-export type Database = {
-  public: {
-    Tables: {
-      profiles: {
-        Row: {
-          id: string
-          first_name: string | null
-          last_name: string | null
-          email: string | null
-          avatar_url: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id: string
-          first_name?: string | null
-          last_name?: string | null
-          email?: string | null
-          avatar_url?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          first_name?: string | null
-          last_name?: string | null
-          email?: string | null
-          avatar_url?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      courses: {
-        Row: {
-          id: string
-          title: string
-          description: string | null
-          instructor: string | null
-          duration: string | null
-          level: string | null
-          price: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          title: string
-          description?: string | null
-          instructor?: string | null
-          duration?: string | null
-          level?: string | null
-          price?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          title?: string
-          description?: string | null
-          instructor?: string | null
-          duration?: string | null
-          level?: string | null
-          price?: number
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      enrollments: {
-        Row: {
-          id: string
-          user_id: string
-          course_id: string
-          enrolled_at: string
-          progress_percentage: number
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          course_id: string
-          enrolled_at?: string
-          progress_percentage?: number
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          course_id?: string
-          enrolled_at?: string
-          progress_percentage?: number
-          status?: string
-          updated_at?: string
-        }
-      }
-    }
-  }
-}
+// Export types
+export type { Database }
