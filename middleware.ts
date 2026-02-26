@@ -54,34 +54,38 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  // Refresh session if expired - required for Server Components
+  // https://supabase.com/docs/guides/auth/auth-helpers/nextjs#managing-session-with-middleware
+  const { data: { session }, error } = await supabase.auth.getSession()
+
+  // Define public routes that don't require authentication
+  const isPublicRoute = 
+    request.nextUrl.pathname.startsWith('/login') ||
+    request.nextUrl.pathname.startsWith('/register') ||
+    request.nextUrl.pathname.startsWith('/auth/callback') ||
+    request.nextUrl.pathname === '/' ||
+    request.nextUrl.pathname.startsWith('/api/webhooks') ||
+    request.nextUrl.pathname.startsWith('/_next') ||
+    request.nextUrl.pathname.includes('.')
 
   // Auth routes - redirect to dashboard if already logged in
-  if (request.nextUrl.pathname.startsWith('/login') || 
-      request.nextUrl.pathname.startsWith('/register')) {
-    if (session) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
-    }
+  if ((request.nextUrl.pathname.startsWith('/login') || 
+       request.nextUrl.pathname.startsWith('/register')) && session) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Dashboard routes - redirect to login if not authenticated
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
+  // Protected routes - redirect to login if not authenticated
+  if (!isPublicRoute && !session) {
+    const redirectUrl = new URL('/login', request.url)
+    redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname)
+    return NextResponse.redirect(redirectUrl)
   }
 
   // API routes - check authentication for protected endpoints
-  if (request.nextUrl.pathname.startsWith('/api/')) {
-    // Skip auth check for public API endpoints
-    const publicPaths = ['/api/auth', '/api/webhooks']
-    const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path))
-    
-    if (!isPublicPath && !session) {
+  if (request.nextUrl.pathname.startsWith('/api/') && !request.nextUrl.pathname.startsWith('/api/webhooks')) {
+    if (!session) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized', message: 'You must be logged in to access this resource' },
         { status: 401 }
       )
     }
@@ -98,7 +102,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - public files with extensions (css, js, etc.)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)',
   ],
 }
