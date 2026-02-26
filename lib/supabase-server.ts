@@ -5,7 +5,7 @@ import { Database } from './database.types'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW!
 
-// Server-side Supabase client (for server components only)
+// Server-side Supabase client (for server components and API routes)
 export const createServerClient = async () => {
   const cookieStore = await cookies()
   
@@ -40,12 +40,16 @@ export const createServerClient = async () => {
 export const createAdminClient = () => {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY_NEW!
   
-  return createServerSupabaseClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  })
+  return createServerSupabaseClient(
+    supabaseUrl,
+    serviceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  )
 }
 
 export type { Database }
