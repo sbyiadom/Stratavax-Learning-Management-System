@@ -6,7 +6,8 @@ export async function GET(
   { params }: { params: { formId: string } }
 ) {
   try {
-    const supabase = createServerClient()
+    // Fixed: Added await
+    const supabase = await createServerClient()
     
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -16,39 +17,29 @@ export async function GET(
 
     const formId = params.formId
     
-    // Mock form data
-    const mockForm = {
-      id: formId,
-      title: 'Course Assessment',
-      questions: [
-        {
-          id: 'q1',
-          title: 'Which of the following is a React hook?',
-          type: 'choice',
-          required: true,
-          choices: [
-            { id: '1', displayText: 'useEffect', value: 'useEffect' },
-            { id: '2', displayText: 'componentDidMount', value: 'componentDidMount' },
-            { id: '3', displayText: 'onClick', value: 'onClick' },
-            { id: '4', displayText: 'setState', value: 'setState' },
-          ],
-        },
-        {
-          id: 'q2',
-          title: 'What is the capital of France?',
-          type: 'choice',
-          required: true,
-          choices: [
-            { id: '1', displayText: 'London', value: 'london' },
-            { id: '2', displayText: 'Berlin', value: 'berlin' },
-            { id: '3', displayText: 'Paris', value: 'paris' },
-            { id: '4', displayText: 'Madrid', value: 'madrid' },
-          ],
-        },
-      ],
+    // Fetch form integration details from database
+    const { data: integration, error } = await supabase
+      .from('microsoft_form_integrations')
+      .select('*')
+      .eq('form_id', formId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (error) {
+      return NextResponse.json(
+        { error: 'Form integration not found' },
+        { status: 404 }
+      )
     }
 
-    return NextResponse.json({ success: true, form: mockForm })
+    // Here you would typically call Microsoft Forms API
+    // For now, return the stored integration data
+    return NextResponse.json({ 
+      integration,
+      formId,
+      message: 'Microsoft Forms integration data retrieved'
+    })
+
   } catch (error) {
     console.error('Microsoft Forms API error:', error)
     return NextResponse.json(
@@ -63,7 +54,8 @@ export async function POST(
   { params }: { params: { formId: string } }
 ) {
   try {
-    const supabase = createServerClient()
+    // Fixed: Added await
+    const supabase = await createServerClient()
     
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -71,47 +63,42 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const formId = params.formId
     const body = await request.json()
-    const { responses, lessonId } = body
 
-    // Calculate score
-    let score = 0
-    if (responses?.q1 === 'useEffect') score += 50
-    if (responses?.q2 === 'paris') score += 50
-
-    // Save assessment
-    const { data, error } = await supabase
-      .from('assessments')
-      .insert({
+    // Store or update form integration
+    const { data: integration, error } = await supabase
+      .from('microsoft_form_integrations')
+      .upsert({
+        form_id: formId,
         user_id: user.id,
-        form_id: params.formId,
-        lesson_id: lessonId,
-        responses: responses || {},
-        score,
-        max_score: 100,
-        submitted_at: new Date().toISOString(),
+        form_name: body.formName,
+        access_token: body.accessToken, // In production, encrypt this
+        refresh_token: body.refreshToken, // In production, encrypt this
+        expires_at: body.expiresAt,
+        settings: body.settings || {},
+        updated_at: new Date().toISOString()
       })
       .select()
       .single()
 
     if (error) {
-      console.error('Error saving assessment:', error)
       return NextResponse.json(
-        { error: 'Failed to save assessment' },
+        { error: 'Failed to save form integration' },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({
+    return NextResponse.json({ 
       success: true,
-      submissionId: data.id,
-      score,
-      message: 'Form submitted successfully',
+      integration,
+      message: 'Form integration saved successfully'
     })
+
   } catch (error) {
-    console.error('Form submission error:', error)
+    console.error('Microsoft Forms API error:', error)
     return NextResponse.json(
-      { error: 'Failed to submit form' },
+      { error: 'Failed to save form data' },
       { status: 500 }
     )
   }
