@@ -5,8 +5,8 @@ export async function POST(request: NextRequest) {
   try {
     const { courseId } = await request.json()
     
-    // IMPORTANT: Await the createServerClient function
-    const supabase = await createServerClient()  // Added await here
+    // Fixed: Added await
+    const supabase = await createServerClient()
     
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -17,13 +17,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if course exists
+    const { data: course, error: courseError } = await supabase
+      .from('courses')
+      .select('id, title')
+      .eq('id', courseId)
+      .single()
+
+    if (courseError || !course) {
+      return NextResponse.json(
+        { error: 'Course not found' },
+        { status: 404 }
+      )
+    }
+
     // Check if already enrolled
     const { data: existingEnrollment } = await supabase
       .from('enrollments')
       .select('*')
       .eq('user_id', user.id)
       .eq('course_id', courseId)
-      .single()
+      .maybeSingle()
 
     if (existingEnrollment) {
       return NextResponse.json(
@@ -46,13 +60,18 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
+      console.error('Enrollment insert error:', error)
       return NextResponse.json(
         { error: 'Failed to enroll in course' },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({ enrollment })
+    return NextResponse.json({ 
+      success: true,
+      enrollment,
+      message: 'Successfully enrolled in course'
+    })
 
   } catch (error) {
     console.error('Enrollment error:', error)
