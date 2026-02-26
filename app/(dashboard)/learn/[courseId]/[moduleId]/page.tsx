@@ -9,7 +9,7 @@ import ProgressTracker from '@/components/learning/ProgressTracker'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
 
-// Local type definitions
+// Local type definitions - NO IMPORT FROM @/TYPES
 interface Profile {
   id: string
   first_name: string | null
@@ -23,6 +23,7 @@ interface Course {
   title: string
   description: string | null
   instructor: string | null
+  instructor_id?: string
   duration: string | null
   level: string | null
   price: number
@@ -72,6 +73,9 @@ interface UserProgress {
 
 export default function LearningPage() {
   const params = useParams()
+  const courseId = params.courseId as string
+  const moduleId = params.moduleId as string
+  
   const [course, setCourse] = useState<Course | null>(null)
   const [modules, setModules] = useState<Module[]>([])
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null)
@@ -80,14 +84,13 @@ export default function LearningPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    if (params.courseId) {
+    if (courseId) {
       fetchCourseData()
     }
-  }, [params.courseId])
+  }, [courseId])
 
   const fetchCourseData = async () => {
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser()
       
       if (!user) {
@@ -96,7 +99,6 @@ export default function LearningPage() {
         return
       }
 
-      // Fetch course details with modules and lessons
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select(`
@@ -107,7 +109,7 @@ export default function LearningPage() {
             lessons(*)
           )
         `)
-        .eq('id', params.courseId)
+        .eq('id', courseId)
         .single()
 
       if (courseError) throw courseError
@@ -115,11 +117,10 @@ export default function LearningPage() {
       setCourse(courseData)
       setModules(courseData?.modules || [])
 
-      // Fetch user progress for this course
       const { data: progressData, error: progressError } = await supabase
         .from('user_progress')
         .select('*')
-        .eq('course_id', params.courseId)
+        .eq('course_id', courseId)
         .eq('user_id', user.id)
 
       if (progressError) throw progressError
@@ -130,7 +131,14 @@ export default function LearningPage() {
       })
       setUserProgress(progressMap)
 
-      // Set initial lesson
+      if (moduleId && courseData?.modules) {
+        const targetModule = courseData.modules.find((m: Module) => m.id === moduleId)
+        if (targetModule?.lessons?.[0]) {
+          setCurrentLesson(targetModule.lessons[0])
+          return
+        }
+      }
+      
       if (courseData?.modules?.[0]?.lessons?.[0]) {
         setCurrentLesson(courseData.modules[0].lessons[0])
       }
@@ -154,7 +162,7 @@ export default function LearningPage() {
           user_id: user.id,
           lesson_id: currentLesson.id,
           module_id: currentLesson.module_id,
-          course_id: params.courseId,
+          course_id: courseId,
           is_completed: true,
           completed_at: now,
           last_accessed_at: now,
@@ -165,7 +173,6 @@ export default function LearningPage() {
 
       if (error) throw error
 
-      // Update local state
       const updatedProgress = {
         ...userProgress,
         [currentLesson.id]: {
@@ -178,7 +185,6 @@ export default function LearningPage() {
       }
       setUserProgress(updatedProgress)
 
-      // Update course progress
       await updateCourseProgress(updatedProgress)
     } catch (error) {
       console.error('Error marking lesson complete:', error)
@@ -191,7 +197,6 @@ export default function LearningPage() {
       
       if (!user) return
 
-      // Calculate new progress
       const totalLessons = modules.reduce((acc: number, module: Module) => 
         acc + (module.lessons?.length || 0), 0)
       
@@ -203,7 +208,6 @@ export default function LearningPage() {
         ? Math.round((completedLessons / totalLessons) * 100)
         : 0
 
-      // Update enrollment
       const { error } = await supabase
         .from('enrollments')
         .update({
@@ -212,7 +216,7 @@ export default function LearningPage() {
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id)
-        .eq('course_id', params.courseId)
+        .eq('course_id', courseId)
 
       if (error) throw error
     } catch (error) {
@@ -222,7 +226,6 @@ export default function LearningPage() {
 
   const navigateToLesson = (lesson: Lesson) => {
     setCurrentLesson(lesson)
-    // Track lesson access
     trackLessonAccess(lesson.id)
   }
 
@@ -239,7 +242,7 @@ export default function LearningPage() {
           user_id: user.id,
           lesson_id: lessonId,
           module_id: currentLesson?.module_id,
-          course_id: params.courseId,
+          course_id: courseId,
           last_accessed_at: now,
           updated_at: now
         }, {
@@ -251,7 +254,6 @@ export default function LearningPage() {
   }
 
   const navigatePrevious = () => {
-    // Find current lesson index and navigate to previous
     const allLessons = modules.flatMap(m => m.lessons || [])
     const currentIndex = allLessons.findIndex(l => l.id === currentLesson?.id)
     if (currentIndex > 0) {
@@ -260,7 +262,6 @@ export default function LearningPage() {
   }
 
   const navigateNext = () => {
-    // Find current lesson index and navigate to next
     const allLessons = modules.flatMap(m => m.lessons || [])
     const currentIndex = allLessons.findIndex(l => l.id === currentLesson?.id)
     if (currentIndex < allLessons.length - 1) {
@@ -297,7 +298,6 @@ export default function LearningPage() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
       <CourseSidebar
         course={course}
         modules={modules}
@@ -306,9 +306,7 @@ export default function LearningPage() {
         onLessonSelect={navigateToLesson}
       />
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
         <div className="border-b bg-white px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
@@ -339,17 +337,15 @@ export default function LearningPage() {
           </div>
         </div>
 
-        {/* Lesson Content */}
         <div className="flex-1 overflow-auto p-6">
           {currentLesson && (
             <LessonContent
               lesson={currentLesson}
-              courseId={params.courseId as string}
+              courseId={courseId}
             />
           )}
         </div>
 
-        {/* Navigation */}
         <div className="border-t bg-white px-6 py-4 flex justify-between">
           <Button 
             variant="outline" 
