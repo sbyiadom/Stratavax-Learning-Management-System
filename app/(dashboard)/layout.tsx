@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase-server'  // Fixed import
 import { redirect } from 'next/navigation'
 import DashboardHeader from '@/components/dashboard/Header'
 import DashboardSidebar from '@/components/dashboard/Sidebar'
@@ -35,3 +35,4 @@ export default async function DashboardLayout({
     </div>
   )
 }
+
