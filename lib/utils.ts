@@ -1,9 +1,14 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { v4 as uuidv4 } from 'uuid'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+// Simple ID generator - replaces uuid
+export function generateId(): string {
+  return Math.random().toString(36).substring(2, 15) + 
+         Math.random().toString(36).substring(2, 15)
 }
 
 export function formatDate(date: string | Date | null | undefined): string {
@@ -20,10 +25,6 @@ export function formatDate(date: string | Date | null | undefined): string {
     hour: '2-digit',
     minute: '2-digit'
   }).format(d)
-}
-
-export function generateId(): string {
-  return uuidv4()
 }
 
 export function truncateText(text: string, maxLength: number): string {
