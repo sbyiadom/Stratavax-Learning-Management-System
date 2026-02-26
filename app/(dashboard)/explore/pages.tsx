@@ -6,9 +6,23 @@ import CourseGrid from '@/components/courses/CourseGrid'
 import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-react'
 
+// Define the Course type
+interface Course {
+  id: string
+  title: string
+  description: string | null
+  instructor: string | null
+  duration: string | null
+  level: string | null
+  price: number
+  thumbnail_url: string | null
+  created_at: string
+  updated_at: string
+}
+
 export default function ExplorePage() {
-  const [courses, setCourses] = useState([])
-  const [filtered, setFiltered] = useState([])
+  const [courses, setCourses] = useState<Course[]>([])
+  const [filtered, setFiltered] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const supabase = createClient()
@@ -19,7 +33,7 @@ export default function ExplorePage() {
 
   useEffect(() => {
     if (search) {
-      setFiltered(courses.filter((c: any) => 
+      setFiltered(courses.filter((c: Course) => 
         c.title.toLowerCase().includes(search.toLowerCase())
       ))
     } else {
@@ -35,8 +49,14 @@ export default function ExplorePage() {
         .limit(20)
       
       if (error) throw error
-      setCourses(data || [])
-      setFiltered(data || [])
+      
+      if (data) {
+        setCourses(data as Course[])
+        setFiltered(data as Course[])
+      } else {
+        setCourses([])
+        setFiltered([])
+      }
     } catch (error) {
       console.error('Error fetching courses:', error)
     } finally {
