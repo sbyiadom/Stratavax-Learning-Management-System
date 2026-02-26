@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
-import ReactPlayer from 'react-player'
+import { useState, useEffect } from 'react'
 import { FileText, Video, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import QuizRenderer from './QuizRenderer'
 import MicrosoftFormIntegration from './MicrosoftFormIntegration'
+
+// Dynamic import for react-player to avoid SSR issues
+import dynamic from 'next/dynamic'
+const ReactPlayer = dynamic(() => import('react-player'), { ssr: false })
 
 // Local type definitions
 interface Lesson {
@@ -30,6 +33,12 @@ interface LessonContentProps {
 export default function LessonContent({ lesson, courseId }: LessonContentProps) {
   const [activeTab, setActiveTab] = useState<'content' | 'quiz' | 'assignment'>('content')
   const [videoProgress, setVideoProgress] = useState(0)
+  const [hasPlayer, setHasPlayer] = useState(false)
+
+  useEffect(() => {
+    // Check if react-player is available
+    import('react-player').then(() => setHasPlayer(true)).catch(() => setHasPlayer(false))
+  }, [])
 
   if (!lesson) {
     return (
@@ -105,20 +114,37 @@ export default function LessonContent({ lesson, courseId }: LessonContentProps) 
         {activeTab === 'quiz' && lesson.video_url && (
           <div className="space-y-4">
             <div className="aspect-video bg-black rounded-lg overflow-hidden">
-              <ReactPlayer
-                url={lesson.video_url}
-                width="100%"
-                height="100%"
-                controls
-                onProgress={(state) => {
-                  setVideoProgress(Math.round(state.played * 100))
-                }}
-                config={{
-                  youtube: {
-                    playerVars: { showinfo: 1 }
-                  }
-                }}
-              />
+              {hasPlayer ? (
+                <ReactPlayer
+                  url={lesson.video_url}
+                  width="100%"
+                  height="100%"
+                  controls
+                  onProgress={(state) => {
+                    setVideoProgress(Math.round(state.played * 100))
+                  }}
+                  config={{
+                    youtube: {
+                      playerVars: { showinfo: 1 }
+                    }
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                  <div className="text-center">
+                    <Video className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-500">Video player loading...</p>
+                    <a 
+                      href={lesson.video_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline text-sm mt-2 inline-block"
+                    >
+                      Open video directly
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
             {videoProgress > 0 && (
               <div className="space-y-2">
