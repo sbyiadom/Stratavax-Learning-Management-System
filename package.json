@@ -1,11 +1,18 @@
 {
+  "name": "stratavax-learning-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
   "dependencies": {
     "@octokit/rest": "^20.0.2",
     "@radix-ui/react-progress": "^1.0.3",
     "@supabase/ssr": "^0.5.1",
     "@supabase/supabase-js": "^2.39.0",
-    "@supabase/auth-ui-react": "^0.4.7",
-    "@supabase/auth-ui-shared": "^0.1.8",
     "@vercel/analytics": "^1.1.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
