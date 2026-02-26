@@ -2,20 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase' // Fixed import path
+import { createClient } from '@/lib/supabase'
 import LessonContent from '@/components/learning/LessonContent'
 import CourseSidebar from '@/components/learning/CourseSidebar'
 import ProgressTracker from '@/components/learning/ProgressTracker'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
-import type { Lesson, Module, UserProgress as ProgressType, Enrollment } from '@/lib/supabase' // Add type imports
+import type { Course, Module, Lesson, UserProgress } from '@/types' // Fixed import path
 
 export default function LearningPage() {
   const params = useParams()
-  const [course, setCourse] = useState<any>(null)
+  const [course, setCourse] = useState<Course | null>(null)
   const [modules, setModules] = useState<Module[]>([])
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null)
-  const [userProgress, setUserProgress] = useState<Record<string, ProgressType>>({})
+  const [userProgress, setUserProgress] = useState<Record<string, UserProgress>>({})
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
@@ -41,7 +41,7 @@ export default function LearningPage() {
         .from('courses')
         .select(`
           *,
-          instructor:users(first_name, last_name, avatar_url),
+          instructor_details:profiles!instructor_id(*),
           modules(
             *,
             lessons(*)
@@ -64,8 +64,8 @@ export default function LearningPage() {
 
       if (progressError) throw progressError
 
-      const progressMap: Record<string, ProgressType> = {}
-      progressData?.forEach((p: ProgressType) => {
+      const progressMap: Record<string, UserProgress> = {}
+      progressData?.forEach((p: UserProgress) => {
         progressMap[p.lesson_id] = p
       })
       setUserProgress(progressMap)
@@ -87,6 +87,7 @@ export default function LearningPage() {
       
       if (!user || !currentLesson) return
 
+      const now = new Date().toISOString()
       const { error } = await supabase
         .from('user_progress')
         .upsert({
@@ -95,8 +96,9 @@ export default function LearningPage() {
           module_id: currentLesson.module_id,
           course_id: params.courseId,
           is_completed: true,
-          completed_at: new Date().toISOString(),
-          last_accessed_at: new Date().toISOString()
+          completed_at: now,
+          last_accessed_at: now,
+          updated_at: now
         }, {
           onConflict: 'user_id,lesson_id'
         })
@@ -109,8 +111,10 @@ export default function LearningPage() {
         [currentLesson.id]: {
           ...userProgress[currentLesson.id],
           is_completed: true,
-          completed_at: new Date().toISOString()
-        }
+          completed_at: now,
+          last_accessed_at: now,
+          updated_at: now
+        } as UserProgress
       }
       setUserProgress(updatedProgress)
 
@@ -121,7 +125,7 @@ export default function LearningPage() {
     }
   }
 
-  const updateCourseProgress = async (progressMap: Record<string, ProgressType>) => {
+  const updateCourseProgress = async (progressMap: Record<string, UserProgress>) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
@@ -132,7 +136,7 @@ export default function LearningPage() {
         acc + (module.lessons?.length || 0), 0)
       
       const completedLessons = Object.values(progressMap).filter(
-        (p: ProgressType) => p.is_completed
+        (p: UserProgress) => p.is_completed
       ).length
 
       const progressPercentage = totalLessons > 0 
@@ -168,6 +172,7 @@ export default function LearningPage() {
       
       if (!user) return
 
+      const now = new Date().toISOString()
       await supabase
         .from('user_progress')
         .upsert({
@@ -175,7 +180,8 @@ export default function LearningPage() {
           lesson_id: lessonId,
           module_id: currentLesson?.module_id,
           course_id: params.courseId,
-          last_accessed_at: new Date().toISOString()
+          last_accessed_at: now,
+          updated_at: now
         }, {
           onConflict: 'user_id,lesson_id'
         })
@@ -226,7 +232,7 @@ export default function LearningPage() {
   const totalLessons = modules.reduce((acc: number, m: Module) => 
     acc + (m.lessons?.length || 0), 0)
   const completedLessons = Object.values(userProgress).filter(
-    (p: ProgressType) => p.is_completed
+    (p: UserProgress) => p.is_completed
   ).length
 
   return (
@@ -308,4 +314,3 @@ export default function LearningPage() {
     </div>
   )
 }
-
