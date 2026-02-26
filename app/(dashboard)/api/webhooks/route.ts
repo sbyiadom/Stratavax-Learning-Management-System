@@ -1,72 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
-import { headers } from 'next/headers'
-
-// Webhook secret for verification (set this in your environment variables)
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'your-webhook-secret'
+import crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify webhook signature
-    const headersList = headers()
-    const signature = headersList.get('x-webhook-signature')
-    
-    // In production, verify the signature matches your secret
-    // This is a simplified example
-    if (!signature || signature !== WEBHOOK_SECRET) {
-      return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 401 }
-      )
+    const body = await request.json()
+    const signature = request.headers.get('x-webhook-signature')
+    const timestamp = request.headers.get('x-webhook-timestamp')
+
+    // Verify webhook secret if configured
+    const webhookSecret = process.env.WEBHOOK_SECRET
+    if (webhookSecret && signature) {
+      const expectedSignature = crypto
+        .createHmac('sha256', webhookSecret)
+        .update(JSON.stringify(body) + timestamp)
+        .digest('hex')
+      
+      if (signature !== expectedSignature) {
+        return NextResponse.json(
+          { error: 'Invalid signature' },
+          { status: 401 }
+        )
+      }
     }
 
-    const body = await request.json()
+    // Fixed: Added await
+    const supabase = await createServerClient()
+
+    // Process different webhook events
     const { event, data } = body
 
-    const supabase = createAdminClient()
-
-    // Handle different webhook events
     switch (event) {
-      case 'course.created':
-        // Handle course creation from external system
-        await supabase.from('courses').insert(data)
+      case 'course.updated':
+        await handleCourseUpdated(supabase, data)
         break
-        
-      case 'user.updated':
-        // Handle user updates from external system
-        await supabase
-          .from('profiles')
-          .update(data)
-          .eq('id', data.user_id)
+      
+      case 'user.enrolled':
+        await handleUserEnrolled(supabase, data)
         break
-        
+      
       case 'assessment.completed':
-        // Handle assessment completion
-        await supabase
-          .from('assessments')
-          .insert({
-            user_id: data.user_id,
-            lesson_id: data.lesson_id,
-            score: data.score,
-            responses: data.responses,
-            submitted_at: new Date().toISOString(),
-          })
+        await handleAssessmentCompleted(supabase, data)
         break
-        
-      case 'github.sync':
-        // Handle GitHub repository sync request
-        // This would trigger the GitHub sync process
-        console.log('GitHub sync requested for course:', data.course_id)
-        break
-        
+      
       default:
-        console.log('Unhandled webhook event:', event)
+        console.log('Unknown webhook event:', event)
     }
 
+    // Log webhook for auditing
+    await supabase
+      .from('webhook_logs')
+      .insert({
+        event,
+        payload: body,
+        received_at: new Date().toISOString()
+      })
+
     return NextResponse.json({ 
-      success: true, 
-      message: 'Webhook received successfully' 
+      success: true,
+      message: 'Webhook processed successfully'
     })
+
   } catch (error) {
     console.error('Webhook error:', error)
     return NextResponse.json(
@@ -76,18 +70,31 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Optional: Handle GET requests for webhook verification
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const challenge = searchParams.get('challenge')
-  
-  if (challenge) {
-    // Respond to webhook verification challenge
-    return new NextResponse(challenge)
-  }
-  
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  )
+async function handleCourseUpdated(supabase: any, data: any) {
+  // Update course information
+  await supabase
+    .from('courses')
+    .update({
+      title: data.title,
+      description: data.description,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', data.courseId)
+}
+
+async function handleUserEnrolled(supabase: any, data: any) {
+  // Send notification or perform other actions
+  console.log('User enrolled:', data)
+}
+
+async function handleAssessmentCompleted(supabase: any, data: any) {
+  // Update user progress or generate certificate
+  console.log('Assessment completed:', data)
+}
+
+export async function GET() {
+  return NextResponse.json({
+    message: 'Webhook endpoint is active',
+    usage: 'Send POST requests with webhook data'
+  })
 }
