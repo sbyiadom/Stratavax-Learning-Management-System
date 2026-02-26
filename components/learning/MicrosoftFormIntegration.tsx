@@ -60,18 +60,20 @@ export default function MicrosoftFormIntegration({ lessonId, courseId }: Microso
       toast.success('Form submitted successfully!')
       
       // Mark lesson as complete or update progress
-      await supabase
-        .from('user_progress')
-        .upsert({
-          user_id: user?.id,
-          lesson_id: lessonId,
-          course_id: courseId,
-          is_completed: true,
-          completed_at: new Date().toISOString(),
-          last_accessed_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,lesson_id'
-        })
+      if (user) {
+        await supabase
+          .from('user_progress')
+          .upsert({
+            user_id: user.id,
+            lesson_id: lessonId,
+            course_id: courseId,
+            is_completed: true,
+            completed_at: new Date().toISOString(),
+            last_accessed_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,lesson_id'
+          })
+      }
 
     } catch (error) {
       console.error('Error submitting form:', error)
@@ -83,8 +85,12 @@ export default function MicrosoftFormIntegration({ lessonId, courseId }: Microso
 
   if (!user) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">Please sign in to access forms</p>
+      <div className="text-center py-8 border rounded-lg bg-gray-50">
+        <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+        <p className="text-gray-600 mb-2">Sign in to access forms</p>
+        <Button variant="outline" onClick={() => window.location.href = '/login'}>
+          Sign In
+        </Button>
       </div>
     )
   }
@@ -120,13 +126,31 @@ export default function MicrosoftFormIntegration({ lessonId, courseId }: Microso
           {formData?.embedUrl && (
             <iframe
               src={formData.embedUrl}
-              className="w-full h-[600px] border-0"
+              className="w-full h-[600px] border-0 rounded-lg"
               title="Microsoft Form"
+              allow="fullscreen"
             />
           )}
 
-          {/* Manual submission button if needed */}
-          <div className="flex justify-end">
+          {/* If no embed URL, show link */}
+          {!formData?.embedUrl && formData?.formUrl && (
+            <div className="text-center py-4">
+              <p className="text-gray-600 mb-4">
+                Click the link below to open the form in a new tab.
+              </p>
+              <a
+                href={formData.formUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                Open Microsoft Form
+              </a>
+            </div>
+          )}
+
+          {/* Manual submission button */}
+          <div className="flex justify-end pt-4 border-t">
             <Button
               onClick={() => submitFormResponse({})}
               disabled={loading}
