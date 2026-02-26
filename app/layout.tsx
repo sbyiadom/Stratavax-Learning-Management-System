@@ -1,14 +1,18 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { Providers } from './providers'
-import { Toaster } from 'react-hot-toast'
+import SupabaseProvider from './providers'
+import { Analytics } from '@vercel/analytics/react'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'StrataVax LMS',
-  description: 'Learning Management System',
+  title: 'StrataVax - Learning Management System',
+  description: 'Enterprise-grade learning management platform',
+  keywords: 'LMS, learning management, courses, education',
+  authors: [{ name: 'StrataVax' }],
+  viewport: 'width=device-width, initial-scale=1',
+  robots: 'index, follow',
 }
 
 export default function RootLayout({
@@ -17,12 +21,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <Providers>
-          {children}
-          <Toaster position="top-right" />
-        </Providers>
+    <html lang="en" className="h-full">
+      <body className={`${inter.className} h-full antialiased`}>
+        <SupabaseProvider>
+          <main className="min-h-full">
+            {children}
+          </main>
+          <Analytics />
+        </SupabaseProvider>
       </body>
     </html>
   )
