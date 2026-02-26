@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase-server'
 import { headers } from 'next/headers'
 
 // Webhook secret for verification (set this in your environment variables)
