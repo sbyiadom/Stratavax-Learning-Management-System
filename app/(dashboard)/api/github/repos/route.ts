@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase-server'
+import { Octokit } from '@octokit/rest'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    // Fixed: Added await
+    const supabase = await createServerClient()
     
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -11,47 +13,90 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get GitHub token from user metadata
-    const githubToken = user.user_metadata?.github_token
+    const searchParams = request.nextUrl.searchParams
+    const owner = searchParams.get('owner')
+    const repo = searchParams.get('repo')
 
-    if (!githubToken) {
-      return NextResponse.json(
-        { error: 'GitHub account not connected' },
-        { status: 400 }
-      )
+    const token = process.env.GITHUB_TOKEN
+    if (!token) {
+      return NextResponse.json({ error: 'GitHub token not configured' }, { status: 500 })
     }
 
-    const response = await fetch('https://api.github.com/user/repos', {
-      headers: {
-        'Authorization': `Bearer ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    })
+    const octokit = new Octokit({ auth: token })
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch repositories')
+    if (owner && repo) {
+      // Get specific repo
+      const { data: repository } = await octokit.repos.get({ owner, repo })
+      return NextResponse.json({ repository })
+    } else {
+      // List repos for the authenticated user
+      const { data: repos } = await octokit.repos.listForAuthenticatedUser({
+        sort: 'updated',
+        per_page: 100
+      })
+      return NextResponse.json({ repos })
     }
 
-    const repos = await response.json()
-
-    const formattedRepos = repos.map((repo: any) => ({
-      id: repo.id,
-      name: repo.name,
-      full_name: repo.full_name,
-      description: repo.description,
-      html_url: repo.html_url,
-      stargazers_count: repo.stargazers_count,
-      forks_count: repo.forks_count,
-      language: repo.language,
-      updated_at: repo.updated_at,
-      private: repo.private,
-    }))
-
-    return NextResponse.json({ success: true, repositories: formattedRepos })
   } catch (error) {
     console.error('GitHub API error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch GitHub repositories' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // Fixed: Added await
+    const supabase = await createServerClient()
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { owner, repo, action } = await request.json()
+
+    const token = process.env.GITHUB_TOKEN
+    if (!token) {
+      return NextResponse.json({ error: 'GitHub token not configured' }, { status: 500 })
+    }
+
+    const octokit = new Octokit({ auth: token })
+
+    if (action === 'sync') {
+      // Sync repository data (example: get contents)
+      const { data: contents } = await octokit.repos.getContent({
+        owner,
+        repo,
+        path: ''
+      })
+
+      // Store sync record in database
+      await supabase
+        .from('github_syncs')
+        .insert({
+          user_id: user.id,
+          owner,
+          repo,
+          synced_at: new Date().toISOString()
+        })
+
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Repository synced successfully',
+        contents 
+      })
+    }
+
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+
+  } catch (error) {
+    console.error('GitHub API error:', error)
+    return NextResponse.json(
+      { error: 'Failed to process GitHub request' },
       { status: 500 }
     )
   }
