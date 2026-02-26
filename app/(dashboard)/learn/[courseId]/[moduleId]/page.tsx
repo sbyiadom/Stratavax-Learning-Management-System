@@ -2,13 +2,73 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase'  // Change back to supabase
+import { createClient } from '@/lib/supabase'
 import LessonContent from '@/components/learning/LessonContent'
 import CourseSidebar from '@/components/learning/CourseSidebar'
 import ProgressTracker from '@/components/learning/ProgressTracker'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
-import type { Course, Module, Lesson, UserProgress } from '@/types' // Fixed import path
+
+// Local type definitions
+interface Profile {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  email: string | null
+  avatar_url: string | null
+}
+
+interface Course {
+  id: string
+  title: string
+  description: string | null
+  instructor: string | null
+  duration: string | null
+  level: string | null
+  price: number
+  thumbnail_url: string | null
+  created_at: string
+  updated_at: string
+  instructor_details?: Profile
+  modules?: Module[]
+}
+
+interface Module {
+  id: string
+  course_id: string
+  title: string
+  description: string | null
+  order_index: number
+  created_at: string
+  updated_at: string
+  lessons?: Lesson[]
+}
+
+interface Lesson {
+  id: string
+  course_id: string
+  module_id: string | null
+  title: string
+  content: string | null
+  video_url: string | null
+  duration: string | null
+  order_index: number
+  created_at: string
+  updated_at: string
+}
+
+interface UserProgress {
+  id: string
+  user_id: string
+  lesson_id: string
+  module_id: string | null
+  course_id: string
+  is_completed: boolean
+  completed_at: string | null
+  last_accessed_at: string | null
+  created_at: string
+  updated_at: string
+}
 
 export default function LearningPage() {
   const params = useParams()
@@ -314,5 +374,3 @@ export default function LearningPage() {
     </div>
   )
 }
-
-
