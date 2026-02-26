@@ -1,11 +1,14 @@
 'use client'
 
-import { SessionProvider } from 'next-auth/react'
+import { createClient } from '@/lib/supabase'
+import { SupabaseProvider } from '@supabase/ssr'
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const supabase = createClient()
+  
   return (
-    <SessionProvider>
+    <SupabaseProvider supabaseClient={supabase}>
       {children}
-    </SessionProvider>
+    </SupabaseProvider>
   )
 }
