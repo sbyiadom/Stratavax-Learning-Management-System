@@ -21,9 +21,11 @@ import type { User } from '@supabase/supabase-js'
 
 interface HeaderProps {
   user: User
+  // Optional profile prop if you need it
+  profile?: any
 }
 
-export default function Header({ user }: HeaderProps) {
+export default function Header({ user, profile }: HeaderProps) {
   const router = useRouter()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -92,14 +94,16 @@ export default function Header({ user }: HeaderProps) {
     }
   }
 
-  // Get user display info
-  const userDisplayName = user?.user_metadata?.full_name || 
-                         user?.user_metadata?.name || 
-                         user?.email?.split('@')[0] || 
-                         'User'
+  // Get user display info - use profile if available, otherwise fallback to user metadata
+  const userDisplayName = profile?.first_name && profile?.last_name 
+    ? `${profile.first_name} ${profile.last_name}`
+    : user?.user_metadata?.full_name || 
+      user?.user_metadata?.name || 
+      user?.email?.split('@')[0] || 
+      'User'
   
-  const userEmail = user?.email || ''
-  const userAvatar = user?.user_metadata?.avatar_url
+  const userEmail = profile?.email || user?.email || ''
+  const userAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
