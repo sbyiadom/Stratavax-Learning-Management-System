@@ -1,16 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  images: {
-    domains: ['ffspuexbioqfwnferimq.supabase.co'], // Add your Supabase storage domain
+  output: 'standalone',
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: false,
   },
   experimental: {
-    serverActions: true,
+    serverComponentsExternalPackages: ['@supabase/ssr'],
   },
-  // Ensure environment variables are available
-  env: {
-    NEXT_PUBLIC_SUPABASE_URL_NEW: process.env.NEXT_PUBLIC_SUPABASE_URL_NEW,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW,
-  },
+  // Disable telemetry and Sentry
+  telemetry: false,
 }
 
 module.exports = nextConfig
