@@ -2,140 +2,93 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { BookOpen } from 'lucide-react'
+import CourseGrid from '@/components/courses/CourseGrid'
+import { Input } from '@/components/ui/input'
+import { Search } from 'lucide-react'
 
-interface Enrollment {
+interface Course {
   id: string
-  course_id: string
-  progress_percentage: number
-  status: string
-  enrolled_at: string
+  title: string
+  description: string | null
+  instructor: string | null
+  duration: string | null
+  level: string | null
+  price: number
+  thumbnail_url: string | null
+  created_at: string
   updated_at: string
-  courses: {
-    title: string
-    thumbnail_url: string | null
-    duration: string | null
-    level: string | null
-  } | null
+  category?: string | null
+  difficulty?: string | null
+  rating?: number | null
+  students?: number | null
 }
 
-export default function ProgressPage() {
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([])
+export default function ExplorePage() {
+  const [courses, setCourses] = useState<Course[]>([])
+  const [filtered, setFiltered] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
   const supabase = createClient()
 
   useEffect(() => {
-    fetchProgress()
+    fetchCourses()
   }, [])
 
-  const fetchProgress = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setLoading(false)
-        return
-      }
+  useEffect(() => {
+    if (search) {
+      setFiltered(courses.filter((c: Course) => 
+        c.title.toLowerCase().includes(search.toLowerCase())
+      ))
+    } else {
+      setFiltered(courses)
+    }
+  }, [search, courses])
 
+  const fetchCourses = async () => {
+    try {
       const { data, error } = await supabase
-        .from('enrollments')
-        .select(`
-          id,
-          course_id,
-          progress_percentage,
-          status,
-          enrolled_at,
-          updated_at,
-          courses:course_id (
-            title,
-            thumbnail_url,
-            duration,
-            level
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false })
+        .from('courses')
+        .select('*')
+        .limit(20)
       
       if (error) throw error
       
-      setEnrollments(data || [])
+      if (data) {
+        const mappedCourses = data.map(course => ({
+          ...course,
+          category: null,
+          difficulty: course.level,
+          rating: null,
+          students: null
+        }))
+        setCourses(mappedCourses as Course[])
+        setFiltered(mappedCourses as Course[])
+      } else {
+        setCourses([])
+        setFiltered([])
+      }
     } catch (error) {
-      console.error('Error fetching progress:', error)
+      console.error('Error fetching courses:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading progress...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">My Learning Progress</h1>
+      <h1 className="text-2xl font-bold">Explore Courses</h1>
       
-      {enrollments.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 mb-2">You haven't enrolled in any courses yet.</p>
-            <p className="text-sm text-gray-400">
-              Browse courses and start your learning journey!
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {enrollments.map((enrollment) => (
-            <Card key={enrollment.id}>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  {enrollment.courses?.title || 'Unknown Course'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Progress</span>
-                      <span className="font-medium">{enrollment.progress_percentage}%</span>
-                    </div>
-                    <Progress value={enrollment.progress_percentage} className="h-2" />
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-4 text-sm">
-                    {enrollment.courses?.duration && (
-                      <span className="text-gray-500">
-                        Duration: {enrollment.courses.duration}
-                      </span>
-                    )}
-                    {enrollment.courses?.level && (
-                      <span className="text-gray-500">
-                        Level: {enrollment.courses.level}
-                      </span>
-                    )}
-                    <span className="text-gray-500 capitalize">
-                      Status: {enrollment.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                  
-                  <div className="text-xs text-gray-400">
-                    Last updated: {new Date(enrollment.updated_at).toLocaleDateString()}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <Input
+          placeholder="Search courses..."
+          className="pl-10"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      <CourseGrid courses={filtered} loading={loading} />
     </div>
   )
 }
