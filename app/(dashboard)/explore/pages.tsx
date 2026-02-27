@@ -6,7 +6,6 @@ import CourseGrid from '@/components/courses/CourseGrid'
 import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-react'
 
-// Define the Course type
 interface Course {
   id: string
   title: string
@@ -18,6 +17,10 @@ interface Course {
   thumbnail_url: string | null
   created_at: string
   updated_at: string
+  category?: string | null
+  difficulty?: string | null
+  rating?: number | null
+  students?: number | null
 }
 
 export default function ExplorePage() {
@@ -51,8 +54,15 @@ export default function ExplorePage() {
       if (error) throw error
       
       if (data) {
-        setCourses(data as Course[])
-        setFiltered(data as Course[])
+        const mappedCourses = data.map(course => ({
+          ...course,
+          category: null,
+          difficulty: course.level,
+          rating: null,
+          students: null
+        }))
+        setCourses(mappedCourses as Course[])
+        setFiltered(mappedCourses as Course[])
       } else {
         setCourses([])
         setFiltered([])
