@@ -6,6 +6,9 @@ import CourseProgress from '@/components/courses/CourseProgress'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Clock, Award } from 'lucide-react'
 
+// Force dynamic rendering since this page uses cookies() via createServerClient
+export const dynamic = 'force-dynamic'
+
 // Loading components
 function StatsLoading() {
   return (
