@@ -10,8 +10,10 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@supabase/ssr'],
   },
-  // Disable telemetry and Sentry
-  telemetry: false,
+  // This helps with client manifest generation
+  generateBuildId: async () => {
+    return 'build-' + Date.now()
+  },
 }
 
 module.exports = nextConfig
