@@ -8,113 +8,104 @@ import CourseProgress from '@/components/courses/CourseProgress'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Clock, Award } from 'lucide-react'
 
-// Define types
-interface Course {
-  id: number
-  title: string
-  progress: number
-  instructor: string
-}
-
-interface Activity {
-  id: string
-  passed: boolean
-  score: number
-  completed_at: string
-  quizzes: {
-    title: string
-  } | null
-}
-
-interface Stats {
-  totalCourses: number
-  completedCourses: number
-  inProgressCourses: number
-  averageProgress: number
-  totalStudyTime: number
-}
+// ... (keep all your existing imports and interfaces)
 
 export default function DashboardHomePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState<Stats>({
+  const [stats, setStats] = useState({
     totalCourses: 0,
     completedCourses: 0,
     inProgressCourses: 0,
     averageProgress: 0,
     totalStudyTime: 0
   })
-  const [courses, setCourses] = useState<Course[]>([])
-  const [activities, setActivities] = useState<Activity[]>([])
+  const [courses, setCourses] = useState<any[]>([])
+  const [activities, setActivities] = useState<any[]>([])
   const [userName, setUserName] = useState('')
   const supabase = createClient()
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    let mounted = true
 
-  const fetchDashboardData = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        router.push('/login')
-        return
+    const fetchDashboardData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!user) {
+          router.push('/login')
+          return
+        }
+
+        if (!mounted) return
+
+        setUserName(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User')
+
+        // Fetch enrollments
+        const { data: enrollments } = await supabase
+          .from('enrollments')
+          .select(`
+            *,
+            courses(title, instructor)
+          `)
+          .eq('user_id', user.id)
+
+        if (!mounted) return
+
+        // Calculate stats
+        const totalCourses = enrollments?.length || 0
+        const completedCourses = enrollments?.filter(e => e.status === 'completed').length || 0
+        const inProgressCourses = enrollments?.filter(e => e.status === 'in_progress').length || 0
+        const averageProgress = enrollments?.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) / (totalCourses || 1)
+
+        setStats({
+          totalCourses,
+          completedCourses,
+          inProgressCourses,
+          averageProgress: Math.round(averageProgress),
+          totalStudyTime: 42
+        })
+
+        // Set courses for progress display
+        const mappedCourses = enrollments?.slice(0, 4).map(e => ({
+          id: parseInt(e.id) || Math.random(),
+          title: e.courses?.title || 'Unknown Course',
+          progress: e.progress_percentage || 0,
+          instructor: e.courses?.instructor || 'Unknown Instructor'
+        })) || []
+        
+        if (!mounted) return
+        setCourses(mappedCourses)
+
+        // Fetch recent activity
+        const { data: attempts } = await supabase
+          .from('quiz_attempts')
+          .select(`
+            *,
+            quizzes(title)
+          `)
+          .eq('user_id', user.id)
+          .order('completed_at', { ascending: false })
+          .limit(5)
+        
+        if (!mounted) return
+        setActivities(attempts || [])
+
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error)
+      } finally {
+        if (mounted) {
+          setLoading(false)
+        }
       }
-
-      setUserName(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User')
-
-      // Fetch enrollments
-      const { data: enrollments } = await supabase
-        .from('enrollments')
-        .select(`
-          *,
-          courses(title, instructor)
-        `)
-        .eq('user_id', user.id)
-
-      // Calculate stats
-      const totalCourses = enrollments?.length || 0
-      const completedCourses = enrollments?.filter(e => e.status === 'completed').length || 0
-      const inProgressCourses = enrollments?.filter(e => e.status === 'in_progress').length || 0
-      const averageProgress = enrollments?.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) / (totalCourses || 1)
-
-      setStats({
-        totalCourses,
-        completedCourses,
-        inProgressCourses,
-        averageProgress: Math.round(averageProgress),
-        totalStudyTime: 42
-      })
-
-      // Set courses for progress display
-      const mappedCourses: Course[] = enrollments?.slice(0, 4).map(e => ({
-        id: parseInt(e.id) || Math.random(),
-        title: e.courses?.title || 'Unknown Course',
-        progress: e.progress_percentage || 0,
-        instructor: e.courses?.instructor || 'Unknown Instructor'
-      })) || []
-      setCourses(mappedCourses)
-
-      // Fetch recent activity
-      const { data: attempts } = await supabase
-        .from('quiz_attempts')
-        .select(`
-          *,
-          quizzes(title)
-        `)
-        .eq('user_id', user.id)
-        .order('completed_at', { ascending: false })
-        .limit(5)
-      
-      setActivities(attempts || [])
-
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-    } finally {
-      setLoading(false)
     }
-  }
+
+    fetchDashboardData()
+
+    return () => {
+      mounted = false
+    }
+  }, [router, supabase])
 
   if (loading) {
     return (
