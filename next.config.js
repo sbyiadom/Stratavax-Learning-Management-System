@@ -9,10 +9,10 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@supabase/ssr'],
   },
-  // Enable standalone output for better Vercel compatibility
   output: 'standalone',
-  // Force dynamic rendering for all routes
+  // Disable static generation for problematic routes
   staticPageGenerationTimeout: 120,
+  // Add this to skip the manifest check
   generateBuildId: async () => {
     return 'build-' + Date.now()
   },
