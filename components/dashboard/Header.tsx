@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { 
@@ -26,12 +26,17 @@ interface HeaderProps {
 
 export default function Header({ user, profile }: HeaderProps) {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [connectingGitHub, setConnectingGitHub] = useState(false)
 
   const supabase = createClient()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -102,6 +107,24 @@ export default function Header({ user, profile }: HeaderProps) {
   
   const userEmail = profile?.email || user?.email || ''
   const userAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url
+
+  // Don't render interactive elements until mounted on client
+  if (!mounted) {
+    return (
+      <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
+        <div className="px-6 py-4 flex items-center justify-between">
+          <div className="flex-1 max-w-2xl">
+            <div className="h-10 bg-gray-100 rounded-lg animate-pulse"></div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="w-24 h-10 bg-gray-100 rounded-lg animate-pulse"></div>
+            <div className="w-24 h-10 bg-gray-100 rounded-lg animate-pulse"></div>
+            <div className="w-10 h-10 bg-gray-100 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </header>
+    )
+  }
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
