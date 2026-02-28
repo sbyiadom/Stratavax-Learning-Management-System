@@ -8,6 +8,8 @@ import { Clock, Award } from 'lucide-react'
 
 // Force dynamic rendering since this page uses cookies() via createServerClient
 export const dynamic = 'force-dynamic'
+// Prevent caching of this page to avoid client manifest issues
+export const revalidate = 0
 
 // Loading components
 function StatsLoading() {
