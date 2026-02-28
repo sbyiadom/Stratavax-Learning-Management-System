@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/create-manifest.js && next build",
+    "build": "next build || node scripts/create-manifest-after-build.js",
     "start": "next start",
     "lint": "next lint"
   },
