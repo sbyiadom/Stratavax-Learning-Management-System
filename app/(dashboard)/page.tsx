@@ -1,5 +1,8 @@
 'use client'
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
@@ -8,25 +11,49 @@ import CourseProgress from '@/components/courses/CourseProgress'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Clock, Award } from 'lucide-react'
 
-// ... (keep all your existing imports and interfaces)
+// Define types
+interface Course {
+  id: number
+  title: string
+  progress: number
+  instructor: string
+}
+
+interface Activity {
+  id: string
+  passed: boolean
+  score: number
+  completed_at: string
+  quizzes: {
+    title: string
+  } | null
+}
+
+interface Stats {
+  totalCourses: number
+  completedCourses: number
+  inProgressCourses: number
+  averageProgress: number
+  totalStudyTime: number
+}
 
 export default function DashboardHomePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<Stats>({
     totalCourses: 0,
     completedCourses: 0,
     inProgressCourses: 0,
     averageProgress: 0,
     totalStudyTime: 0
   })
-  const [courses, setCourses] = useState<any[]>([])
-  const [activities, setActivities] = useState<any[]>([])
+  const [courses, setCourses] = useState<Course[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
   const [userName, setUserName] = useState('')
   const supabase = createClient()
 
   useEffect(() => {
-    let mounted = true
+    let isMounted = true
 
     const fetchDashboardData = async () => {
       try {
@@ -37,7 +64,7 @@ export default function DashboardHomePage() {
           return
         }
 
-        if (!mounted) return
+        if (!isMounted) return
 
         setUserName(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User')
 
@@ -50,7 +77,7 @@ export default function DashboardHomePage() {
           `)
           .eq('user_id', user.id)
 
-        if (!mounted) return
+        if (!isMounted) return
 
         // Calculate stats
         const totalCourses = enrollments?.length || 0
@@ -67,14 +94,14 @@ export default function DashboardHomePage() {
         })
 
         // Set courses for progress display
-        const mappedCourses = enrollments?.slice(0, 4).map(e => ({
+        const mappedCourses: Course[] = enrollments?.slice(0, 4).map(e => ({
           id: parseInt(e.id) || Math.random(),
           title: e.courses?.title || 'Unknown Course',
           progress: e.progress_percentage || 0,
           instructor: e.courses?.instructor || 'Unknown Instructor'
         })) || []
         
-        if (!mounted) return
+        if (!isMounted) return
         setCourses(mappedCourses)
 
         // Fetch recent activity
@@ -88,13 +115,13 @@ export default function DashboardHomePage() {
           .order('completed_at', { ascending: false })
           .limit(5)
         
-        if (!mounted) return
+        if (!isMounted) return
         setActivities(attempts || [])
 
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
       } finally {
-        if (mounted) {
+        if (isMounted) {
           setLoading(false)
         }
       }
@@ -103,7 +130,7 @@ export default function DashboardHomePage() {
     fetchDashboardData()
 
     return () => {
-      mounted = false
+      isMounted = false
     }
   }, [router, supabase])
 
