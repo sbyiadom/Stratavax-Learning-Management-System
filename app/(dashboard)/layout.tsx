@@ -1,5 +1,8 @@
 'use client'
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
@@ -17,26 +20,36 @@ export default function DashboardLayout({
   const supabase = createClient()
 
   useEffect(() => {
-    checkUser()
-  }, [])
+    let isMounted = true
 
-  const checkUser = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
+    const checkUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!user) {
+          router.push('/login')
+          return
+        }
+        
+        if (isMounted) {
+          setUser(user)
+        }
+      } catch (error) {
+        console.error('Auth error:', error)
         router.push('/login')
-        return
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
       }
-      
-      setUser(user)
-    } catch (error) {
-      console.error('Auth error:', error)
-      router.push('/login')
-    } finally {
-      setLoading(false)
     }
-  }
+
+    checkUser()
+
+    return () => {
+      isMounted = false
+    }
+  }, [router, supabase])
 
   if (loading) {
     return (
