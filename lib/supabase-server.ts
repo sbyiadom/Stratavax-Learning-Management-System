@@ -21,14 +21,16 @@ export const createServerClient = async () => {
           try {
             cookieStore.set({ name, value, ...options })
           } catch (error) {
-            // Handle cookie error
+            // Handle cookie error in server component
+            console.error('Error setting cookie:', error)
           }
         },
         remove(name: string, options: any) {
           try {
             cookieStore.set({ name, value: '', ...options })
           } catch (error) {
-            // Handle cookie error
+            // Handle cookie error in server component
+            console.error('Error removing cookie:', error)
           }
         },
       },
@@ -39,6 +41,10 @@ export const createServerClient = async () => {
 // Admin client with service role (server-side only)
 export const createAdminClient = () => {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY_NEW!
+  
+  if (!serviceRoleKey) {
+    throw new Error('Missing Supabase service role key')
+  }
   
   return createServerSupabaseClient(
     supabaseUrl,
