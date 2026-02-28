@@ -37,14 +37,14 @@ const mockCourse = {
   isEnrolled: true,
   progress: 45,
   syllabus: [
-    { id: 1, title: 'Introduction to React', duration: '2h 30m', completed: true },
-    { id: 2, title: 'JSX and Components', duration: '3h 15m', completed: true },
-    { id: 3, title: 'State and Props', duration: '4h', completed: true },
-    { id: 4, title: 'React Hooks', duration: '5h 30m', completed: false },
-    { id: 5, title: 'Context API', duration: '4h', completed: false },
-    { id: 6, title: 'React Router', duration: '3h 45m', completed: false },
-    { id: 7, title: 'Redux Toolkit', duration: '6h', completed: false },
-    { id: 8, title: 'Testing React Apps', duration: '4h 30m', completed: false },
+    { id: 1, title: 'Introduction to React', duration: '2h 30m', completed: true, moduleId: 'module-1' },
+    { id: 2, title: 'JSX and Components', duration: '3h 15m', completed: true, moduleId: 'module-1' },
+    { id: 3, title: 'State and Props', duration: '4h', completed: true, moduleId: 'module-2' },
+    { id: 4, title: 'React Hooks', duration: '5h 30m', completed: false, moduleId: 'module-2' },
+    { id: 5, title: 'Context API', duration: '4h', completed: false, moduleId: 'module-3' },
+    { id: 6, title: 'React Router', duration: '3h 45m', completed: false, moduleId: 'module-3' },
+    { id: 7, title: 'Redux Toolkit', duration: '6h', completed: false, moduleId: 'module-4' },
+    { id: 8, title: 'Testing React Apps', duration: '4h 30m', completed: false, moduleId: 'module-4' },
   ],
   resources: [
     { type: 'pdf', title: 'Course Syllabus', size: '2.4 MB' },
@@ -183,7 +183,7 @@ export default function CourseLearnPage() {
                       </div>
                       
                       <Link
-                        href={`/learn/${params.courseId}/lesson/${lesson.id}`}
+                        href={`/learn/${params.courseId}/${lesson.moduleId}`}
                         className="flex items-center text-blue-600 hover:text-blue-800 font-medium"
                       >
                         {lesson.completed ? 'Review' : 'Start'}
