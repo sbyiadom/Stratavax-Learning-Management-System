@@ -5,6 +5,8 @@ import DashboardSidebar from '@/components/dashboard/Sidebar'
 
 // Force dynamic rendering since this layout uses cookies via createServerClient
 export const dynamic = 'force-dynamic'
+// Prevent caching of this layout to avoid client manifest issues
+export const revalidate = 0
 
 export default async function DashboardLayout({
   children,
