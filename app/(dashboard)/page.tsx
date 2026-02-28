@@ -8,18 +8,44 @@ import CourseProgress from '@/components/courses/CourseProgress'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Clock, Award } from 'lucide-react'
 
+// Define types
+interface Course {
+  id: number
+  title: string
+  progress: number
+  instructor: string
+}
+
+interface Activity {
+  id: string
+  passed: boolean
+  score: number
+  completed_at: string
+  quizzes: {
+    title: string
+  } | null
+}
+
+interface Stats {
+  totalCourses: number
+  completedCourses: number
+  inProgressCourses: number
+  averageProgress: number
+  totalStudyTime: number
+}
+
 export default function DashboardHomePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<Stats>({
     totalCourses: 0,
     completedCourses: 0,
     inProgressCourses: 0,
     averageProgress: 0,
     totalStudyTime: 0
   })
-  const [courses, setCourses] = useState([])
-  const [activities, setActivities] = useState([])
+  const [courses, setCourses] = useState<Course[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
   const [userName, setUserName] = useState('')
   const supabase = createClient()
 
@@ -62,7 +88,7 @@ export default function DashboardHomePage() {
       })
 
       // Set courses for progress display
-      const mappedCourses = enrollments?.slice(0, 4).map(e => ({
+      const mappedCourses: Course[] = enrollments?.slice(0, 4).map(e => ({
         id: parseInt(e.id) || Math.random(),
         title: e.courses?.title || 'Unknown Course',
         progress: e.progress_percentage || 0,
@@ -142,7 +168,7 @@ export default function DashboardHomePage() {
               <p className="text-sm text-gray-500">No recent activity</p>
             ) : (
               <div className="space-y-4">
-                {activities.map((attempt: any) => (
+                {activities.map((attempt) => (
                   <div key={attempt.id} className="flex items-start gap-3">
                     <div className={`p-2 rounded-full ${
                       attempt.passed ? 'bg-green-100' : 'bg-yellow-100'
