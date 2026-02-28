@@ -1,154 +1,109 @@
-import { createServerClient } from '@/lib/supabase-server'
-import { redirect } from 'next/navigation'
-import { Suspense } from 'react'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
 import DashboardStats from '@/components/dashboard/StatsCards'
 import CourseProgress from '@/components/courses/CourseProgress'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Clock, Award } from 'lucide-react'
 
-// Force dynamic rendering since this page uses cookies() via createServerClient
-export const dynamic = 'force-dynamic'
-// Prevent caching of this page to avoid client manifest issues
-export const revalidate = 0
+export default function DashboardHomePage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalCourses: 0,
+    completedCourses: 0,
+    inProgressCourses: 0,
+    averageProgress: 0,
+    totalStudyTime: 0
+  })
+  const [courses, setCourses] = useState([])
+  const [activities, setActivities] = useState([])
+  const [userName, setUserName] = useState('')
+  const supabase = createClient()
 
-// Loading components
-function StatsLoading() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-          <div className="h-8 bg-gray-200 rounded w-3/4"></div>
-        </div>
-      ))}
-    </div>
-  )
-}
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
 
-function CoursesLoading() {
-  return (
-    <div className="space-y-4">
-      {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="bg-white rounded-lg shadow p-4 animate-pulse">
-          <div className="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
-          <div className="h-2 bg-gray-200 rounded w-full"></div>
-        </div>
-      ))}
-    </div>
-  )
-}
+  const fetchDashboardData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        router.push('/login')
+        return
+      }
 
-function ActivityLoading() {
-  return (
-    <div className="space-y-4">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="flex items-start gap-3 animate-pulse">
-          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
-          <div className="flex-1">
-            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
+      setUserName(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User')
 
-async function StatsContent({ userId }: { userId: string }) {
-  const supabase = await createServerClient()
-  
-  const { data: enrollments } = await supabase
-    .from('enrollments')
-    .select('*')
-    .eq('user_id', userId)
+      // Fetch enrollments
+      const { data: enrollments } = await supabase
+        .from('enrollments')
+        .select(`
+          *,
+          courses(title, instructor)
+        `)
+        .eq('user_id', user.id)
 
-  const totalCourses = enrollments?.length || 0
-  const completedCourses = enrollments?.filter(e => e.status === 'completed').length || 0
-  const inProgressCourses = enrollments?.filter(e => e.status === 'in_progress').length || 0
-  const averageProgress = enrollments?.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) / (totalCourses || 1)
+      // Calculate stats
+      const totalCourses = enrollments?.length || 0
+      const completedCourses = enrollments?.filter(e => e.status === 'completed').length || 0
+      const inProgressCourses = enrollments?.filter(e => e.status === 'in_progress').length || 0
+      const averageProgress = enrollments?.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) / (totalCourses || 1)
 
-  const stats = {
-    totalCourses,
-    completedCourses,
-    inProgressCourses,
-    averageProgress: Math.round(averageProgress),
-    totalStudyTime: 42
+      setStats({
+        totalCourses,
+        completedCourses,
+        inProgressCourses,
+        averageProgress: Math.round(averageProgress),
+        totalStudyTime: 42
+      })
+
+      // Set courses for progress display
+      const mappedCourses = enrollments?.slice(0, 4).map(e => ({
+        id: parseInt(e.id) || Math.random(),
+        title: e.courses?.title || 'Unknown Course',
+        progress: e.progress_percentage || 0,
+        instructor: e.courses?.instructor || 'Unknown Instructor'
+      })) || []
+      setCourses(mappedCourses)
+
+      // Fetch recent activity
+      const { data: attempts } = await supabase
+        .from('quiz_attempts')
+        .select(`
+          *,
+          quizzes(title)
+        `)
+        .eq('user_id', user.id)
+        .order('completed_at', { ascending: false })
+        .limit(5)
+      
+      setActivities(attempts || [])
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  return <DashboardStats stats={stats} />
-}
-
-async function CoursesContent({ userId }: { userId: string }) {
-  const supabase = await createServerClient()
-  
-  const { data: enrollments } = await supabase
-    .from('enrollments')
-    .select(`
-      *,
-      courses(title, instructor)
-    `)
-    .eq('user_id', userId)
-    .limit(4)
-
-  const courses = enrollments?.map(e => ({
-    id: parseInt(e.id) || Math.random(),
-    title: e.courses?.title || 'Unknown Course',
-    progress: e.progress_percentage || 0,
-    instructor: e.courses?.instructor || 'Unknown Instructor'
-  })) || []
-
-  return <CourseProgress courses={courses} />
-}
-
-async function ActivityContent({ userId }: { userId: string }) {
-  const supabase = await createServerClient()
-  
-  const { data: attempts } = await supabase
-    .from('quiz_attempts')
-    .select(`
-      *,
-      quizzes(title)
-    `)
-    .eq('user_id', userId)
-    .order('completed_at', { ascending: false })
-    .limit(5)
-
-  if (!attempts || attempts.length === 0) {
-    return <p className="text-sm text-gray-500">No recent activity</p>
-  }
-
-  return (
-    <div className="space-y-4">
-      {attempts.map((attempt) => (
-        <div key={attempt.id} className="flex items-start gap-3">
-          <div className={`p-2 rounded-full ${
-            attempt.passed ? 'bg-green-100' : 'bg-yellow-100'
-          }`}>
-            <Award className={`w-4 h-4 ${
-              attempt.passed ? 'text-green-600' : 'text-yellow-600'
-            }`} />
-          </div>
-          <div>
-            <p className="text-sm font-medium">
-              {attempt.quizzes?.title || 'Quiz'} - Score: {attempt.score}%
-            </p>
-            <p className="text-xs text-gray-500">
-              {new Date(attempt.completed_at).toLocaleDateString()}
-            </p>
-          </div>
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 bg-gray-200 rounded w-48 animate-pulse"></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
-  )
-}
-
-export default async function DashboardHomePage() {
-  const supabase = await createServerClient()
-  
-  const { data: { session } } = await supabase.auth.getSession()
-  
-  if (!session) {
-    redirect('/login')
+      </div>
+    )
   }
 
   return (
@@ -156,13 +111,11 @@ export default async function DashboardHomePage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-gray-600 mt-2">
-          Welcome back, {session.user.user_metadata?.full_name || session.user.email?.split('@')[0]}! Here's your learning progress overview.
+          Welcome back, {userName}! Here's your learning progress overview.
         </p>
       </div>
 
-      <Suspense fallback={<StatsLoading />}>
-        <StatsContent userId={session.user.id} />
-      </Suspense>
+      <DashboardStats stats={stats} />
       
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -173,9 +126,7 @@ export default async function DashboardHomePage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Suspense fallback={<CoursesLoading />}>
-              <CoursesContent userId={session.user.id} />
-            </Suspense>
+            <CourseProgress courses={courses} />
           </CardContent>
         </Card>
         
@@ -187,9 +138,31 @@ export default async function DashboardHomePage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Suspense fallback={<ActivityLoading />}>
-              <ActivityContent userId={session.user.id} />
-            </Suspense>
+            {activities.length === 0 ? (
+              <p className="text-sm text-gray-500">No recent activity</p>
+            ) : (
+              <div className="space-y-4">
+                {activities.map((attempt: any) => (
+                  <div key={attempt.id} className="flex items-start gap-3">
+                    <div className={`p-2 rounded-full ${
+                      attempt.passed ? 'bg-green-100' : 'bg-yellow-100'
+                    }`}>
+                      <Award className={`w-4 h-4 ${
+                        attempt.passed ? 'text-green-600' : 'text-yellow-600'
+                      }`} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        {attempt.quizzes?.title || 'Quiz'} - Score: {attempt.score}%
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(attempt.completed_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
