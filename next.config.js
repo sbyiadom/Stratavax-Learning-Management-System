@@ -9,8 +9,10 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@supabase/ssr'],
   },
-  // This is the key fix - disable static generation for problematic routes
+  // Enable standalone output for better Vercel compatibility
   output: 'standalone',
+  // Force dynamic rendering for all routes
+  staticPageGenerationTimeout: 120,
   generateBuildId: async () => {
     return 'build-' + Date.now()
   },
