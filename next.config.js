@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -10,7 +9,7 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@supabase/ssr'],
   },
-  // This helps with client manifest generation
+  // Remove this line: output: 'standalone',
   generateBuildId: async () => {
     return 'build-' + Date.now()
   },
