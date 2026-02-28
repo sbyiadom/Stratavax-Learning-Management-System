@@ -9,7 +9,8 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@supabase/ssr'],
   },
-  // Remove this line: output: 'standalone',
+  // This is the key fix - disable static generation for problematic routes
+  output: 'standalone',
   generateBuildId: async () => {
     return 'build-' + Date.now()
   },
