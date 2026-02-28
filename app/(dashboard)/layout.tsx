@@ -3,6 +3,9 @@ import { redirect } from 'next/navigation'
 import DashboardHeader from '@/components/dashboard/Header'
 import DashboardSidebar from '@/components/dashboard/Sidebar'
 
+// Force dynamic rendering since this layout uses cookies via createServerClient
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -16,16 +19,8 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
-  // Optional: Fetch user profile data (remove if not needed in layout)
-  // const { data: profile } = await supabase
-  //   .from('profiles')
-  //   .select('*')
-  //   .eq('id', session.user.id)
-  //   .single()
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Fixed: removed profile prop since HeaderProps doesn't have it */}
       <DashboardHeader user={session.user} />
       <div className="flex">
         <DashboardSidebar />
