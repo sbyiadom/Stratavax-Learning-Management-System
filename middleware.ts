@@ -2,7 +2,8 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // Create response
+  console.log('🔄 Middleware running for path:', request.nextUrl.pathname)
+  
   const response = NextResponse.next()
 
   const supabase = createServerClient(
@@ -24,10 +25,11 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { session } } = await supabase.auth.getSession()
+  console.log('👤 Session exists:', !!session)
 
   const pathname = request.nextUrl.pathname
 
-  // Public routes that don't need authentication
+  // Public routes
   const isPublicRoute = 
     pathname === '/' ||
     pathname.startsWith('/login') ||
@@ -36,16 +38,21 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.includes('.')
 
-  // If user is logged in and tries to access login/register, redirect to dashboard
+  console.log('📍 Is public route:', isPublicRoute)
+
+  // If logged in and trying to access login/register, go to dashboard
   if (session && (pathname.startsWith('/login') || pathname.startsWith('/register'))) {
+    console.log('➡️ Redirecting to dashboard (logged in user on auth page)')
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // If user is not logged in and tries to access protected route, redirect to login
+  // If not logged in and trying to access protected route, go to login
   if (!session && !isPublicRoute) {
+    console.log('➡️ Redirecting to login (unauthenticated user on protected route)')
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
+  console.log('✅ No redirect needed')
   return response
 }
 
