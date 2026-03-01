@@ -3,6 +3,19 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
+  
+  // Log every request with timestamp
+  console.log('\n=== MIDDLEWARE DEBUG ===')
+  console.log('Time:', new Date().toISOString())
+  console.log('Path:', pathname)
+  console.log('Full URL:', request.url)
+  console.log('Method:', request.method)
+  
+  // Log all cookies
+  console.log('Cookies:')
+  request.cookies.getAll().forEach(cookie => {
+    console.log(`  ${cookie.name}: ${cookie.value.substring(0, 20)}...`)
+  })
 
   const response = NextResponse.next()
 
@@ -12,41 +25,62 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          return request.cookies.get(name)?.value
+          const cookie = request.cookies.get(name)?.value
+          console.log(`Cookie GET ${name}:`, cookie ? 'exists' : 'missing')
+          return cookie
         },
         set(name: string, value: string, options: CookieOptions) {
+          console.log(`Cookie SET ${name}:`, value.substring(0, 20) + '...')
           response.cookies.set({ name, value, ...options })
         },
         remove(name: string, options: CookieOptions) {
+          console.log(`Cookie REMOVE ${name}`)
           response.cookies.set({ name, value: '', ...options })
         },
       },
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  // Try to get session
+  console.log('Attempting to get session...')
+  const { data: { session }, error } = await supabase.auth.getSession()
+  
+  if (error) {
+    console.log('Session error:', error.message)
+  }
 
-  // Public routes that don't need authentication
-  const publicRoutes = [
-    '/',
-    '/login',
-    '/register',
-    '/auth/callback',
-  ]
+  console.log('Session exists:', !!session)
+  if (session) {
+    console.log('User ID:', session.user.id.substring(0, 8) + '...')
+    console.log('User email:', session.user.email)
+  }
 
-  const isPublicRoute = publicRoutes.some(route => 
-    pathname === route || pathname.startsWith('/_next') || pathname.includes('.')
-  )
+  // Define routes
+  const isPublicRoute = 
+    pathname === '/' ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/register') ||
+    pathname.startsWith('/auth/callback') ||
+    pathname.startsWith('/_next') ||
+    pathname.includes('.')
 
-  // If user is logged in and tries to access auth pages, redirect to dashboard
-  if (session && (pathname === '/login' || pathname === '/register')) {
+  console.log('Is public route:', isPublicRoute)
+
+  // Redirect logic
+  if (session && (pathname.startsWith('/login') || pathname.startsWith('/register'))) {
+    console.log('REDIRECT: Authenticated user on auth page -> /dashboard')
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // If user is not logged in and tries to access protected pages, redirect to login
   if (!session && !isPublicRoute) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    console.log('REDIRECT: Unauthenticated user on protected page -> /login')
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('redirectTo', pathname)
+    return NextResponse.redirect(loginUrl)
   }
+
+  console.log('NO REDIRECT - proceeding to page')
+  console.log('=== END MIDDLEWARE ===\n')
 
   return response
 }
