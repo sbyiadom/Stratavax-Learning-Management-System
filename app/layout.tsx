@@ -9,10 +9,6 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'StrataVax - Learning Management System',
   description: 'Enterprise-grade learning management platform',
-  keywords: 'LMS, learning management, courses, education',
-  authors: [{ name: 'StrataVax' }],
-  viewport: 'width=device-width, initial-scale=1',
-  robots: 'index, follow',
 }
 
 export default function RootLayout({
