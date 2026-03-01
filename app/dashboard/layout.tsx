@@ -11,43 +11,18 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const supabase = createClient()
 
   useEffect(() => {
-    let isMounted = true
-
-    const checkUser = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) {
-          console.log('No user found, redirecting to login')
-          router.push('/login')
-          return
-        }
-        
-        if (isMounted) {
-          setUser(user)
-        }
-      } catch (error) {
-        console.error('Auth error:', error)
-        router.push('/login')
-      } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
-      }
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+      setLoading(false)
     }
-
-    checkUser()
-
-    return () => {
-      isMounted = false
-    }
-  }, [router, supabase])
+    getUser()
+  }, [supabase])
 
   if (loading) {
     return (
@@ -60,8 +35,9 @@ export default function DashboardLayout({
     )
   }
 
+  // Don't redirect here - middleware handles it
   if (!user) {
-    return null // This will prevent flash of content before redirect
+    return null
   }
 
   return (
