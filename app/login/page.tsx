@@ -9,7 +9,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const supabase = createClient()
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     const { error } = await supabase.auth.signInWithPassword({
@@ -27,9 +27,15 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full p-8 bg-white rounded shadow">
-        <h1 className="text-2xl font-bold mb-6 text-center">Login</h1>
-        {error && <p className="text-red-600 mb-4 text-center">{error}</p>}
-        <form onSubmit={handleLogin}>
+        <h1 className="text-2xl font-bold mb-6">Login</h1>
+        
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit}>
           <input
             type="email"
             placeholder="Email"
@@ -53,9 +59,12 @@ export default function LoginPage() {
             Sign In
           </button>
         </form>
-        <p className="mt-4 text-center">
-          <a href="/register" className="text-blue-600">Create account</a>
-        </p>
+        
+        <div className="mt-4 text-center space-x-4">
+          <a href="/register" className="text-blue-600">Register</a>
+          <span>|</span>
+          <a href="/debug" className="text-blue-600">Debug</a>
+        </div>
       </div>
     </div>
   )
