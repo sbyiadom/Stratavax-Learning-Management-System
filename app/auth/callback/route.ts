@@ -8,6 +8,9 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   
+  console.log('🔐 Auth callback started')
+  console.log('Code present:', !!code)
+  
   if (code) {
     const cookieStore = cookies()
     const supabase = createServerClient(
@@ -21,21 +24,24 @@ export async function GET(request: Request) {
           set(name: string, value: string, options: any) {
             try {
               cookieStore.set({ name, value, ...options })
+              console.log(`Cookie set: ${name}`)
             } catch (error) {
-              // Handle cookie error
+              console.error(`Error setting cookie ${name}:`, error)
             }
           },
           remove(name: string, options: any) {
             try {
               cookieStore.set({ name, value: '', ...options })
+              console.log(`Cookie removed: ${name}`)
             } catch (error) {
-              // Handle cookie error
+              console.error(`Error removing cookie ${name}:`, error)
             }
           },
         },
       }
     )
     
+    console.log('Exchanging code for session...')
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (error) {
@@ -44,8 +50,17 @@ export async function GET(request: Request) {
         new URL(`/login?error=${encodeURIComponent(error.message)}`, requestUrl.origin)
       )
     }
+    
+    console.log('✅ Session exchanged successfully')
+    
+    // Verify session was set
+    const { data: { session } } = await supabase.auth.getSession()
+    console.log('Session after exchange:', session ? 'Present' : 'Missing')
+    if (session) {
+      console.log('User:', session.user.email)
+    }
   }
 
-  // URL to redirect to after sign in
+  console.log('Redirecting to dashboard')
   return NextResponse.redirect(new URL('/dashboard', requestUrl.origin))
 }
