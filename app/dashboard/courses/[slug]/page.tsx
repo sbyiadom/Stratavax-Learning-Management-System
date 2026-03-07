@@ -6,7 +6,6 @@ import {
   Clock, 
   Award, 
   Users, 
-  ChevronRight,
   PlayCircle,
   FileText,
   HelpCircle,
@@ -16,7 +15,7 @@ import {
 } from 'lucide-react'
 import EnrollButton from '@/components/dashboard/EnrollButton'
 
-// Define types for better TypeScript support
+// Types
 type Lesson = {
   id: string
   title: string
@@ -56,7 +55,7 @@ const difficultyColors = {
 }
 
 // Lesson type icons
-const lessonIcons = {
+const lessonIcons: Record<string, any> = {
   video: PlayCircle,
   reading: FileText,
   quiz: HelpCircle,
@@ -105,7 +104,6 @@ export default async function CourseDetailPage({
     notFound()
   }
 
-  // Cast course to our type
   const typedCourse = course as unknown as Course
 
   // Check if user is enrolled
@@ -119,9 +117,8 @@ export default async function CourseDetailPage({
   // Get lesson progress if enrolled
   let completedLessons = new Set<string>()
   if (enrollment && typedCourse.modules) {
-    // Get all lesson IDs first
-    const allLessonIds = typedCourse.modules.flatMap((module: Module) => 
-      module.lessons?.map((lesson: Lesson) => lesson.id) || []
+    const allLessonIds = typedCourse.modules.flatMap((m: Module) => 
+      m.lessons?.map((l: Lesson) => l.id) || []
     )
     
     if (allLessonIds.length > 0) {
@@ -136,9 +133,9 @@ export default async function CourseDetailPage({
     }
   }
 
-  // Calculate total lessons and duration
+  // Calculate total lessons and progress
   const totalLessons = typedCourse.modules?.reduce(
-    (acc: number, module: Module) => acc + (module.lessons?.length || 0), 
+    (acc: number, m: Module) => acc + (m.lessons?.length || 0), 
     0
   ) || 0
 
@@ -183,7 +180,7 @@ export default async function CourseDetailPage({
               </div>
               <div className="absolute bottom-6 left-6 text-white">
                 <span className={`text-sm font-medium px-3 py-1 rounded-full ${
-                  difficultyColors[typedCourse.difficulty_level as keyof typeof difficultyColors]
+                  difficultyColors[typedCourse.difficulty_level]
                 }`}>
                   {typedCourse.difficulty_level}
                 </span>
@@ -197,7 +194,7 @@ export default async function CourseDetailPage({
             </div>
 
             {/* What You'll Learn */}
-            {typedCourse.learning_objectives && (
+            {typedCourse.learning_objectives && typedCourse.learning_objectives.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
                 <h2 className="text-lg font-semibold mb-4">What You'll Learn</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -238,7 +235,7 @@ export default async function CourseDetailPage({
                     {module.lessons && module.lessons.length > 0 && (
                       <div className="divide-y">
                         {module.lessons.map((lesson: Lesson) => {
-                          const Icon = lessonIcons[lesson.content_type as keyof typeof lessonIcons] || FileText
+                          const Icon = lessonIcons[lesson.content_type] || FileText
                           const isCompleted = completedLessons.has(lesson.id)
                           
                           return (
@@ -267,12 +264,15 @@ export default async function CourseDetailPage({
           {/* Right Column - Course Actions */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm p-6 sticky top-24">
-              {/* Course Stats */}
-              <div className="text-center mb-6">
-                <div className="text-3xl font-bold text-blue-600">{progress}%</div>
-                <div className="text-sm text-gray-500">Complete</div>
-              </div>
+              {/* Progress Circle */}
+              {enrollment && (
+                <div className="text-center mb-6">
+                  <div className="text-3xl font-bold text-blue-600">{progress}%</div>
+                  <div className="text-sm text-gray-500">Complete</div>
+                </div>
+              )}
 
+              {/* Course Stats */}
               <div className="space-y-3 mb-6">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600 flex items-center gap-2">
@@ -330,17 +330,6 @@ export default async function CourseDetailPage({
                   </ul>
                 </div>
               )}
-
-              {/* Includes */}
-              <div className="mt-4 pt-4 border-t">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">This Course Includes</h3>
-                <ul className="text-xs text-gray-600 space-y-1">
-                  <li>• Full lifetime access</li>
-                  <li>• Certificate of completion</li>
-                  <li>• Downloadable resources</li>
-                  <li>• Mobile and TV access</li>
-                </ul>
-              </div>
             </div>
           </div>
         </div>
