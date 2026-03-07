@@ -39,5 +39,5 @@ export async function GET(request: NextRequest) {
     return response
   }
 
-  return NextResponse.redirect(new URL('/login', requestUrl.origin))
+  return NextResponse.redirect(new URL('/login', request.url))
 }
