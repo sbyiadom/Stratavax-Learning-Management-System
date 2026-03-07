@@ -2,7 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
+  // Create response early
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -37,19 +38,24 @@ export async function middleware(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession()
   const pathname = request.nextUrl.pathname
 
-  // Public routes
-  if (pathname === '/' || 
-      pathname === '/login' || 
-      pathname === '/register' || 
-      pathname === '/auth/callback' ||
-      pathname.startsWith('/_next') ||
-      pathname.includes('.')) {
+  // Public routes - no auth needed
+  const publicRoutes = ['/', '/login', '/register', '/auth/callback']
+  const isPublicRoute = publicRoutes.includes(pathname)
+
+  // If it's a public route, allow access
+  if (isPublicRoute) {
     return response
   }
 
-  // Protected routes - redirect to login if no session
+  // If no session and trying to access protected route, redirect to login
   if (!session) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const redirectUrl = new URL('/login', request.url)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // If has session and trying to access login/register, redirect to dashboard
+  if (session && (pathname === '/login' || pathname === '/register')) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return response
