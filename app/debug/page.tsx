@@ -25,15 +25,15 @@ export default function DebugPage() {
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase.auth])
+  }, [supabase])
 
   if (loading) return <div className="p-8">Loading...</div>
 
   return (
     <div className="p-8">
-      <div className="mb-4">
-        <Link href="/login" className="text-blue-600 mr-4">← Back to Login</Link>
-        <Link href="/dashboard" className="text-blue-600">Go to Dashboard</Link>
+      <div className="mb-4 space-x-4">
+        <Link href="/login" className="text-blue-600 hover:underline">← Login</Link>
+        <Link href="/dashboard" className="text-blue-600 hover:underline">Dashboard</Link>
       </div>
       
       <h1 className="text-2xl font-bold mb-4">Session Debug</h1>
@@ -53,13 +53,32 @@ export default function DebugPage() {
           </pre>
         </div>
 
-        {!session && (
+        {session ? (
+          <div className="bg-green-50 border-l-4 border-green-400 p-4">
+            <p className="text-green-700">
+              ✓ Active session found. You should be able to access the dashboard.
+            </p>
+          </div>
+        ) : (
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
             <p className="text-yellow-700">
               No active session. Please try logging in again.
             </p>
           </div>
         )}
+      </div>
+
+      {/* Manual session check */}
+      <div className="mt-6">
+        <button
+          onClick={async () => {
+            const { data: { session } } = await supabase.auth.getSession()
+            alert(session ? 'Session exists' : 'No session')
+          }}
+          className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+        >
+          Manual Session Check
+        </button>
       </div>
     </div>
   )
