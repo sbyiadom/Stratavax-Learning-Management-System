@@ -12,28 +12,14 @@ export default function DashboardPage() {
   const router = useRouter()
 
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser()
-        
-        if (error || !user) {
-          // Let middleware handle the redirect, don't redirect from here
-          console.log('No user found, will be handled by middleware')
-          setLoading(false)
-          return
-        }
-        
-        setUser(user)
-      } catch (error) {
-        console.error('Error checking user:', error)
-      } finally {
-        setLoading(false)
-      }
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+      setLoading(false)
     }
-    
-    checkUser()
 
-    // Listen for auth changes
+    getUser()
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         router.push('/login')
@@ -50,18 +36,16 @@ export default function DashboardPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
-  // If no user after loading, show a message (middleware will redirect, but this prevents blank screen)
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">No active session found.</p>
+          <p className="mb-4">Please sign in to view this page</p>
           <Link href="/login" className="text-blue-600 hover:underline">
             Go to Login
           </Link>
@@ -72,84 +56,45 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut()
-                router.push('/login')
-                router.refresh()
-              }}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-            >
-              Sign Out
-            </button>
+      <nav className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-semibold">LMS Dashboard</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">{user.email}</span>
+              <button
+                onClick={async () => {
+                  await supabase.auth.signOut()
+                  router.push('/login')
+                }}
+                className="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
-      </header>
+      </nav>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Card */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">
-            Welcome back, {user.email}!
-          </h2>
-          <p className="text-gray-600">
-            You have successfully logged in to your learning management system.
-          </p>
+          <h2 className="text-2xl font-bold mb-4">Welcome, {user.email}!</h2>
+          <p className="text-gray-600">You have successfully logged in to your learning management system.</p>
         </div>
 
-        {/* Course Grid - Placeholder */}
+        {/* Courses Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Course Card 1 */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-2">Getting Started</h3>
-            <p className="text-gray-600 mb-4">Learn the basics of our platform</p>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '0%' }}></div>
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold mb-2">Course {i}</h3>
+              <p className="text-gray-600 mb-4">Course description goes here</p>
+              <button className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Start Learning
+              </button>
             </div>
-            <p className="text-sm text-gray-500 mt-2">0% complete</p>
-            <button className="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-              Start Course
-            </button>
-          </div>
-
-          {/* Course Card 2 */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-2">Advanced Topics</h3>
-            <p className="text-gray-600 mb-4">Deep dive into advanced concepts</p>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '0%' }}></div>
-            </div>
-            <p className="text-sm text-gray-500 mt-2">0% complete</p>
-            <button className="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-              Start Course
-            </button>
-          </div>
-
-          {/* Course Card 3 */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-2">Projects</h3>
-            <p className="text-gray-600 mb-4">Hands-on projects to practice</p>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '0%' }}></div>
-            </div>
-            <p className="text-sm text-gray-500 mt-2">0% complete</p>
-            <button className="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-              Start Course
-            </button>
-          </div>
-        </div>
-
-        {/* Debug Link */}
-        <div className="mt-8 text-center">
-          <Link href="/debug" className="text-blue-600 hover:underline">
-            Debug Session
-          </Link>
+          ))}
         </div>
       </main>
     </div>
