@@ -16,6 +16,38 @@ import {
 } from 'lucide-react'
 import EnrollButton from '@/components/dashboard/EnrollButton'
 
+// Define types for better TypeScript support
+type Lesson = {
+  id: string
+  title: string
+  content_type: string
+  duration_minutes: number
+  lesson_order: number
+}
+
+type Module = {
+  id: string
+  title: string
+  description: string
+  module_order: number
+  estimated_minutes: number
+  lessons: Lesson[]
+}
+
+type Course = {
+  id: string
+  title: string
+  slug: string
+  description: string
+  category: string
+  difficulty_level: 'beginner' | 'intermediate' | 'advanced'
+  duration_hours: number
+  learning_objectives?: string[]
+  prerequisites?: string[]
+  modules?: Module[]
+  enrollments?: any[]
+}
+
 // Difficulty level badges
 const difficultyColors = {
   beginner: 'bg-green-100 text-green-800',
@@ -73,30 +105,40 @@ export default async function CourseDetailPage({
     notFound()
   }
 
+  // Cast course to our type
+  const typedCourse = course as unknown as Course
+
   // Check if user is enrolled
   const { data: enrollment } = await supabase
     .from('enrollments')
     .select('*')
     .eq('user_id', user.id)
-    .eq('course_id', course.id)
+    .eq('course_id', typedCourse.id)
     .single()
 
   // Get lesson progress if enrolled
-  let completedLessons = new Set()
-  if (enrollment) {
-    const { data: progress } = await supabase
-      .from('lesson_progress')
-      .select('lesson_id')
-      .eq('user_id', user.id)
-      .in('lesson_id', course.modules?.flatMap(m => m.lessons?.map(l => l.id) || []) || [])
-      .eq('completed', true)
+  let completedLessons = new Set<string>()
+  if (enrollment && typedCourse.modules) {
+    // Get all lesson IDs first
+    const allLessonIds = typedCourse.modules.flatMap((module: Module) => 
+      module.lessons?.map((lesson: Lesson) => lesson.id) || []
+    )
+    
+    if (allLessonIds.length > 0) {
+      const { data: progress } = await supabase
+        .from('lesson_progress')
+        .select('lesson_id')
+        .eq('user_id', user.id)
+        .in('lesson_id', allLessonIds)
+        .eq('completed', true)
 
-    completedLessons = new Set(progress?.map(p => p.lesson_id) || [])
+      completedLessons = new Set(progress?.map(p => p.lesson_id) || [])
+    }
   }
 
   // Calculate total lessons and duration
-  const totalLessons = course.modules?.reduce(
-    (acc, module) => acc + (module.lessons?.length || 0), 
+  const totalLessons = typedCourse.modules?.reduce(
+    (acc: number, module: Module) => acc + (module.lessons?.length || 0), 
     0
   ) || 0
 
@@ -116,8 +158,8 @@ export default async function CourseDetailPage({
               <ArrowLeft size={20} />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{course.title}</h1>
-              <p className="text-sm text-gray-600">{course.category}</p>
+              <h1 className="text-2xl font-bold text-gray-900">{typedCourse.title}</h1>
+              <p className="text-sm text-gray-600">{typedCourse.category}</p>
             </div>
           </div>
         </div>
@@ -131,19 +173,19 @@ export default async function CourseDetailPage({
             {/* Course Image */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl h-64 mb-6 relative overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center text-white text-8xl opacity-10">
-                {course.category?.includes('Digital') && '💻'}
-                {course.category?.includes('Entrepreneurship') && '🚀'}
-                {course.category?.includes('Leadership') && '🌟'}
-                {course.category?.includes('Engineering') && '⚙️'}
-                {course.category?.includes('Financial') && '💰'}
-                {course.category?.includes('Career') && '📈'}
-                {course.category?.includes('Digital Economy') && '🔮'}
+                {typedCourse.category?.includes('Digital') && '💻'}
+                {typedCourse.category?.includes('Entrepreneurship') && '🚀'}
+                {typedCourse.category?.includes('Leadership') && '🌟'}
+                {typedCourse.category?.includes('Engineering') && '⚙️'}
+                {typedCourse.category?.includes('Financial') && '💰'}
+                {typedCourse.category?.includes('Career') && '📈'}
+                {typedCourse.category?.includes('Digital Economy') && '🔮'}
               </div>
               <div className="absolute bottom-6 left-6 text-white">
                 <span className={`text-sm font-medium px-3 py-1 rounded-full ${
-                  difficultyColors[course.difficulty_level as keyof typeof difficultyColors]
+                  difficultyColors[typedCourse.difficulty_level as keyof typeof difficultyColors]
                 }`}>
-                  {course.difficulty_level}
+                  {typedCourse.difficulty_level}
                 </span>
               </div>
             </div>
@@ -151,15 +193,15 @@ export default async function CourseDetailPage({
             {/* Course Description */}
             <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
               <h2 className="text-lg font-semibold mb-4">About This Course</h2>
-              <p className="text-gray-700 whitespace-pre-line">{course.description}</p>
+              <p className="text-gray-700 whitespace-pre-line">{typedCourse.description}</p>
             </div>
 
             {/* What You'll Learn */}
-            {course.learning_objectives && (
+            {typedCourse.learning_objectives && (
               <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
                 <h2 className="text-lg font-semibold mb-4">What You'll Learn</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {course.learning_objectives.map((objective: string, idx: number) => (
+                  {typedCourse.learning_objectives.map((objective: string, idx: number) => (
                     <div key={idx} className="flex items-start gap-2">
                       <CheckCircle size={18} className="text-green-500 flex-shrink-0 mt-0.5" />
                       <span className="text-sm text-gray-700">{objective}</span>
@@ -174,12 +216,12 @@ export default async function CourseDetailPage({
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">Course Content</h2>
                 <span className="text-sm text-gray-500">
-                  {course.modules?.length || 0} modules • {totalLessons} lessons
+                  {typedCourse.modules?.length || 0} modules • {totalLessons} lessons
                 </span>
               </div>
 
               <div className="space-y-4">
-                {course.modules?.map((module, idx) => (
+                {typedCourse.modules?.map((module: Module, idx: number) => (
                   <div key={module.id} className="border rounded-lg overflow-hidden">
                     <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
                       <div>
@@ -195,7 +237,7 @@ export default async function CourseDetailPage({
 
                     {module.lessons && module.lessons.length > 0 && (
                       <div className="divide-y">
-                        {module.lessons.map((lesson) => {
+                        {module.lessons.map((lesson: Lesson) => {
                           const Icon = lessonIcons[lesson.content_type as keyof typeof lessonIcons] || FileText
                           const isCompleted = completedLessons.has(lesson.id)
                           
@@ -237,7 +279,7 @@ export default async function CourseDetailPage({
                     <Clock size={16} />
                     Duration
                   </span>
-                  <span className="font-medium">{course.duration_hours} hours</span>
+                  <span className="font-medium">{typedCourse.duration_hours} hours</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600 flex items-center gap-2">
@@ -251,7 +293,7 @@ export default async function CourseDetailPage({
                     <Users size={16} />
                     Enrolled
                   </span>
-                  <span className="font-medium">{course.enrollments?.length || 0}</span>
+                  <span className="font-medium">{typedCourse.enrollments?.length || 0}</span>
                 </div>
                 {enrollment && (
                   <div className="flex items-center justify-between text-sm">
@@ -267,22 +309,22 @@ export default async function CourseDetailPage({
               {/* Action Buttons */}
               {enrollment ? (
                 <Link
-                  href={`/dashboard/learn/${course.slug}`}
+                  href={`/dashboard/learn/${typedCourse.slug}`}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition mb-3"
                 >
                   <PlayCircle size={18} />
                   Continue Learning
                 </Link>
               ) : (
-                <EnrollButton courseId={course.id} courseSlug={course.slug} />
+                <EnrollButton courseId={typedCourse.id} courseSlug={typedCourse.slug} />
               )}
 
               {/* Prerequisites */}
-              {course.prerequisites && course.prerequisites.length > 0 && (
+              {typedCourse.prerequisites && typedCourse.prerequisites.length > 0 && (
                 <div className="mt-4 pt-4 border-t">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Prerequisites</h3>
                   <ul className="text-xs text-gray-600 space-y-1">
-                    {course.prerequisites.map((prereq: string, idx: number) => (
+                    {typedCourse.prerequisites.map((prereq: string, idx: number) => (
                       <li key={idx}>• {prereq}</li>
                     ))}
                   </ul>
