@@ -36,7 +36,7 @@ export default async function CourseDetailPage({
 }: {
   params: { slug: string }
 }) {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
   
   // Check if user is authenticated
   const { data: { user } } = await supabase.auth.getUser()
@@ -131,13 +131,13 @@ export default async function CourseDetailPage({
             {/* Course Image */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl h-64 mb-6 relative overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center text-white text-8xl opacity-10">
-                {course.category.includes('Digital') && '💻'}
-                {course.category.includes('Entrepreneurship') && '🚀'}
-                {course.category.includes('Leadership') && '🌟'}
-                {course.category.includes('Engineering') && '⚙️'}
-                {course.category.includes('Financial') && '💰'}
-                {course.category.includes('Career') && '📈'}
-                {course.category.includes('Digital Economy') && '🔮'}
+                {course.category?.includes('Digital') && '💻'}
+                {course.category?.includes('Entrepreneurship') && '🚀'}
+                {course.category?.includes('Leadership') && '🌟'}
+                {course.category?.includes('Engineering') && '⚙️'}
+                {course.category?.includes('Financial') && '💰'}
+                {course.category?.includes('Career') && '📈'}
+                {course.category?.includes('Digital Economy') && '🔮'}
               </div>
               <div className="absolute bottom-6 left-6 text-white">
                 <span className={`text-sm font-medium px-3 py-1 rounded-full ${
