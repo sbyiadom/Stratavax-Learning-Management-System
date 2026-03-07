@@ -9,11 +9,42 @@ import {
   FileText,
   HelpCircle,
   Award,
-  Star,
   Users,
   Clock,
   MessageSquare
 } from 'lucide-react'
+
+// Define types
+type Lesson = {
+  id: string
+  title: string
+  content_type: 'video' | 'reading' | 'quiz' | 'project'
+  content?: any
+  duration_minutes: number
+  lesson_order: number
+  resources?: any[]
+}
+
+type Module = {
+  id: string
+  title: string
+  description: string
+  module_order: number
+  estimated_minutes: number
+  lessons: Lesson[]
+}
+
+type Course = {
+  id: string
+  title: string
+  slug: string
+  description: string
+  category: string
+  difficulty_level: 'beginner' | 'intermediate' | 'advanced'
+  duration_hours: number
+  modules: Module[]
+  enrollments?: { count: number }[]
+}
 
 // Lesson type icons
 const lessonIcons = {
@@ -37,7 +68,7 @@ export default async function LearnPage({
     return null // Let middleware handle redirect
   }
   
-  // Fetch course with modules and lessons
+  // Fetch course with modules, lessons, and enrollment count
   const { data: course, error } = await supabase
     .from('courses')
     .select(`
@@ -48,6 +79,7 @@ export default async function LearnPage({
       category,
       difficulty_level,
       duration_hours,
+      enrollments(count),
       modules(
         id,
         title,
@@ -73,12 +105,15 @@ export default async function LearnPage({
     notFound()
   }
 
+  // Cast to our type
+  const typedCourse = course as unknown as Course
+
   // Check if user is enrolled
   const { data: enrollment } = await supabase
     .from('enrollments')
     .select('*')
     .eq('user_id', user.id)
-    .eq('course_id', course.id)
+    .eq('course_id', typedCourse.id)
     .single()
 
   if (!enrollment) {
@@ -86,7 +121,7 @@ export default async function LearnPage({
   }
 
   // Get lesson progress
-  const allLessonIds = course.modules?.flatMap(m => m.lessons?.map(l => l.id) || []) || []
+  const allLessonIds = typedCourse.modules?.flatMap((m: Module) => m.lessons?.map((l: Lesson) => l.id) || []) || []
   
   const { data: progress } = await supabase
     .from('lesson_progress')
@@ -104,15 +139,15 @@ export default async function LearnPage({
   const progressPercentage = Math.round((completedCount / totalLessons) * 100) || 0
 
   // Group lessons by module
-  const modulesWithProgress = course.modules?.map(module => ({
+  const modulesWithProgress = typedCourse.modules?.map((module: Module) => ({
     ...module,
-    completedCount: module.lessons?.filter(l => completedLessons.has(l.id)).length || 0,
+    completedCount: module.lessons?.filter((l: Lesson) => completedLessons.has(l.id)).length || 0,
     totalCount: module.lessons?.length || 0
   }))
 
   // Find first incomplete lesson
   let firstIncompleteLesson = null
-  for (const module of course.modules || []) {
+  for (const module of typedCourse.modules || []) {
     for (const lesson of module.lessons || []) {
       if (!completedLessons.has(lesson.id)) {
         firstIncompleteLesson = lesson.id
@@ -121,6 +156,9 @@ export default async function LearnPage({
     }
     if (firstIncompleteLesson) break
   }
+
+  // Get enrollment count safely
+  const enrollmentCount = typedCourse.enrollments?.[0]?.count || 0
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -141,19 +179,19 @@ export default async function LearnPage({
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-4">
                 <span className="px-3 py-1 bg-white/20 rounded-full text-sm">
-                  {course.category}
+                  {typedCourse.category}
                 </span>
                 <span className="px-3 py-1 bg-white/20 rounded-full text-sm capitalize">
-                  {course.difficulty_level}
+                  {typedCourse.difficulty_level}
                 </span>
               </div>
-              <h1 className="text-3xl lg:text-4xl font-bold mb-4">{course.title}</h1>
-              <p className="text-blue-100 mb-6 max-w-3xl">{course.description}</p>
+              <h1 className="text-3xl lg:text-4xl font-bold mb-4">{typedCourse.title}</h1>
+              <p className="text-blue-100 mb-6 max-w-3xl">{typedCourse.description}</p>
               
               <div className="flex flex-wrap gap-6 text-sm">
                 <div className="flex items-center">
                   <Clock className="h-4 w-4 mr-2" />
-                  <span>{course.duration_hours} hours</span>
+                  <span>{typedCourse.duration_hours} hours</span>
                 </div>
                 <div className="flex items-center">
                   <BookOpen className="h-4 w-4 mr-2" />
@@ -161,7 +199,7 @@ export default async function LearnPage({
                 </div>
                 <div className="flex items-center">
                   <Users className="h-4 w-4 mr-2" />
-                  <span>{course.enrollments?.length || 0} students</span>
+                  <span>{enrollmentCount} students</span>
                 </div>
               </div>
             </div>
@@ -219,7 +257,7 @@ export default async function LearnPage({
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h2 className="text-2xl font-bold mb-6">Course Content</h2>
               <div className="space-y-4">
-                {modulesWithProgress?.map((module, moduleIdx) => (
+                {modulesWithProgress?.map((module: any, moduleIdx: number) => (
                   <div key={module.id} className="border rounded-lg overflow-hidden">
                     <div className="bg-gray-50 px-4 py-3">
                       <div className="flex items-center justify-between">
@@ -236,8 +274,8 @@ export default async function LearnPage({
                     </div>
 
                     <div className="divide-y">
-                      {module.lessons?.map((lesson, lessonIdx) => {
-                        const Icon = lessonIcons[lesson.content_type as keyof typeof lessonIcons] || FileText
+                      {module.lessons?.map((lesson: Lesson) => {
+                        const Icon = lessonIcons[lesson.content_type] || FileText
                         const isCompleted = completedLessons.has(lesson.id)
                         
                         return (
@@ -286,7 +324,7 @@ export default async function LearnPage({
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Modules completed</span>
                   <span className="font-medium">
-                    {modulesWithProgress?.filter(m => m.completedCount === m.totalCount).length || 0}/{modulesWithProgress?.length || 0}
+                    {modulesWithProgress?.filter((m: any) => m.completedCount === m.totalCount).length || 0}/{modulesWithProgress?.length || 0}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
