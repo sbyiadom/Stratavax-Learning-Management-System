@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
@@ -16,34 +16,14 @@ export async function middleware(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value
         },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
+        set(name: string, value: string, options: any) {
           response.cookies.set({
             name,
             value,
             ...options,
           })
         },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
+        remove(name: string, options: any) {
           response.cookies.set({
             name,
             value: '',
@@ -57,22 +37,19 @@ export async function middleware(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession()
   const pathname = request.nextUrl.pathname
 
-  // Public routes - no auth needed
-  const publicRoutes = ['/', '/login', '/register', '/auth/callback', '/debug']
-  
-  // Check if current path is public
-  const isPublicRoute = publicRoutes.some(route => 
-    pathname === route || pathname.startsWith('/_next') || pathname.includes('.')
-  )
-
-  if (isPublicRoute) {
+  // Public routes
+  if (pathname === '/' || 
+      pathname === '/login' || 
+      pathname === '/register' || 
+      pathname === '/auth/callback' ||
+      pathname.startsWith('/_next') ||
+      pathname.includes('.')) {
     return response
   }
 
+  // Protected routes - redirect to login if no session
   if (!session) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect(loginUrl)
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return response
