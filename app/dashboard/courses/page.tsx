@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase-server'
+import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import { BookOpen, Clock, BarChart, Users, Filter, ArrowLeft } from 'lucide-react'
 
@@ -26,7 +26,7 @@ export default async function DashboardCoursesPage({
 }: {
   searchParams: { category?: string; difficulty?: string; search?: string }
 }) {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
   
   // Check if user is authenticated
   const { data: { user } } = await supabase.auth.getUser()
@@ -209,13 +209,13 @@ export default async function DashboardCoursesPage({
                         </span>
                       )}
                       <div className="absolute inset-0 flex items-center justify-center text-white text-4xl opacity-20">
-                        {course.category.includes('Digital') && '💻'}
-                        {course.category.includes('Entrepreneurship') && '🚀'}
-                        {course.category.includes('Leadership') && '🌟'}
-                        {course.category.includes('Engineering') && '⚙️'}
-                        {course.category.includes('Financial') && '💰'}
-                        {course.category.includes('Career') && '📈'}
-                        {course.category.includes('Digital Economy') && '🔮'}
+                        {course.category?.includes('Digital') && '💻'}
+                        {course.category?.includes('Entrepreneurship') && '🚀'}
+                        {course.category?.includes('Leadership') && '🌟'}
+                        {course.category?.includes('Engineering') && '⚙️'}
+                        {course.category?.includes('Financial') && '💰'}
+                        {course.category?.includes('Career') && '📈'}
+                        {course.category?.includes('Digital Economy') && '🔮'}
                       </div>
                     </div>
 
@@ -228,7 +228,7 @@ export default async function DashboardCoursesPage({
                           {course.difficulty_level}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {course.category.split(' ')[0]}
+                          {course.category?.split(' ')[0] || ''}
                         </span>
                       </div>
 
