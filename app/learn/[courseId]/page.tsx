@@ -1,136 +1,170 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { 
-  BookOpen, 
-  Clock, 
-  CheckCircle, 
-  Play, 
-  FileText, 
-  HelpCircle,
-  ArrowLeft,
-  Award,
-  ChevronRight
-} from 'lucide-react'
+import { BookOpen, Clock, BarChart, ChevronRight } from 'lucide-react'
 
-// Course content structure
-const courseContent: Record<string, any> = {
-  // Basic Computer Literacy
-  'basic-computer': {
-    id: 'basic-computer',
-    title: 'Basic Computer Literacy',
-    category: 'Digital & Technology Skills',
-    level: 'Beginner',
-    duration: '2 weeks',
-    totalLessons: 8,
-    description: 'Master essential computer skills for the modern workplace.',
-    learningObjectives: [
-      'Understand computer hardware and software components',
-      'Navigate operating systems effectively',
-      'Manage files and folders',
-      'Use the internet safely and efficiently',
-      'Send and receive emails',
-      'Protect against common cyber threats',
-      'Use basic productivity tools',
-      'Troubleshoot common computer issues'
-    ],
-    modules: [
-      {
-        id: 'module-1',
-        title: 'Introduction to Computers',
-        description: 'Understanding what computers are and how they work',
-        lessons: [
-          { id: '1-1', title: 'What is a Computer?', type: 'video', duration: '10 min', completed: false },
-          { id: '1-2', title: 'Hardware vs Software', type: 'video', duration: '15 min', completed: false },
-          { id: '1-3', title: 'Types of Computers', type: 'reading', duration: '10 min', completed: false },
-          { id: '1-4', title: 'Module 1 Quiz', type: 'quiz', duration: '15 min', completed: false },
-        ]
-      },
-      {
-        id: 'module-2',
-        title: 'Operating Systems',
-        description: 'Learning to navigate Windows, macOS, or Linux',
-        lessons: [
-          { id: '2-1', title: 'What is an Operating System?', type: 'video', duration: '12 min', completed: false },
-          { id: '2-2', title: 'Desktop Navigation', type: 'video', duration: '20 min', completed: false },
-          { id: '2-3', title: 'File Management', type: 'reading', duration: '15 min', completed: false },
-          { id: '2-4', title: 'Installing Software', type: 'video', duration: '18 min', completed: false },
-          { id: '2-5', title: 'Module 2 Quiz', type: 'quiz', duration: '20 min', completed: false },
-        ]
-      },
-      {
-        id: 'module-3',
-        title: 'Internet and Email',
-        description: 'Using the web and email safely and effectively',
-        lessons: [
-          { id: '3-1', title: 'How the Internet Works', type: 'video', duration: '15 min', completed: false },
-          { id: '3-2', title: 'Web Browsers and Search', type: 'video', duration: '20 min', completed: false },
-          { id: '3-3', title: 'Email Basics', type: 'reading', duration: '12 min', completed: false },
-          { id: '3-4', title: 'Internet Safety', type: 'video', duration: '25 min', completed: false },
-          { id: '3-5', title: 'Module 3 Quiz', type: 'quiz', duration: '15 min', completed: false },
-        ]
-      },
-      {
-        id: 'module-4',
-        title: 'Productivity Basics',
-        description: 'Introduction to word processing and spreadsheets',
-        lessons: [
-          { id: '4-1', title: 'Word Processing Introduction', type: 'video', duration: '20 min', completed: false },
-          { id: '4-2', title: 'Creating Documents', type: 'reading', duration: '15 min', completed: false },
-          { id: '4-3', title: 'Spreadsheet Basics', type: 'video', duration: '22 min', completed: false },
-          { id: '4-4', title: 'Module 4 Quiz', type: 'quiz', duration: '15 min', completed: false },
-        ]
-      },
-      {
-        id: 'module-5',
-        title: 'Final Assessment',
-        description: 'Test your computer literacy skills',
-        lessons: [
-          { id: '5-1', title: 'Practice Exercise', type: 'reading', duration: '30 min', completed: false },
-          { id: '5-2', title: 'Final Exam', type: 'quiz', duration: '45 min', completed: false },
-        ]
-      }
-    ],
-    prerequisites: ['None'],
-    outcomes: [
-      'Operate a computer with confidence',
-      'Use the internet for research and communication',
-      'Create basic documents and spreadsheets',
-      'Troubleshoot common computer problems',
-      'Practice safe computing habits'
+// Complete course catalog based on your structure
+const courseCategories = [
+  {
+    id: 'digital',
+    name: 'Digital & Technology Skills',
+    icon: '💻',
+    description: 'Prepare for the modern digital economy',
+    courses: [
+      { id: 'basic-computer', title: 'Basic Computer Literacy', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
+      { id: 'microsoft-office', title: 'Microsoft Office (Word, Excel, PowerPoint)', level: 'Beginner', duration: '4 weeks', lessons: 15, enrolled: 0 },
+      { id: 'excel-analysis', title: 'Data Analysis with Excel', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'python-intro', title: 'Introduction to Programming (Python)', level: 'Beginner', duration: '6 weeks', lessons: 20, enrolled: 0 },
+      { id: 'javascript-intro', title: 'Introduction to Programming (JavaScript)', level: 'Beginner', duration: '6 weeks', lessons: 20, enrolled: 0 },
+      { id: 'web-dev', title: 'Web Development (HTML, CSS, JavaScript)', level: 'Intermediate', duration: '8 weeks', lessons: 30, enrolled: 0 },
+      { id: 'mobile-dev', title: 'Mobile App Development', level: 'Advanced', duration: '10 weeks', lessons: 35, enrolled: 0 },
+      { id: 'cybersecurity', title: 'Cybersecurity Basics', level: 'Beginner', duration: '4 weeks', lessons: 12, enrolled: 0 },
+      { id: 'ai-fundamentals', title: 'Artificial Intelligence Fundamentals', level: 'Intermediate', duration: '5 weeks', lessons: 18, enrolled: 0 },
+      { id: 'data-science', title: 'Data Science Basics', level: 'Intermediate', duration: '6 weeks', lessons: 22, enrolled: 0 },
+      { id: 'cloud-computing', title: 'Cloud Computing Fundamentals', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
+      { id: 'ui-ux', title: 'Digital Product Design (UI/UX)', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
+    ]
+  },
+  {
+    id: 'entrepreneurship',
+    name: 'Entrepreneurship & Business Skills',
+    icon: '🚀',
+    description: 'Start and grow successful businesses',
+    courses: [
+      { id: 'entrepreneurship-intro', title: 'Introduction to Entrepreneurship', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'business-model', title: 'Business Model Development', level: 'Intermediate', duration: '4 weeks', lessons: 12, enrolled: 0 },
+      { id: 'business-plan', title: 'Business Plan Writing', level: 'Intermediate', duration: '3 weeks', lessons: 9, enrolled: 0 },
+      { id: 'financial-literacy', title: 'Financial Literacy', level: 'Beginner', duration: '4 weeks', lessons: 14, enrolled: 0 },
+      { id: 'accounting', title: 'Accounting for Small Businesses', level: 'Intermediate', duration: '5 weeks', lessons: 18, enrolled: 0 },
+      { id: 'marketing', title: 'Marketing & Branding', level: 'Beginner', duration: '4 weeks', lessons: 15, enrolled: 0 },
+      { id: 'sales', title: 'Sales Skills', level: 'Beginner', duration: '3 weeks', lessons: 11, enrolled: 0 },
+      { id: 'ecommerce', title: 'E-commerce Business', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
+      { id: 'crm', title: 'Customer Relationship Management', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'negotiation', title: 'Business Negotiation', level: 'Advanced', duration: '3 weeks', lessons: 9, enrolled: 0 },
+    ]
+  },
+  {
+    id: 'leadership',
+    name: 'Leadership & Personal Development',
+    icon: '🌟',
+    description: 'Build decision-making and leadership capabilities',
+    courses: [
+      { id: 'leadership-fundamentals', title: 'Leadership Fundamentals', level: 'Beginner', duration: '4 weeks', lessons: 12, enrolled: 0 },
+      { id: 'communication', title: 'Communication Skills', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'emotional-intelligence', title: 'Emotional Intelligence', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
+      { id: 'critical-thinking', title: 'Critical Thinking & Problem Solving', level: 'Intermediate', duration: '4 weeks', lessons: 13, enrolled: 0 },
+      { id: 'time-management', title: 'Time Management & Productivity', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
+      { id: 'conflict-resolution', title: 'Conflict Resolution', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'team-management', title: 'Team Management', level: 'Advanced', duration: '4 weeks', lessons: 15, enrolled: 0 },
+      { id: 'public-speaking', title: 'Public Speaking', level: 'Intermediate', duration: '3 weeks', lessons: 11, enrolled: 0 },
+      { id: 'decision-making', title: 'Decision Making', level: 'Advanced', duration: '3 weeks', lessons: 9, enrolled: 0 },
+      { id: 'ethics', title: 'Ethics and Professional Conduct', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
+    ]
+  },
+  {
+    id: 'engineering',
+    name: 'Engineering & Technical Skills',
+    icon: '⚙️',
+    description: 'Technical skills for industrial and engineering careers',
+    courses: [
+      { id: 'mechanical-concepts', title: 'Basic Mechanical Engineering Concepts', level: 'Beginner', duration: '5 weeks', lessons: 18, enrolled: 0 },
+      { id: 'electrical-systems', title: 'Electrical Systems Basics', level: 'Beginner', duration: '4 weeks', lessons: 15, enrolled: 0 },
+      { id: 'industrial-automation', title: 'Industrial Automation Basics', level: 'Intermediate', duration: '6 weeks', lessons: 20, enrolled: 0 },
+      { id: 'plc-programming', title: 'PLC Programming', level: 'Advanced', duration: '8 weeks', lessons: 25, enrolled: 0 },
+      { id: 'maintenance-planning', title: 'Maintenance Planning', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
+      { id: 'preventive-maintenance', title: 'Preventive Maintenance', level: 'Intermediate', duration: '4 weeks', lessons: 13, enrolled: 0 },
+      { id: 'reliability-engineering', title: 'Reliability Engineering', level: 'Advanced', duration: '6 weeks', lessons: 22, enrolled: 0 },
+      { id: 'manufacturing', title: 'Manufacturing Processes', level: 'Intermediate', duration: '5 weeks', lessons: 17, enrolled: 0 },
+      { id: 'lean-manufacturing', title: 'Lean Manufacturing', level: 'Intermediate', duration: '4 weeks', lessons: 15, enrolled: 0 },
+      { id: 'six-sigma', title: 'Quality Control & Six Sigma', level: 'Advanced', duration: '6 weeks', lessons: 20, enrolled: 0 },
+    ]
+  },
+  {
+    id: 'finance',
+    name: 'Financial & Investment Literacy',
+    icon: '💰',
+    description: 'Manage money and build wealth',
+    courses: [
+      { id: 'personal-finance', title: 'Personal Finance Management', level: 'Beginner', duration: '3 weeks', lessons: 11, enrolled: 0 },
+      { id: 'budgeting', title: 'Budgeting and Saving', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
+      { id: 'investing-basics', title: 'Investing Basics', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'stock-market', title: 'Stock Market Fundamentals', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
+      { id: 'cryptocurrency', title: 'Cryptocurrency Basics', level: 'Intermediate', duration: '3 weeks', lessons: 9, enrolled: 0 },
+      { id: 'risk-management', title: 'Risk Management', level: 'Advanced', duration: '4 weeks', lessons: 13, enrolled: 0 },
+      { id: 'retirement', title: 'Retirement Planning', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'loans-credit', title: 'Understanding Loans and Credit', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
+    ]
+  },
+  {
+    id: 'career',
+    name: 'Career Development & Employability',
+    icon: '📈',
+    description: 'Get jobs and advance your career',
+    courses: [
+      { id: 'cv-writing', title: 'CV / Resume Writing', level: 'Beginner', duration: '1 week', lessons: 5, enrolled: 0 },
+      { id: 'interview-prep', title: 'Job Interview Preparation', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
+      { id: 'workplace-etiquette', title: 'Workplace Etiquette', level: 'Beginner', duration: '1 week', lessons: 4, enrolled: 0 },
+      { id: 'professional-communication', title: 'Professional Communication', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
+      { id: 'networking', title: 'Networking for Career Growth', level: 'Intermediate', duration: '2 weeks', lessons: 6, enrolled: 0 },
+      { id: 'remote-work', title: 'Remote Work Skills', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
+      { id: 'freelancing', title: 'Freelancing Fundamentals', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
+    ]
+  },
+  {
+    id: 'future-skills',
+    name: 'Digital Economy & Future Skills',
+    icon: '🔮',
+    description: 'Skills for future job markets',
+    courses: [
+      { id: 'ai-business', title: 'Artificial Intelligence in Business', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
+      { id: 'automation', title: 'Automation & Robotics Overview', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'blockchain', title: 'Blockchain Technology', level: 'Intermediate', duration: '4 weeks', lessons: 13, enrolled: 0 },
+      { id: 'digital-marketing', title: 'Digital Marketing', level: 'Beginner', duration: '5 weeks', lessons: 18, enrolled: 0 },
+      { id: 'content-creation', title: 'Content Creation', level: 'Beginner', duration: '4 weeks', lessons: 14, enrolled: 0 },
+      { id: 'social-media', title: 'Social Media Management', level: 'Intermediate', duration: '4 weeks', lessons: 15, enrolled: 0 },
+      { id: 'online-business', title: 'Online Business', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
     ]
   }
-}
+];
 
-export default function CoursePage() {
-  const { courseId } = useParams()
-  const router = useRouter()
+export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [course, setCourse] = useState<any>(null)
-  const [expandedModule, setExpandedModule] = useState<string | null>(null)
+  const [enrolledCourses, setEnrolledCourses] = useState<string[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const supabase = createClient()
+  const router = useRouter()
 
   useEffect(() => {
-    const loadData = async () => {
+    const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
-      
-      // Load course content
-      const courseData = courseContent[courseId as string]
-      if (courseData) {
-        setCourse(courseData)
-        setExpandedModule(courseData.modules[0]?.id)
-      }
-      
       setLoading(false)
+      
+      // Load enrolled courses from localStorage or database
+      // For now, using localStorage as placeholder
+      const saved = localStorage.getItem(`enrolled_${user?.id}`)
+      if (saved) {
+        setEnrolledCourses(JSON.parse(saved))
+      }
     }
     
-    loadData()
-  }, [courseId, supabase])
+    getUser()
+  }, [supabase])
+
+  const handleEnroll = (courseId: string) => {
+    if (!enrolledCourses.includes(courseId)) {
+      const updated = [...enrolledCourses, courseId]
+      setEnrolledCourses(updated)
+      if (user) {
+        localStorage.setItem(`enrolled_${user.id}`, JSON.stringify(updated))
+      }
+      router.push(`/learn/${courseId}`)
+    }
+  }
 
   if (loading) {
     return (
@@ -140,24 +174,20 @@ export default function CoursePage() {
     )
   }
 
-  if (!course) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Course not found</h2>
-          <Link href="/dashboard" className="text-blue-600 hover:underline">
-            Back to Dashboard
-          </Link>
-        </div>
-      </div>
-    )
+  if (!user) {
+    return null
   }
 
-  const totalLessons = course.modules.reduce((acc: number, mod: any) => acc + mod.lessons.length, 0)
-  const completedLessons = course.modules.reduce((acc: number, mod: any) => 
-    acc + mod.lessons.filter((l: any) => l.completed).length, 0
+  // Flatten all courses for filtering
+  const allCourses = courseCategories.flatMap(cat => 
+    cat.courses.map(course => ({ ...course, category: cat.name, categoryId: cat.id }))
   )
-  const progress = Math.round((completedLessons / totalLessons) * 100)
+
+  const filteredCourses = selectedCategory === 'all' 
+    ? allCourses 
+    : allCourses.filter(course => course.categoryId === selectedCategory)
+
+  const enrolledList = allCourses.filter(course => enrolledCourses.includes(course.id))
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -166,119 +196,190 @@ export default function CoursePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <ArrowLeft size={20} />
-              </button>
-              <h1 className="text-xl font-semibold">{course.title}</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Learning Platform</h1>
+              <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                Beta
+              </span>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">{user?.email}</span>
+              <span className="text-sm text-gray-600">{user.email}</span>
+              <button
+                onClick={async () => {
+                  await supabase.auth.signOut()
+                  window.location.href = '/login'
+                }}
+                className="px-4 py-2 text-sm text-white bg-red-600 rounded-md hover:bg-red-700"
+              >
+                Sign Out
+              </button>
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2">
-            {/* Course Overview */}
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold mb-2">{course.title}</h2>
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
-                    <span className="flex items-center">
-                      <BookOpen size={16} className="mr-1" />
+        {/* Welcome Banner */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg shadow-lg p-8 mb-8 text-white">
+          <h2 className="text-3xl font-bold mb-2">Welcome back, {user.email}!</h2>
+          <p className="text-blue-100 mb-4">
+            You have access to {allCourses.length}+ free courses to develop your skills.
+          </p>
+          <div className="flex space-x-4">
+            <span className="bg-blue-500 bg-opacity-30 px-3 py-1 rounded-full text-sm">
+              {enrolledCourses.length} courses enrolled
+            </span>
+            <span className="bg-blue-500 bg-opacity-30 px-3 py-1 rounded-full text-sm">
+              {allCourses.length} total courses
+            </span>
+          </div>
+        </div>
+
+        {/* Enrolled Courses Section */}
+        {enrolledList.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center">
+              <BookOpen className="mr-2" size={24} />
+              My Learning
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {enrolledList.map((course) => (
+                <div key={course.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
+                  <div className="h-2 bg-green-500"></div>
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
+                        In Progress
+                      </span>
+                      <span className="text-xs text-gray-500">{course.level}</span>
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">{course.title}</h3>
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                       {course.category}
-                    </span>
-                    <span className="flex items-center">
-                      <Clock size={16} className="mr-1" />
-                      {course.duration}
-                    </span>
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                      {course.level}
-                    </span>
+                    </p>
+                    <div className="flex items-center text-sm text-gray-500 mb-4 space-x-4">
+                      <span className="flex items-center">
+                        <Clock size={14} className="mr-1" />
+                        {course.duration}
+                      </span>
+                      <span className="flex items-center">
+                        <BookOpen size={14} className="mr-1" />
+                        {course.lessons} lessons
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => router.push(`/learn/${course.id}`)}
+                      className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
+                    >
+                      Continue Learning
+                      <ChevronRight size={16} className="ml-1" />
+                    </button>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-blue-600">{progress}%</div>
-                  <div className="text-sm text-gray-500">Complete</div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Category Filter */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-4">Browse Courses</h2>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+                selectedCategory === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              All Categories
+            </button>
+            {courseCategories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+                  selectedCategory === cat.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {cat.icon} {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Course Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCourses.map((course) => {
+            const isEnrolled = enrolledCourses.includes(course.id)
+            
+            return (
+              <div key={course.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
+                <div className={`h-2 ${isEnrolled ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className={`text-xs font-semibold px-2 py-1 rounded ${
+                      isEnrolled 
+                        ? 'text-green-600 bg-green-50' 
+                        : 'text-blue-600 bg-blue-50'
+                    }`}>
+                      {isEnrolled ? 'Enrolled' : course.level}
+                    </span>
+                    <span className="text-xs text-gray-500">{course.duration}</span>
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">{course.title}</h3>
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                    {course.category}
+                  </p>
+                  <div className="flex items-center text-sm text-gray-500 mb-4">
+                    <BookOpen size={14} className="mr-1" />
+                    {course.lessons} lessons
+                  </div>
+                  
+                  {isEnrolled ? (
+                    <button
+                      onClick={() => router.push(`/learn/${course.id}`)}
+                      className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
+                    >
+                      Continue Learning
+                      <ChevronRight size={16} className="ml-1" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleEnroll(course.id)}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      Enroll Now
+                    </button>
+                  )}
                 </div>
               </div>
+            )
+          })}
+        </div>
 
-              {/* Progress Bar */}
-              <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                  style={{ width: `${progress}%` }}
-                ></div>
-              </div>
-
-              {/* Description */}
-              <div className="mb-6">
-                <h3 className="font-semibold mb-2">About this course</h3>
-                <p className="text-gray-600">{course.description}</p>
-              </div>
-
-              {/* Learning Objectives */}
-              <div>
-                <h3 className="font-semibold mb-2">What you'll learn</h3>
-                <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {course.learningObjectives.map((obj: string, idx: number) => (
-                    <li key={idx} className="flex items-start text-sm text-gray-600">
-                      <CheckCircle size={16} className="text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                      <span>{obj}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            {/* Course Modules */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-6 border-b">
-                <h3 className="text-lg font-semibold">Course Content</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  {course.modules.length} modules • {totalLessons} lessons
-                </p>
-              </div>
-              <div className="divide-y">
-                {course.modules.map((module: any) => (
-                  <div key={module.id} className="p-6">
-                    <button
-                      onClick={() => setExpandedModule(expandedModule === module.id ? null : module.id)}
-                      className="w-full flex justify-between items-center"
-                    >
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-left">{module.title}</h4>
-                        <p className="text-sm text-gray-600 text-left mt-1">{module.description}</p>
-                      </div>
-                      <ChevronRight 
-                        size={20} 
-                        className={`text-gray-400 transition-transform ${
-                          expandedModule === module.id ? 'rotate-90' : ''
-                        }`}
-                      />
-                    </button>
-                    
-                    {expandedModule === module.id && (
-                      <div className="mt-4 space-y-2">
-                        {module.lessons.map((lesson: any) => (
-                          <div
-                            key={lesson.id}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
-                            onClick={() => router.push(`/learn/${courseId}/${lesson.id}`)}
-                          >
-                            <div className="flex items-center space-x-3">
-                              {lesson.type === 'video' && <Play size={16} className="text-blue-600" />}
-                              {lesson.type === 'reading' && <FileText size={16} className="text-green-600" />}
-                              {lesson.type === 'quiz' && <HelpCircle size={16} className="text-purple-600" />}
-                              <span className="text-sm font-medium">{lesson.title}</span>
-                            </div>
-                            <div className="flex items-center space-x-4">
-                              <span className="text-xs text-gray-500">{lesson.duration}</span>
-                              {lesson.completed &&
+        {/* Stats Section */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white p-6 rounded-lg shadow text-center">
+            <div className="text-3xl font-bold text-blue-600">{allCourses.length}+</div>
+            <div className="text-sm text-gray-600">Free Courses</div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow text-center">
+            <div className="text-3xl font-bold text-green-600">7</div>
+            <div className="text-sm text-gray-600">Skill Categories</div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow text-center">
+            <div className="text-3xl font-bold text-purple-600">{enrolledCourses.length}</div>
+            <div className="text-sm text-gray-600">Your Courses</div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow text-center">
+            <div className="text-3xl font-bold text-orange-600">Certificates</div>
+            <div className="text-sm text-gray-600">Earn on Completion</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
