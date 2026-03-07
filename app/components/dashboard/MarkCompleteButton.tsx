@@ -1,3 +1,4 @@
+cat > app/components/dashboard/MarkCompleteButton.tsx << 'EOF'
 'use client'
 
 import { useState } from 'react'
@@ -36,7 +37,6 @@ export default function MarkCompleteButton({
         return
       }
 
-      // Check if progress exists
       const { data: existing } = await supabase
         .from('lesson_progress')
         .select('id')
@@ -45,7 +45,6 @@ export default function MarkCompleteButton({
         .single()
 
       if (existing) {
-        // Update existing
         await supabase
           .from('lesson_progress')
           .update({
@@ -54,7 +53,6 @@ export default function MarkCompleteButton({
           })
           .eq('id', existing.id)
       } else {
-        // Insert new
         await supabase
           .from('lesson_progress')
           .insert({
@@ -67,7 +65,6 @@ export default function MarkCompleteButton({
 
       setCompleted(true)
 
-      // Navigate to next lesson if exists
       if (nextLessonId) {
         router.push(`/dashboard/learn/${courseSlug}/${nextLessonId}`)
       } else {
@@ -99,3 +96,4 @@ export default function MarkCompleteButton({
     </button>
   )
 }
+EOF
