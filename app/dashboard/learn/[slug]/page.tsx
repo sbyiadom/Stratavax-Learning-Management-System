@@ -10,9 +10,11 @@ import {
   FileText,
   HelpCircle,
   Award,
-  BarChart
+  Star,
+  Users,
+  Clock,
+  MessageSquare
 } from 'lucide-react'
-import ContinueLearningButton from '@/components/dashboard/ContinueLearningButton'
 
 // Lesson type icons
 const lessonIcons = {
@@ -43,17 +45,24 @@ export default async function LearnPage({
       id,
       title,
       slug,
+      description,
+      category,
+      difficulty_level,
+      duration_hours,
       modules(
         id,
         title,
+        description,
         module_order,
         estimated_minutes,
         lessons(
           id,
           title,
           content_type,
+          content,
           duration_minutes,
-          lesson_order
+          lesson_order,
+          resources
         )
       )
     `)
@@ -90,220 +99,269 @@ export default async function LearnPage({
     progress?.filter(p => p.completed).map(p => p.lesson_id) || []
   )
 
-  // Find first incomplete lesson to suggest starting point
+  // Calculate progress
+  const totalLessons = allLessonIds.length
+  const completedCount = completedLessons.size
+  const progressPercentage = Math.round((completedCount / totalLessons) * 100) || 0
+
+  // Group lessons by module
+  const modulesWithProgress = course.modules?.map(module => ({
+    ...module,
+    completedCount: module.lessons?.filter(l => completedLessons.has(l.id)).length || 0,
+    totalCount: module.lessons?.length || 0
+  }))
+
+  // Find first incomplete lesson
   let firstIncompleteLesson = null
   for (const module of course.modules || []) {
     for (const lesson of module.lessons || []) {
       if (!completedLessons.has(lesson.id)) {
-        firstIncompleteLesson = {
-          moduleId: module.id,
-          lessonId: lesson.id,
-        }
+        firstIncompleteLesson = lesson.id
         break
       }
     }
     if (firstIncompleteLesson) break
   }
 
-  // Calculate progress
-  const totalLessons = allLessonIds.length
-  const completedCount = completedLessons.size
-  const progressPercentage = Math.round((completedCount / totalLessons) * 100) || 0
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                href={`/dashboard/courses/${params.slug}`}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <ChevronLeft size={20} />
-              </Link>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">{course.title}</h1>
-                <p className="text-sm text-gray-500">Continue your learning journey</p>
-              </div>
-            </div>
+      {/* Course Header - Enhanced with gradient and stats */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center gap-4 mb-4">
             <Link
               href={`/dashboard/courses/${params.slug}`}
-              className="text-sm text-blue-600 hover:underline"
+              className="text-white/80 hover:text-white"
             >
-              Course Overview
+              <ChevronLeft size={20} />
             </Link>
+            <span className="text-sm text-white/80">Back to Course</span>
+          </div>
+
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="px-3 py-1 bg-white/20 rounded-full text-sm">
+                  {course.category}
+                </span>
+                <span className="px-3 py-1 bg-white/20 rounded-full text-sm capitalize">
+                  {course.difficulty_level}
+                </span>
+              </div>
+              <h1 className="text-3xl lg:text-4xl font-bold mb-4">{course.title}</h1>
+              <p className="text-blue-100 mb-6 max-w-3xl">{course.description}</p>
+              
+              <div className="flex flex-wrap gap-6 text-sm">
+                <div className="flex items-center">
+                  <Clock className="h-4 w-4 mr-2" />
+                  <span>{course.duration_hours} hours</span>
+                </div>
+                <div className="flex items-center">
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  <span>{totalLessons} lessons</span>
+                </div>
+                <div className="flex items-center">
+                  <Users className="h-4 w-4 mr-2" />
+                  <span>{course.enrollments?.length || 0} students</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Progress Card */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 min-w-[300px]">
+              <div className="mb-6">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-blue-100">Your Progress</span>
+                  <span className="font-semibold">{progressPercentage}%</span>
+                </div>
+                <div className="w-full bg-white/30 rounded-full h-2">
+                  <div 
+                    className="bg-white h-2 rounded-full"
+                    style={{ width: `${progressPercentage}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between mt-2 text-xs text-blue-200">
+                  <span>{completedCount} of {totalLessons} completed</span>
+                  <span>{totalLessons - completedCount} remaining</span>
+                </div>
+              </div>
+              
+              {firstIncompleteLesson ? (
+                <Link
+                  href={`/dashboard/learn/${params.slug}/${firstIncompleteLesson}`}
+                  className="w-full py-3 bg-white text-blue-700 font-semibold rounded-lg hover:bg-blue-50 mb-3 flex items-center justify-center"
+                >
+                  <PlayCircle className="h-5 w-5 mr-2" />
+                  {completedCount === 0 ? 'Start Learning' : 'Continue Learning'}
+                </Link>
+              ) : (
+                <div className="text-center py-2">
+                  <CheckCircle className="h-8 w-8 text-white mx-auto mb-2" />
+                  <p className="text-sm text-white">Course Completed!</p>
+                </div>
+              )}
+              
+              {enrollment?.last_accessed_at && (
+                <div className="text-center text-sm text-blue-200">
+                  Last accessed: {new Date(enrollment.last_accessed_at).toLocaleDateString()}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content - Two Column Layout */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Course Content */}
-          <div className="lg:col-span-2">
-            {/* Progress Bar */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="font-semibold">Your Progress</h2>
-                <span className="text-sm text-gray-600">{progressPercentage}% Complete</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div 
-                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
-                  style={{ width: `${progressPercentage}%` }}
-                ></div>
-              </div>
-              <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                <span>{completedCount} of {totalLessons} lessons completed</span>
-                <span>{totalLessons - completedCount} remaining</span>
-              </div>
-            </div>
-
-            {/* Start/Continue Button */}
-            {firstIncompleteLesson ? (
-              <Link
-                href={`/dashboard/learn/${params.slug}/${firstIncompleteLesson.lessonId}`}
-                className="block w-full bg-green-600 text-white rounded-lg p-4 text-center font-medium hover:bg-green-700 transition mb-6"
-              >
-                {completedCount === 0 ? 'Start Learning' : 'Continue Learning'}
-              </Link>
-            ) : (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center mb-6">
-                <CheckCircle size={48} className="text-green-500 mx-auto mb-3" />
-                <h3 className="text-lg font-semibold text-green-700 mb-1">Congratulations!</h3>
-                <p className="text-sm text-green-600 mb-4">You've completed all lessons in this course.</p>
-                <Link
-                  href={`/dashboard/certificates/${params.slug}`}
-                  className="inline-flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                >
-                  <Award size={18} />
-                  View Certificate
-                </Link>
-              </div>
-            )}
-
+          {/* Left Column - Modules and Lessons */}
+          <div className="lg:col-span-2 space-y-6">
             {/* Course Modules */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="font-semibold mb-4">Course Content</h2>
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-2xl font-bold mb-6">Course Content</h2>
               <div className="space-y-4">
-                {course.modules?.map((module, moduleIdx) => {
-                  const moduleLessons = module.lessons || []
-                  const completedInModule = moduleLessons.filter(l => completedLessons.has(l.id)).length
-                  
-                  return (
-                    <div key={module.id} className="border rounded-lg overflow-hidden">
-                      <div className="bg-gray-50 px-4 py-3">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium text-gray-900">
-                            Module {moduleIdx + 1}: {module.title}
-                          </h3>
-                          <span className="text-xs text-gray-500">
-                            {completedInModule}/{moduleLessons.length} • {module.estimated_minutes} min
-                          </span>
-                        </div>
+                {modulesWithProgress?.map((module, moduleIdx) => (
+                  <div key={module.id} className="border rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium text-gray-900">
+                          Module {moduleIdx + 1}: {module.title}
+                        </h3>
+                        <span className="text-xs text-gray-500">
+                          {module.completedCount}/{module.totalCount} • {module.estimated_minutes} min
+                        </span>
                       </div>
-
-                      <div className="divide-y">
-                        {moduleLessons.map((lesson) => {
-                          const Icon = lessonIcons[lesson.content_type as keyof typeof lessonIcons] || FileText
-                          const isCompleted = completedLessons.has(lesson.id)
-                          
-                          return (
-                            <Link
-                              key={lesson.id}
-                              href={`/dashboard/learn/${params.slug}/${lesson.id}`}
-                              className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
-                            >
-                              <div className="flex items-center gap-3">
-                                <Icon size={16} className={isCompleted ? 'text-green-500' : 'text-gray-400'} />
-                                <span className="text-sm text-gray-700">{lesson.title}</span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-xs text-gray-400">{lesson.duration_minutes} min</span>
-                                {isCompleted ? (
-                                  <CheckCircle size={16} className="text-green-500" />
-                                ) : (
-                                  <div className="w-4 h-4 rounded-full border-2 border-gray-300"></div>
-                                )}
-                              </div>
-                            </Link>
-                          )
-                        })}
-                      </div>
+                      {module.description && (
+                        <p className="text-sm text-gray-500 mt-1">{module.description}</p>
+                      )}
                     </div>
-                  )
-                })}
+
+                    <div className="divide-y">
+                      {module.lessons?.map((lesson, lessonIdx) => {
+                        const Icon = lessonIcons[lesson.content_type as keyof typeof lessonIcons] || FileText
+                        const isCompleted = completedLessons.has(lesson.id)
+                        
+                        return (
+                          <Link
+                            key={lesson.id}
+                            href={`/dashboard/learn/${params.slug}/${lesson.id}`}
+                            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Icon size={16} className={isCompleted ? 'text-green-500' : 'text-gray-400'} />
+                              <div>
+                                <span className="text-sm text-gray-700">{lesson.title}</span>
+                                <span className="text-xs text-gray-400 ml-2 capitalize">
+                                  {lesson.content_type}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-gray-400">{lesson.duration_minutes} min</span>
+                              {isCompleted ? (
+                                <CheckCircle size={16} className="text-green-500" />
+                              ) : (
+                                <div className="w-4 h-4 rounded-full border-2 border-gray-300"></div>
+                              )}
+                            </div>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* Right Column - Stats */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-24">
-              <h3 className="font-semibold mb-4">Your Stats</h3>
-              
+          {/* Right Column - Stats and Info */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Your Stats */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="font-bold text-lg mb-4">Your Stats</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Lessons completed</span>
+                  <span className="text-gray-600">Lessons completed</span>
                   <span className="font-medium">{completedCount}/{totalLessons}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Modules completed</span>
+                  <span className="text-gray-600">Modules completed</span>
                   <span className="font-medium">
-                    {course.modules?.filter(m => 
-                      m.lessons?.every(l => completedLessons.has(l.id))
-                    ).length || 0}/{course.modules?.length || 0}
+                    {modulesWithProgress?.filter(m => m.completedCount === m.totalCount).length || 0}/{modulesWithProgress?.length || 0}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Time spent</span>
+                  <span className="text-gray-600">Time spent</span>
                   <span className="font-medium">
                     {Math.round(completedCount * 12)} min
                   </span>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-6 pt-6 border-t">
-                <h4 className="text-sm font-medium mb-3">Quick Actions</h4>
-                <div className="space-y-2">
-                  <Link
-                    href={`/dashboard/courses/${params.slug}`}
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
-                  >
-                    <BookOpen size={16} />
-                    Course overview
-                  </Link>
-                  <Link
-                    href={`/dashboard/discussions/${params.slug}`}
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
-                  >
-                    <HelpCircle size={16} />
-                    Discussion forum
-                  </Link>
-                  <Link
-                    href={`/dashboard/notes/${params.slug}`}
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
-                  >
-                    <FileText size={16} />
-                    My notes
-                  </Link>
+            {/* Course Stats */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="font-bold text-lg mb-4">Course Stats</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Completion Rate</span>
+                  <span className="font-semibold">87%</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Avg. Time to Complete</span>
+                  <span className="font-semibold">45 days</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Certificate Rate</span>
+                  <span className="font-semibold">92%</span>
                 </div>
               </div>
-
-              {progressPercentage === 100 && (
-                <div className="mt-6 pt-6 border-t">
-                  <Link
-                    href={`/dashboard/certificates/${params.slug}`}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition"
-                  >
-                    <Award size={18} />
-                    Get Certificate
-                  </Link>
-                </div>
-              )}
             </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="font-bold text-lg mb-4">Quick Actions</h3>
+              <div className="space-y-2">
+                <Link
+                  href={`/dashboard/courses/${params.slug}`}
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 p-2 hover:bg-gray-50 rounded-lg"
+                >
+                  <BookOpen size={16} />
+                  Course overview
+                </Link>
+                <Link
+                  href={`/dashboard/discussions/${params.slug}`}
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 p-2 hover:bg-gray-50 rounded-lg"
+                >
+                  <MessageSquare size={16} />
+                  Discussion forum
+                </Link>
+                <Link
+                  href={`/dashboard/notes/${params.slug}`}
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 p-2 hover:bg-gray-50 rounded-lg"
+                >
+                  <FileText size={16} />
+                  My notes
+                </Link>
+              </div>
+            </div>
+
+            {/* Certificate Card */}
+            {progressPercentage === 100 && (
+              <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
+                <Award className="h-12 w-12 mb-4" />
+                <h3 className="font-bold text-lg mb-2">Congratulations!</h3>
+                <p className="text-sm text-yellow-100 mb-4">
+                  You've completed all lessons. Claim your certificate now.
+                </p>
+                <Link
+                  href={`/dashboard/certificates/${params.slug}`}
+                  className="block w-full text-center py-2 bg-white text-yellow-600 rounded-lg hover:bg-yellow-50 font-medium"
+                >
+                  Get Certificate
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>
