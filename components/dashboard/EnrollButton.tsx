@@ -29,20 +29,17 @@ export default function EnrollButton({ courseId, courseSlug }: EnrollButtonProps
       }
 
       // Check if already enrolled
-      const { data: existing, error: checkError } = await supabase
+      const { data: existing } = await supabase
         .from('enrollments')
         .select('id')
         .eq('user_id', user.id)
         .eq('course_id', courseId)
         .maybeSingle()
 
-      if (checkError) {
-        console.error('Error checking enrollment:', checkError)
-      }
-
       if (existing) {
         // Already enrolled, just redirect
         router.push(`/dashboard/learn/${courseSlug}`)
+        router.refresh()
         return
       }
 
@@ -66,7 +63,7 @@ export default function EnrollButton({ courseId, courseSlug }: EnrollButtonProps
 
       // Success - redirect to the course learning page
       router.push(`/dashboard/learn/${courseSlug}`)
-      router.refresh() // Refresh to update the UI
+      router.refresh()
       
     } catch (err: any) {
       console.error('Unexpected error:', err)
