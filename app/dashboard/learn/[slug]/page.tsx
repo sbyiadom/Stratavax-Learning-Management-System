@@ -1,11 +1,10 @@
-import { createServerClient } from '@/lib/supabase-server'
+import { createClient } from '@/lib/supabase-server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { 
   BookOpen, 
   CheckCircle, 
   ChevronLeft,
-  ChevronRight,
   PlayCircle,
   FileText,
   HelpCircle,
@@ -29,7 +28,7 @@ export default async function LearnPage({
 }: {
   params: { slug: string }
 }) {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
   
   // Check if user is authenticated
   const { data: { user } } = await supabase.auth.getUser()
