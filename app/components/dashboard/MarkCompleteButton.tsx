@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { CheckCircle } from 'lucide-react'
@@ -20,12 +20,16 @@ export default function MarkCompleteButton({
 }: MarkCompleteButtonProps) {
   const [loading, setLoading] = useState(false)
   const [completed, setCompleted] = useState(isCompleted)
+  const [isClient, setIsClient] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
   const handleMarkComplete = async () => {
     if (completed) return
-
     setLoading(true)
 
     try {
@@ -36,7 +40,6 @@ export default function MarkCompleteButton({
         return
       }
 
-      // Check if progress exists
       const { data: existing } = await supabase
         .from('lesson_progress')
         .select('id')
@@ -45,7 +48,6 @@ export default function MarkCompleteButton({
         .single()
 
       if (existing) {
-        // Update existing
         await supabase
           .from('lesson_progress')
           .update({
@@ -54,7 +56,6 @@ export default function MarkCompleteButton({
           })
           .eq('id', existing.id)
       } else {
-        // Insert new
         await supabase
           .from('lesson_progress')
           .insert({
@@ -67,7 +68,6 @@ export default function MarkCompleteButton({
 
       setCompleted(true)
 
-      // Navigate to next lesson if exists
       if (nextLessonId) {
         router.push(`/dashboard/learn/${courseSlug}/${nextLessonId}`)
       } else {
@@ -78,6 +78,17 @@ export default function MarkCompleteButton({
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!isClient) {
+    return (
+      <button
+        disabled
+        className="px-6 py-3 bg-gray-400 text-white rounded-lg"
+      >
+        Loading...
+      </button>
+    )
   }
 
   if (completed) {
