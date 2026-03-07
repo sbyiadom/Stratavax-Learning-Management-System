@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
@@ -12,46 +11,31 @@ export default function DashboardPage() {
   const router = useRouter()
 
   useEffect(() => {
-    const getUser = async () => {
+    const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        // Let middleware handle the redirect
+        return
+      }
+      
       setUser(user)
       setLoading(false)
     }
-
-    getUser()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        router.push('/login')
-      } else if (event === 'SIGNED_IN' && session) {
-        setUser(session.user)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [supabase, router])
+    
+    checkUser()
+  }, [supabase])
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="mb-4">Please sign in to view this page</p>
-          <Link href="/login" className="text-blue-600 hover:underline">
-            Go to Login
-          </Link>
-        </div>
-      </div>
-    )
+    return null // Let middleware handle redirect
   }
 
   return (
@@ -67,7 +51,7 @@ export default function DashboardPage() {
               <button
                 onClick={async () => {
                   await supabase.auth.signOut()
-                  router.push('/login')
+                  window.location.href = '/login'
                 }}
                 className="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700"
               >
@@ -80,7 +64,7 @@ export default function DashboardPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-2xl font-bold mb-4">Welcome, {user.email}!</h2>
+          <h2 className="text-2xl font-bold mb-4">Welcome back!</h2>
           <p className="text-gray-600">You have successfully logged in to your learning management system.</p>
         </div>
 
