@@ -27,8 +27,8 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/dashboard')
-      router.refresh()
+      // Force a hard navigation to dashboard
+      window.location.href = '/dashboard'
     }
   }
 
@@ -76,7 +76,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="text-center space-x-4">
+        <div className="text-center">
           <Link href="/register" className="text-blue-600 hover:underline">
             Create account
           </Link>
