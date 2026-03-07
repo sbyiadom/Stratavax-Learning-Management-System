@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase-server'
+import { createClient } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,50 +8,79 @@ export async function POST(
   { params }: { params: { formId: string } }
 ) {
   try {
-    const supabase = await createServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const supabase = await createClient()
+    const { formId } = params
+    const body = await request.json()
+
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
     }
 
-    const { responses, courseId } = await request.json()
-    const formId = params.formId
+    // Verify form exists and user has access
+    const { data: form, error: formError } = await supabase
+      .from('microsoft_forms')
+      .select('id, course_id')
+      .eq('id', formId)
+      .single()
 
-    // Store the submission in your database
-    const { error } = await supabase
+    if (formError || !form) {
+      return NextResponse.json(
+        { error: 'Form not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check if user is enrolled in the course
+    const { data: enrollment } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('course_id', form.course_id)
+      .single()
+
+    if (!enrollment) {
+      return NextResponse.json(
+        { error: 'You must be enrolled in this course to submit the form' },
+        { status: 403 }
+      )
+    }
+
+    // Store form submission
+    const { data, error } = await supabase
       .from('form_submissions')
       .insert({
-        user_id: user.id,
         form_id: formId,
-        course_id: courseId,
-        responses,
-        submitted_at: new Date().toISOString()
+        user_id: user.id,
+        submission_data: body,
+        created_at: new Date().toISOString(),
       })
+      .select()
+      .single()
 
     if (error) {
       console.error('Error saving form submission:', error)
-      return NextResponse.json({ error: 'Failed to save submission' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Failed to save submission' },
+        { status: 500 }
+      )
     }
 
-    // Update user progress
-    await supabase
-      .from('user_progress')
-      .upsert({
-        user_id: user.id,
-        lesson_id: formId,
-        course_id: courseId,
-        is_completed: true,
-        completed_at: new Date().toISOString(),
-        last_accessed_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id,lesson_id'
-      })
-
-    return NextResponse.json({ success: true })
-
+    return NextResponse.json({ 
+      success: true, 
+      submissionId: data.id,
+      message: 'Form submitted successfully' 
+    })
   } catch (error) {
-    console.error('Form submission error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error in form submission:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
