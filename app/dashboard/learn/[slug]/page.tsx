@@ -47,7 +47,7 @@ type Course = {
 }
 
 // Lesson type icons
-const lessonIcons = {
+const lessonIcons: Record<string, any> = {
   video: PlayCircle,
   reading: FileText,
   quiz: HelpCircle,
@@ -105,7 +105,6 @@ export default async function LearnPage({
     notFound()
   }
 
-  // Cast to our type
   const typedCourse = course as unknown as Course
 
   // Check if user is enrolled
@@ -121,7 +120,9 @@ export default async function LearnPage({
   }
 
   // Get lesson progress
-  const allLessonIds = typedCourse.modules?.flatMap((m: Module) => m.lessons?.map((l: Lesson) => l.id) || []) || []
+  const allLessonIds = typedCourse.modules?.flatMap((m: Module) => 
+    m.lessons?.map((l: Lesson) => l.id) || []
+  ) || []
   
   const { data: progress } = await supabase
     .from('lesson_progress')
@@ -136,7 +137,9 @@ export default async function LearnPage({
   // Calculate progress
   const totalLessons = allLessonIds.length
   const completedCount = completedLessons.size
-  const progressPercentage = Math.round((completedCount / totalLessons) * 100) || 0
+  const progressPercentage = totalLessons > 0 
+    ? Math.round((completedCount / totalLessons) * 100) 
+    : 0
 
   // Group lessons by module
   const modulesWithProgress = typedCourse.modules?.map((module: Module) => ({
@@ -162,7 +165,7 @@ export default async function LearnPage({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Course Header - Enhanced with gradient and stats */}
+      {/* Course Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-4 mb-4">
@@ -213,7 +216,7 @@ export default async function LearnPage({
                 </div>
                 <div className="w-full bg-white/30 rounded-full h-2">
                   <div 
-                    className="bg-white h-2 rounded-full"
+                    className="bg-white h-2 rounded-full transition-all duration-300"
                     style={{ width: `${progressPercentage}%` }}
                   ></div>
                 </div>
@@ -226,7 +229,7 @@ export default async function LearnPage({
               {firstIncompleteLesson ? (
                 <Link
                   href={`/dashboard/learn/${params.slug}/${firstIncompleteLesson}`}
-                  className="w-full py-3 bg-white text-blue-700 font-semibold rounded-lg hover:bg-blue-50 mb-3 flex items-center justify-center"
+                  className="w-full py-3 bg-white text-blue-700 font-semibold rounded-lg hover:bg-blue-50 mb-3 flex items-center justify-center transition"
                 >
                   <PlayCircle className="h-5 w-5 mr-2" />
                   {completedCount === 0 ? 'Start Learning' : 'Continue Learning'}
@@ -248,7 +251,7 @@ export default async function LearnPage({
         </div>
       </div>
 
-      {/* Main Content - Two Column Layout */}
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Modules and Lessons */}
@@ -336,25 +339,6 @@ export default async function LearnPage({
               </div>
             </div>
 
-            {/* Course Stats */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="font-bold text-lg mb-4">Course Stats</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Completion Rate</span>
-                  <span className="font-semibold">87%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Avg. Time to Complete</span>
-                  <span className="font-semibold">45 days</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Certificate Rate</span>
-                  <span className="font-semibold">92%</span>
-                </div>
-              </div>
-            </div>
-
             {/* Quick Actions */}
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h3 className="font-bold text-lg mb-4">Quick Actions</h3>
@@ -365,13 +349,6 @@ export default async function LearnPage({
                 >
                   <BookOpen size={16} />
                   Course overview
-                </Link>
-                <Link
-                  href={`/dashboard/discussions/${params.slug}`}
-                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 p-2 hover:bg-gray-50 rounded-lg"
-                >
-                  <MessageSquare size={16} />
-                  Discussion forum
                 </Link>
                 <Link
                   href={`/dashboard/notes/${params.slug}`}
@@ -393,7 +370,7 @@ export default async function LearnPage({
                 </p>
                 <Link
                   href={`/dashboard/certificates/${params.slug}`}
-                  className="block w-full text-center py-2 bg-white text-yellow-600 rounded-lg hover:bg-yellow-50 font-medium"
+                  className="block w-full text-center py-2 bg-white text-yellow-600 rounded-lg hover:bg-yellow-50 font-medium transition"
                 >
                   Get Certificate
                 </Link>
