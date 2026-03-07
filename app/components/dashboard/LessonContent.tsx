@@ -1,7 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import ReactPlayer from 'react-player'
+import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
+
+// Dynamically import ReactPlayer with no SSR
+const ReactPlayer = dynamic(() => import('react-player'), { ssr: false })
 
 interface LessonContentProps {
   lesson: any
@@ -9,9 +12,21 @@ interface LessonContentProps {
 }
 
 export default function LessonContent({ lesson, contentType }: LessonContentProps) {
-  const [isPlaying, setIsPlaying] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   if (contentType === 'video') {
+    if (!isClient) {
+      return (
+        <div className="aspect-video bg-gray-200 rounded-lg flex items-center justify-center">
+          <p className="text-gray-500">Loading video player...</p>
+        </div>
+      )
+    }
+
     return (
       <div className="aspect-video bg-black rounded-lg overflow-hidden">
         <ReactPlayer
@@ -19,9 +34,6 @@ export default function LessonContent({ lesson, contentType }: LessonContentProp
           width="100%"
           height="100%"
           controls={true}
-          playing={isPlaying}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
           config={{
             youtube: {
               playerVars: { showinfo: 1 }
@@ -32,6 +44,7 @@ export default function LessonContent({ lesson, contentType }: LessonContentProp
     )
   }
 
+  // Rest of your component remains the same...
   if (contentType === 'reading') {
     return (
       <div className="prose max-w-none bg-white rounded-lg p-8 border">
