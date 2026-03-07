@@ -1,81 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase-server'
+import { createClient } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient()
     const { courseId } = await request.json()
+
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    const supabase = await createServerClient()
-    
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
+    if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    // Check if course exists
-    const { data: course, error: courseError } = await supabase
-      .from('courses')
-      .select('id, title')
-      .eq('id', courseId)
-      .single()
-
-    if (courseError || !course) {
-      return NextResponse.json(
-        { error: 'Course not found' },
-        { status: 404 }
-      )
-    }
-
     // Check if already enrolled
-    const { data: existingEnrollment } = await supabase
+    const { data: existing } = await supabase
       .from('enrollments')
-      .select('*')
+      .select()
       .eq('user_id', user.id)
       .eq('course_id', courseId)
-      .maybeSingle()
+      .single()
 
-    if (existingEnrollment) {
+    if (existing) {
       return NextResponse.json(
         { error: 'Already enrolled in this course' },
         { status: 400 }
       )
     }
 
-    // Create enrollment
-    const { data: enrollment, error } = await supabase
+    // Enroll user in course
+    const { data, error } = await supabase
       .from('enrollments')
       .insert({
         user_id: user.id,
         course_id: courseId,
         enrolled_at: new Date().toISOString(),
-        progress_percentage: 0,
-        status: 'in_progress'
+        progress: 0,
       })
       .select()
       .single()
 
     if (error) {
-      console.error('Enrollment insert error:', error)
+      console.error('Error enrolling in course:', error)
       return NextResponse.json(
         { error: 'Failed to enroll in course' },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({ 
-      success: true,
-      enrollment,
-      message: 'Successfully enrolled in course'
-    })
-
+    return NextResponse.json({ success: true, data })
   } catch (error) {
-    console.error('Enrollment error:', error)
+    console.error('Error in course enrollment:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
