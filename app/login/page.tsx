@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -12,11 +13,11 @@ export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-    
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -33,47 +34,52 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full p-8 bg-white rounded shadow">
-        <h1 className="text-2xl font-bold mb-6">Login</h1>
+      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
+        <div>
+          <h2 className="text-3xl font-bold text-center">Sign In</h2>
+        </div>
         
         {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded mb-4">
+          <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
             {error}
           </div>
         )}
         
-        <form onSubmit={handleSubmit}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-2 border rounded mb-4"
-            required
-            disabled={loading}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-2 border rounded mb-4"
-            required
-            disabled={loading}
-          />
+        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+          <div className="space-y-4">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email address"
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={loading}
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={loading}
+            />
+          </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
-        
-        <div className="mt-4 text-center space-x-4">
-          <a href="/register" className="text-blue-600">Register</a>
-          <span>|</span>
-          <a href="/debug" className="text-blue-600">Debug</a>
+
+        <div className="text-center space-x-4">
+          <Link href="/register" className="text-blue-600 hover:underline">
+            Create account
+          </Link>
         </div>
       </div>
     </div>
