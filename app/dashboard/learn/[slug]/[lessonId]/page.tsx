@@ -5,24 +5,12 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle,
-  PlayCircle,
   FileText,
-  HelpCircle,
-  Award,
   Download,
-  Maximize2,
   Clock
 } from 'lucide-react'
 import MarkCompleteButton from '@/components/dashboard/MarkCompleteButton'
 import LessonContent from '@/components/dashboard/LessonContent'
-
-// Lesson type icons
-const lessonIcons = {
-  video: PlayCircle,
-  reading: FileText,
-  quiz: HelpCircle,
-  project: Award,
-}
 
 export default async function LessonPage({
   params,
@@ -84,7 +72,6 @@ export default async function LessonPage({
   let currentModule = null
   let prevLesson = null
   let nextLesson = null
-  let lessonIndex = -1
   let moduleIndex = -1
 
   for (let m = 0; m < course.modules.length; m++) {
@@ -96,7 +83,6 @@ export default async function LessonPage({
         currentLesson = lesson
         currentModule = module
         moduleIndex = m
-        lessonIndex = l
         
         // Get previous lesson
         if (l > 0) {
