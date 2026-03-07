@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient as createServerSupabaseClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from './database.types'
 
@@ -10,7 +10,7 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY_NEW!
 export const createClient = async () => {
   const cookieStore = await cookies()
   
-  return createServerClient(
+  return createServerSupabaseClient(
     supabaseUrl,
     supabaseAnonKey,
     {
@@ -37,7 +37,7 @@ export const createAdminClient = () => {
     throw new Error('Missing Supabase service role key')
   }
   
-  return createServerClient(
+  return createServerSupabaseClient(
     supabaseUrl,
     supabaseServiceRoleKey,
     {
@@ -54,7 +54,9 @@ export const createAdminClient = () => {
   )
 }
 
-// For backwards compatibility
-export const createServerClient = createClient
+// For API routes and server components that need the server client
+export const createServerSupabase = async () => {
+  return await createClient()
+}
 
 export type { Database }
