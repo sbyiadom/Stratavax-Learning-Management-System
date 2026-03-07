@@ -149,19 +149,35 @@ export default async function LearnPage({
   }))
 
   // Find first incomplete lesson
-  let firstIncompleteLesson = null
+  let firstIncompleteLessonId = null
+  let firstIncompleteLessonTitle = ''
+  
   for (const module of typedCourse.modules || []) {
     for (const lesson of module.lessons || []) {
       if (!completedLessons.has(lesson.id)) {
-        firstIncompleteLesson = lesson.id
+        firstIncompleteLessonId = lesson.id
+        firstIncompleteLessonTitle = lesson.title
         break
       }
     }
-    if (firstIncompleteLesson) break
+    if (firstIncompleteLessonId) break
+  }
+
+  // If all lessons are completed, use the first lesson for review
+  if (!firstIncompleteLessonId && typedCourse.modules?.[0]?.lessons?.[0]) {
+    firstIncompleteLessonId = typedCourse.modules[0].lessons[0].id
   }
 
   // Get enrollment count safely
   const enrollmentCount = typedCourse.enrollments?.[0]?.count || 0
+
+  // Update last accessed time
+  if (enrollment) {
+    await supabase
+      .from('enrollments')
+      .update({ last_accessed_at: new Date().toISOString() })
+      .eq('id', enrollment.id)
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -226,9 +242,9 @@ export default async function LearnPage({
                 </div>
               </div>
               
-              {firstIncompleteLesson ? (
+              {firstIncompleteLessonId ? (
                 <Link
-                  href={`/dashboard/learn/${params.slug}/${firstIncompleteLesson}`}
+                  href={`/dashboard/learn/${params.slug}/${firstIncompleteLessonId}`}
                   className="w-full py-3 bg-white text-blue-700 font-semibold rounded-lg hover:bg-blue-50 mb-3 flex items-center justify-center transition"
                 >
                   <PlayCircle className="h-5 w-5 mr-2" />
