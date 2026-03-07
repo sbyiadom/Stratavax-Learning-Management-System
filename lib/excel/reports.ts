@@ -1,63 +1,66 @@
 import ExcelJS from 'exceljs'
-import { createAdminClient } from '@/lib/supabase-server'  // Fixed import
+import { createAdminClient } from '@/lib/supabase-server'
 import { formatDate } from '@/lib/utils'
 
 interface ReportOptions {
-  courseId?: string
-  userId?: string
   startDate?: Date
   endDate?: Date
+  courseId?: string
+  userId?: string
 }
 
-interface CourseProgressData {
-  courseTitle: string
-  studentName: string
-  studentEmail: string
-  enrollmentDate: string
-  progress: number
-  status: string
-  lastAccess: string | null
-  completedDate: string | null
-}
-
-interface AssessmentData {
-  assessmentTitle: string
-  studentName: string
-  studentEmail: string
-  score: number
-  passed: boolean
-  completedAt: string
-  attempts: number
-}
-
-export async function generateCourseProgressReport(options: ReportOptions = {}) {
-  const supabase = createAdminClient()
+export class ReportGenerator {
+  private supabase
   
-  try {
-    // Build query
-    let query = supabase
+  constructor() {
+    // Initialize admin client for report generation (bypasses RLS)
+    this.supabase = createAdminClient()
+  }
+
+  async generateCourseProgressReport(options: ReportOptions = {}) {
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('Course Progress')
+
+    // Add headers
+    worksheet.columns = [
+      { header: 'User ID', key: 'userId', width: 30 },
+      { header: 'User Email', key: 'email', width: 30 },
+      { header: 'Course ID', key: 'courseId', width: 30 },
+      { header: 'Course Title', key: 'courseTitle', width: 40 },
+      { header: 'Progress (%)', key: 'progress', width: 15 },
+      { header: 'Enrolled Date', key: 'enrolledAt', width: 20 },
+      { header: 'Last Activity', key: 'lastActivity', width: 20 },
+      { header: 'Status', key: 'status', width: 15 },
+    ]
+
+    // Style headers
+    worksheet.getRow(1).font = { bold: true }
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' }
+    }
+
+    // Fetch data from Supabase
+    let query = this.supabase
       .from('enrollments')
       .select(`
         *,
-        courses(title),
-        profiles!enrollments_user_id_fkey(first_name, last_name, email),
-        user_progress(last_accessed_at)
+        users:user_id (email),
+        courses:course_id (title)
       `)
-
-    if (options.courseId) {
-      query = query.eq('course_id', options.courseId)
-    }
-
-    if (options.userId) {
-      query = query.eq('user_id', options.userId)
-    }
 
     if (options.startDate) {
       query = query.gte('enrolled_at', options.startDate.toISOString())
     }
-
     if (options.endDate) {
       query = query.lte('enrolled_at', options.endDate.toISOString())
+    }
+    if (options.courseId) {
+      query = query.eq('course_id', options.courseId)
+    }
+    if (options.userId) {
+      query = query.eq('user_id', options.userId)
     }
 
     const { data: enrollments, error } = await query
@@ -66,23 +69,36 @@ export async function generateCourseProgressReport(options: ReportOptions = {}) 
       throw new Error(`Failed to fetch enrollment data: ${error.message}`)
     }
 
-    // Create workbook
-    const workbook = new ExcelJS.Workbook()
-    const worksheet = workbook.addWorksheet('Course Progress')
+    // Add data rows
+    enrollments?.forEach((enrollment: any) => {
+      worksheet.addRow({
+        userId: enrollment.user_id,
+        email: enrollment.users?.email || 'N/A',
+        courseId: enrollment.course_id,
+        courseTitle: enrollment.courses?.title || 'N/A',
+        progress: enrollment.progress || 0,
+        enrolledAt: formatDate(enrollment.enrolled_at),
+        lastActivity: formatDate(enrollment.updated_at),
+        status: enrollment.progress === 100 ? 'Completed' : 'In Progress',
+      })
+    })
 
-    // Add headers
+    return workbook
+  }
+
+  async generateUserActivityReport(options: ReportOptions = {}) {
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('User Activity')
+
     worksheet.columns = [
-      { header: 'Course', key: 'courseTitle', width: 30 },
-      { header: 'Student Name', key: 'studentName', width: 25 },
-      { header: 'Email', key: 'studentEmail', width: 30 },
-      { header: 'Enrolled Date', key: 'enrollmentDate', width: 15 },
-      { header: 'Progress (%)', key: 'progress', width: 12 },
-      { header: 'Status', key: 'status', width: 15 },
-      { header: 'Last Access', key: 'lastAccess', width: 15 },
-      { header: 'Completed Date', key: 'completedDate', width: 15 }
+      { header: 'User ID', key: 'userId', width: 30 },
+      { header: 'User Email', key: 'email', width: 30 },
+      { header: 'Action', key: 'action', width: 25 },
+      { header: 'Details', key: 'details', width: 40 },
+      { header: 'IP Address', key: 'ipAddress', width: 15 },
+      { header: 'Timestamp', key: 'timestamp', width: 20 },
     ]
 
-    // Style header row
     worksheet.getRow(1).font = { bold: true }
     worksheet.getRow(1).fill = {
       type: 'pattern',
@@ -90,162 +106,201 @@ export async function generateCourseProgressReport(options: ReportOptions = {}) 
       fgColor: { argb: 'FFE0E0E0' }
     }
 
-    // Add data
-    enrollments?.forEach((enrollment: any) => {
-      const studentName = enrollment.profiles 
-        ? `${enrollment.profiles.first_name || ''} ${enrollment.profiles.last_name || ''}`.trim()
-        : 'Unknown'
-      
-      const lastAccess = enrollment.user_progress?.length > 0
-        ? formatDate(enrollment.user_progress[0].last_accessed_at)
-        : 'Never'
-
-      worksheet.addRow({
-        courseTitle: enrollment.courses?.title || 'Unknown Course',
-        studentName: studentName || 'Unknown',
-        studentEmail: enrollment.profiles?.email || 'No email',
-        enrollmentDate: formatDate(enrollment.enrolled_at),
-        progress: enrollment.progress_percentage || 0,
-        status: enrollment.status || 'in_progress',
-        lastAccess,
-        completedDate: enrollment.status === 'completed' ? formatDate(enrollment.updated_at) : '-'
-      })
-    })
-
-    // Generate buffer
-    const buffer = await workbook.xlsx.writeBuffer()
-    return buffer
-
-  } catch (error) {
-    console.error('Error generating course progress report:', error)
-    throw error
-  }
-}
-
-export async function generateAssessmentReport(options: ReportOptions = {}) {
-  const supabase = createAdminClient()
-  
-  try {
-    // Build query
-    let query = supabase
-      .from('quiz_attempts')
+    let query = this.supabase
+      .from('user_activity_logs')
       .select(`
         *,
-        quizzes(title),
-        profiles!quiz_attempts_user_id_fkey(first_name, last_name, email)
+        users:user_id (email)
       `)
+      .order('created_at', { ascending: false })
+      .limit(1000)
 
-    if (options.courseId) {
-      query = query.eq('course_id', options.courseId)
+    if (options.startDate) {
+      query = query.gte('created_at', options.startDate.toISOString())
     }
-
+    if (options.endDate) {
+      query = query.lte('created_at', options.endDate.toISOString())
+    }
     if (options.userId) {
       query = query.eq('user_id', options.userId)
     }
 
+    const { data: activities, error } = await query
+
+    if (error) {
+      throw new Error(`Failed to fetch activity data: ${error.message}`)
+    }
+
+    activities?.forEach((activity: any) => {
+      worksheet.addRow({
+        userId: activity.user_id,
+        email: activity.users?.email || 'N/A',
+        action: activity.action,
+        details: activity.details,
+        ipAddress: activity.ip_address,
+        timestamp: formatDate(activity.created_at),
+      })
+    })
+
+    return workbook
+  }
+
+  async generateAssessmentResultsReport(options: ReportOptions = {}) {
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('Assessment Results')
+
+    worksheet.columns = [
+      { header: 'User ID', key: 'userId', width: 30 },
+      { header: 'User Email', key: 'email', width: 30 },
+      { header: 'Assessment ID', key: 'assessmentId', width: 30 },
+      { header: 'Assessment Title', key: 'title', width: 40 },
+      { header: 'Score', key: 'score', width: 15 },
+      { header: 'Max Score', key: 'maxScore', width: 15 },
+      { header: 'Percentage', key: 'percentage', width: 15 },
+      { header: 'Passed', key: 'passed', width: 10 },
+      { header: 'Submitted At', key: 'submittedAt', width: 20 },
+    ]
+
+    worksheet.getRow(1).font = { bold: true }
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' }
+    }
+
+    let query = this.supabase
+      .from('assessment_submissions')
+      .select(`
+        *,
+        users:user_id (email),
+        assessments:assessment_id (title, passing_score)
+      `)
+      .order('submitted_at', { ascending: false })
+
     if (options.startDate) {
-      query = query.gte('completed_at', options.startDate.toISOString())
+      query = query.gte('submitted_at', options.startDate.toISOString())
     }
-
     if (options.endDate) {
-      query = query.lte('completed_at', options.endDate.toISOString())
+      query = query.lte('submitted_at', options.endDate.toISOString())
+    }
+    if (options.userId) {
+      query = query.eq('user_id', options.userId)
     }
 
-    const { data: attempts, error } = await query
+    const { data: submissions, error } = await query
 
     if (error) {
       throw new Error(`Failed to fetch assessment data: ${error.message}`)
     }
 
-    // Create workbook
-    const workbook = new ExcelJS.Workbook()
-    const worksheet = workbook.addWorksheet('Assessment Results')
-
-    // Add headers
-    worksheet.columns = [
-      { header: 'Assessment', key: 'assessmentTitle', width: 30 },
-      { header: 'Student Name', key: 'studentName', width: 25 },
-      { header: 'Email', key: 'studentEmail', width: 30 },
-      { header: 'Score (%)', key: 'score', width: 12 },
-      { header: 'Passed', key: 'passed', width: 10 },
-      { header: 'Completed Date', key: 'completedAt', width: 15 },
-      { header: 'Attempts', key: 'attempts', width: 10 }
-    ]
-
-    // Style header row
-    worksheet.getRow(1).font = { bold: true }
-    worksheet.getRow(1).fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE0E0E0' }
-    }
-
-    // Add data
-    attempts?.forEach((attempt: any) => {
-      const studentName = attempt.profiles 
-        ? `${attempt.profiles.first_name || ''} ${attempt.profiles.last_name || ''}`.trim()
-        : 'Unknown'
+    submissions?.forEach((submission: any) => {
+      const maxScore = submission.assessments?.max_score || 100
+      const percentage = (submission.score / maxScore) * 100
+      const passed = percentage >= (submission.assessments?.passing_score || 70)
 
       worksheet.addRow({
-        assessmentTitle: attempt.quizzes?.title || 'Unknown Assessment',
-        studentName: studentName || 'Unknown',
-        studentEmail: attempt.profiles?.email || 'No email',
-        score: attempt.score || 0,
-        passed: attempt.passed ? 'Yes' : 'No',
-        completedAt: formatDate(attempt.completed_at),
-        attempts: 1 // You might want to count actual attempts
+        userId: submission.user_id,
+        email: submission.users?.email || 'N/A',
+        assessmentId: submission.assessment_id,
+        title: submission.assessments?.title || 'N/A',
+        score: submission.score,
+        maxScore: maxScore,
+        percentage: `${percentage.toFixed(1)}%`,
+        passed: passed ? 'Yes' : 'No',
+        submittedAt: formatDate(submission.submitted_at),
       })
     })
 
-    // Generate buffer
-    const buffer = await workbook.xlsx.writeBuffer()
-    return buffer
-
-  } catch (error) {
-    console.error('Error generating assessment report:', error)
-    throw error
+    return workbook
   }
-}
 
-export async function generateComprehensiveReport(options: ReportOptions = {}) {
-  const supabase = createAdminClient()
-  
-  try {
+  async generateComprehensiveReport(options: ReportOptions = {}) {
     const workbook = new ExcelJS.Workbook()
-    
-    // Add course progress sheet
-    const courseProgressSheet = workbook.addWorksheet('Course Progress')
-    await generateCourseProgressSheet(courseProgressSheet, supabase, options)
-    
-    // Add assessment sheet
-    const assessmentSheet = workbook.addWorksheet('Assessment Results')
-    await generateAssessmentSheet(assessmentSheet, supabase, options)
-    
+
+    // Generate all reports in one workbook
+    const progressSheet = await this.generateCourseProgressReport(options)
+    const activitySheet = await this.generateUserActivityReport(options)
+    const assessmentSheet = await this.generateAssessmentResultsReport(options)
+
+    // Copy worksheets to main workbook
+    progressSheet.worksheets.forEach(sheet => {
+      const newSheet = workbook.addWorksheet(`Progress - ${sheet.name}`)
+      this.copyWorksheet(sheet, newSheet)
+    })
+
+    activitySheet.worksheets.forEach(sheet => {
+      const newSheet = workbook.addWorksheet(`Activity - ${sheet.name}`)
+      this.copyWorksheet(sheet, newSheet)
+    })
+
+    assessmentSheet.worksheets.forEach(sheet => {
+      const newSheet = workbook.addWorksheet(`Assessments - ${sheet.name}`)
+      this.copyWorksheet(sheet, newSheet)
+    })
+
     // Add summary sheet
     const summarySheet = workbook.addWorksheet('Summary')
-    await generateSummarySheet(summarySheet, supabase, options)
+    await this.generateSummarySheet(summarySheet, options)
 
-    const buffer = await workbook.xlsx.writeBuffer()
-    return buffer
+    return workbook
+  }
 
-  } catch (error) {
-    console.error('Error generating comprehensive report:', error)
-    throw error
+  private copyWorksheet(source: ExcelJS.Worksheet, target: ExcelJS.Worksheet) {
+    // Copy columns
+    target.columns = source.columns
+    
+    // Copy rows
+    source.eachRow((row, rowNumber) => {
+      const newRow = target.getRow(rowNumber)
+      row.eachCell((cell, colNumber) => {
+        newRow.getCell(colNumber).value = cell.value
+        newRow.getCell(colNumber).style = cell.style
+      })
+    })
+  }
+
+  private async generateSummarySheet(worksheet: ExcelJS.Worksheet, options: ReportOptions) {
+    worksheet.columns = [
+      { header: 'Metric', key: 'metric', width: 30 },
+      { header: 'Value', key: 'value', width: 20 },
+    ]
+
+    worksheet.getRow(1).font = { bold: true }
+
+    // Get summary statistics
+    const { data: enrollments } = await this.supabase
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+
+    const { data: completedCourses } = await this.supabase
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+      .eq('progress', 100)
+
+    const { data: activeUsers } = await this.supabase
+      .from('user_activity_logs')
+      .select('user_id', { count: 'exact', head: true })
+      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+
+    const { data: assessments } = await this.supabase
+      .from('assessment_submissions')
+      .select('score', { count: 'exact', head: true })
+
+    worksheet.addRow(['Report Generated', new Date().toLocaleString()])
+    worksheet.addRow(['Date Range', options.startDate && options.endDate ? 
+      `${formatDate(options.startDate)} to ${formatDate(options.endDate)}` : 'All Time'])
+    worksheet.addRow([])
+    worksheet.addRow(['Total Enrollments', enrollments?.length || 0])
+    worksheet.addRow(['Completed Courses', completedCourses?.length || 0])
+    worksheet.addRow(['Completion Rate', enrollments?.length ? 
+      `${((completedCourses?.length || 0) / enrollments.length * 100).toFixed(1)}%` : '0%'])
+    worksheet.addRow(['Active Users (7 days)', activeUsers?.length || 0])
+    worksheet.addRow(['Total Assessments', assessments?.length || 0])
   }
 }
 
-// Helper functions for comprehensive report
-async function generateCourseProgressSheet(sheet: ExcelJS.Worksheet, supabase: any, options: ReportOptions) {
-  // Similar to generateCourseProgressReport but writes to existing sheet
-  // Implementation here...
-}
-
-async function generateAssessmentSheet(sheet: ExcelJS.Worksheet, supabase: any, options: ReportOptions) {
-  // Similar to generateAssessmentReport but writes to existing sheet
-  // Implementation here...
-}
-
-async function generateSummarySheet(sheet: ExcelJS.Worksheet, supabase: any, options: ReportOptions) {
-  // Generate summary statistics
-  // Implementation here...
+// Helper function to export workbook
+export async function exportToExcel(workbook: ExcelJS.Workbook, filename: string) {
+  const buffer = await workbook.xlsx.writeBuffer()
+  return buffer
 }
