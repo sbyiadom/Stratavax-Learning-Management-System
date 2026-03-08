@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase-server'
-import { redirect } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 
 export default async function LearnPage({
   params,
@@ -8,12 +8,57 @@ export default async function LearnPage({
 }) {
   const supabase = await createClient()
   
-  // Hard-coded first lesson ID from your debug output
-  const firstLessonId = 'fcfdff91-b8af-4440-8cc6-5453095c8105'
+  const { data: { user } } = await supabase.auth.getUser()
   
-  // Force redirect to the first lesson
-  redirect(`/dashboard/learn/${params.slug}/${firstLessonId}`)
+  if (!user) {
+    return null
+  }
   
-  // This will never be rendered
-  return null
+  // Get the first lesson ID from the database
+  const { data: course } = await supabase
+    .from('courses')
+    .select('id')
+    .eq('slug', params.slug)
+    .single()
+
+  if (!course) {
+    notFound()
+  }
+
+  // Get the first module
+  const { data: firstModule } = await supabase
+    .from('modules')
+    .select('id')
+    .eq('course_id', course.id)
+    .order('module_order', { ascending: true })
+    .limit(1)
+    .single()
+
+  if (!firstModule) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div>No modules found</div>
+      </div>
+    )
+  }
+
+  // Get the first lesson
+  const { data: firstLesson } = await supabase
+    .from('lessons')
+    .select('id')
+    .eq('module_id', firstModule.id)
+    .order('lesson_order', { ascending: true })
+    .limit(1)
+    .single()
+
+  if (!firstLesson) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div>No lessons found</div>
+      </div>
+    )
+  }
+
+  // Use permanentRedirect instead of redirect
+  permanentRedirect(`/dashboard/learn/${params.slug}/${firstLesson.id}`)
 }
