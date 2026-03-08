@@ -11,7 +11,6 @@ interface LessonContentProps {
 }
 
 export default function LessonContent({ lesson, contentType }: LessonContentProps) {
-  // All hooks must be called at the top level, unconditionally
   const [isClient, setIsClient] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
 
@@ -19,7 +18,6 @@ export default function LessonContent({ lesson, contentType }: LessonContentProp
     setIsClient(true)
   }, [])
 
-  // Then you can have conditional returns
   if (!isClient) {
     return (
       <div className="aspect-video bg-gray-200 rounded-lg animate-pulse" />
@@ -27,10 +25,21 @@ export default function LessonContent({ lesson, contentType }: LessonContentProp
   }
 
   if (contentType === 'video') {
+    // Get the video URL - either from content_url or content?.videoUrl
+    const videoUrl = lesson.content_url || lesson.content?.videoUrl
+    
+    if (!videoUrl) {
+      return (
+        <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+          <p className="text-gray-500">No video available for this lesson.</p>
+        </div>
+      )
+    }
+
     return (
       <div className="aspect-video bg-black rounded-lg overflow-hidden">
         <ReactPlayer
-          url={lesson.content?.videoUrl || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
+          url={videoUrl}
           width="100%"
           height="100%"
           controls={true}
@@ -42,12 +51,21 @@ export default function LessonContent({ lesson, contentType }: LessonContentProp
     )
   }
 
-  if (contentType === 'reading') {
+  if (contentType === 'reading' || contentType === 'article') {
     return (
       <div className="prose max-w-none">
         <div dangerouslySetInnerHTML={{ 
           __html: lesson.content?.content || '<p>Content coming soon...</p>' 
         }} />
+      </div>
+    )
+  }
+
+  if (contentType === 'quiz') {
+    return (
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-xl font-semibold mb-4">Quiz: {lesson.title}</h3>
+        <p className="text-gray-600">Quiz content would be loaded here.</p>
       </div>
     )
   }
