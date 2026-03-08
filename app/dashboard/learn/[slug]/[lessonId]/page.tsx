@@ -4,6 +4,24 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import LessonContent from '@/components/dashboard/LessonContent'
 
+// Define types to help TypeScript
+type ModuleWithCourse = {
+  id: string
+  title: string
+  module_order: number
+  course_id: string
+}
+
+type LessonWithModule = {
+  id: string
+  title: string
+  content_type: string
+  content: any
+  lesson_order: number
+  module_id: string
+  module: ModuleWithCourse
+}
+
 export default async function LessonPage({
   params,
 }: {
@@ -42,11 +60,27 @@ export default async function LessonPage({
     notFound()
   }
 
+  // Cast to our type
+  const typedLesson = lesson as unknown as LessonWithModule
+
   // Get the course_id from the module
-  const courseId = lesson.module?.course_id
+  const courseId = typedLesson.module?.course_id
 
   if (!courseId) {
-    return <div>Course ID not found</div>
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Error</h1>
+          <p className="text-gray-600">Course ID not found for this lesson.</p>
+          <Link 
+            href={`/dashboard/learn/${params.slug}`}
+            className="text-blue-600 hover:underline mt-4 inline-block"
+          >
+            Back to Course
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   // Get all lessons in this course for navigation
@@ -88,7 +122,7 @@ export default async function LessonPage({
             </Link>
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-500">
-                Lesson {lesson.lesson_order} • {lesson.content_type}
+                Lesson {typedLesson.lesson_order} • {typedLesson.content_type}
               </span>
             </div>
           </div>
@@ -98,9 +132,9 @@ export default async function LessonPage({
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-2xl font-bold mb-6">{lesson.title}</h1>
+          <h1 className="text-2xl font-bold mb-6">{typedLesson.title}</h1>
           
-          <LessonContent lesson={lesson} contentType={lesson.content_type} />
+          <LessonContent lesson={typedLesson} contentType={typedLesson.content_type} />
 
           {/* Navigation */}
           <div className="mt-8 flex items-center justify-between border-t pt-6">
@@ -133,9 +167,9 @@ export default async function LessonPage({
           </div>
         </div>
 
-        {/* Debug Info (remove in production) */}
+        {/* Debug Info */}
         <div className="mt-4 p-4 bg-gray-100 rounded-lg text-xs">
-          <p><strong>Debug:</strong> Lesson ID: {lesson.id} | Course ID: {courseId}</p>
+          <p><strong>Debug:</strong> Lesson ID: {typedLesson.id} | Course ID: {courseId}</p>
         </div>
       </div>
     </div>
