@@ -47,6 +47,84 @@ type Enrollment = {
   progress_percentage: number
 }
 
+// Server action defined at the top level, outside the component
+async function markLessonComplete(formData: FormData) {
+  'use server'
+  
+  const courseId = formData.get('courseId') as string
+  const lessonId = formData.get('lessonId') as string
+  const slug = formData.get('slug') as string
+  
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) return
+
+  const { data: currentProgress } = await supabase
+    .from('lesson_progress')
+    .select('time_spent')
+    .eq('user_id', user.id)
+    .eq('lesson_id', lessonId)
+    .maybeSingle()
+
+  const { error } = await supabase
+    .from('lesson_progress')
+    .upsert({
+      user_id: user.id,
+      lesson_id: lessonId,
+      completed: true,
+      completed_at: new Date().toISOString(),
+      time_spent: currentProgress?.time_spent || 0
+    }, {
+      onConflict: 'user_id,lesson_id'
+    })
+
+  if (!error) {
+    await updateCourseProgress(user.id, courseId)
+    redirect(`/dashboard/learn/${slug}/${lessonId}`)
+  }
+}
+
+// Helper function for updating course progress
+async function updateCourseProgress(userId: string, courseId: string) {
+  const supabase = await createClient()
+  
+  const { data: courseModules } = await supabase
+    .from('modules')
+    .select('id')
+    .eq('course_id', courseId)
+
+  if (!courseModules || courseModules.length === 0) return
+
+  const moduleIds = courseModules.map(m => m.id)
+  
+  const { data: totalLessons } = await supabase
+    .from('lessons')
+    .select('id')
+    .in('module_id', moduleIds)
+    .eq('is_published', true)
+
+  if (!totalLessons || totalLessons.length === 0) return
+
+  const { data: completedLessons } = await supabase
+    .from('lesson_progress')
+    .select('lesson_id')
+    .eq('user_id', userId)
+    .eq('completed', true)
+    .in('lesson_id', totalLessons.map(l => l.id))
+
+  const progressPercentage = Math.round((completedLessons?.length || 0) / totalLessons.length * 100)
+  
+  await supabase
+    .from('enrollments')
+    .update({ 
+      progress_percentage: progressPercentage,
+      ...(progressPercentage === 100 ? { completed_at: new Date().toISOString() } : {})
+    })
+    .eq('user_id', userId)
+    .eq('course_id', courseId)
+}
+
 export default async function LessonPage({
   params,
 }: {
@@ -233,82 +311,6 @@ export default async function LessonPage({
     const currentIndex = allLessons.findIndex(l => l.id === params.lessonId)
     const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null
     const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null
-
-    async function markLessonComplete(formData: FormData) {
-      'use server'
-      
-      const courseId = formData.get('courseId') as string
-      const lessonId = formData.get('lessonId') as string
-      const slug = formData.get('slug') as string
-      
-      const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) return
-
-      const { data: currentProgress } = await supabase
-        .from('lesson_progress')
-        .select('time_spent')
-        .eq('user_id', user.id)
-        .eq('lesson_id', lessonId)
-        .maybeSingle()
-
-      const { error } = await supabase
-        .from('lesson_progress')
-        .upsert({
-          user_id: user.id,
-          lesson_id: lessonId,
-          completed: true,
-          completed_at: new Date().toISOString(),
-          time_spent: currentProgress?.time_spent || 0
-        }, {
-          onConflict: 'user_id,lesson_id'
-        })
-
-      if (!error) {
-        await updateCourseProgress(user.id, courseId)
-        redirect(`/dashboard/learn/${slug}/${lessonId}`)
-      }
-    }
-
-    async function updateCourseProgress(userId: string, courseId: string) {
-      const supabase = await createClient()
-      
-      const { data: courseModules } = await supabase
-        .from('modules')
-        .select('id')
-        .eq('course_id', courseId)
-
-      if (!courseModules || courseModules.length === 0) return
-
-      const moduleIds = courseModules.map(m => m.id)
-      
-      const { data: totalLessons } = await supabase
-        .from('lessons')
-        .select('id')
-        .in('module_id', moduleIds)
-        .eq('is_published', true)
-
-      if (!totalLessons || totalLessons.length === 0) return
-
-      const { data: completedLessons } = await supabase
-        .from('lesson_progress')
-        .select('lesson_id')
-        .eq('user_id', userId)
-        .eq('completed', true)
-        .in('lesson_id', totalLessons.map(l => l.id))
-
-      const progressPercentage = Math.round((completedLessons?.length || 0) / totalLessons.length * 100)
-      
-      await supabase
-        .from('enrollments')
-        .update({ 
-          progress_percentage: progressPercentage,
-          ...(progressPercentage === 100 ? { completed_at: new Date().toISOString() } : {})
-        })
-        .eq('user_id', userId)
-        .eq('course_id', courseId)
-    }
 
     const typedEnrollment = enrollment as Enrollment
 
