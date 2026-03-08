@@ -14,18 +14,18 @@ const courseCategories = [
     icon: '💻',
     description: 'Prepare for the modern digital economy',
     courses: [
-      { id: 'basic-computer', title: 'Basic Computer Literacy', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
+      { id: 'basic-computer-literacy', title: 'Basic Computer Literacy', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
       { id: 'microsoft-office', title: 'Microsoft Office (Word, Excel, PowerPoint)', level: 'Beginner', duration: '4 weeks', lessons: 15, enrolled: 0 },
-      { id: 'excel-analysis', title: 'Data Analysis with Excel', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'python-intro', title: 'Introduction to Programming (Python)', level: 'Beginner', duration: '6 weeks', lessons: 20, enrolled: 0 },
-      { id: 'javascript-intro', title: 'Introduction to Programming (JavaScript)', level: 'Beginner', duration: '6 weeks', lessons: 20, enrolled: 0 },
-      { id: 'web-dev', title: 'Web Development (HTML, CSS, JavaScript)', level: 'Intermediate', duration: '8 weeks', lessons: 30, enrolled: 0 },
-      { id: 'mobile-dev', title: 'Mobile App Development', level: 'Advanced', duration: '10 weeks', lessons: 35, enrolled: 0 },
-      { id: 'cybersecurity', title: 'Cybersecurity Basics', level: 'Beginner', duration: '4 weeks', lessons: 12, enrolled: 0 },
-      { id: 'ai-fundamentals', title: 'Artificial Intelligence Fundamentals', level: 'Intermediate', duration: '5 weeks', lessons: 18, enrolled: 0 },
-      { id: 'data-science', title: 'Data Science Basics', level: 'Intermediate', duration: '6 weeks', lessons: 22, enrolled: 0 },
-      { id: 'cloud-computing', title: 'Cloud Computing Fundamentals', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'ui-ux', title: 'Digital Product Design (UI/UX)', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
+      { id: 'data-analysis-excel', title: 'Data Analysis with Excel', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'intro-to-python', title: 'Introduction to Programming (Python)', level: 'Beginner', duration: '6 weeks', lessons: 20, enrolled: 0 },
+      { id: 'intro-to-javascript', title: 'Introduction to Programming (JavaScript)', level: 'Beginner', duration: '6 weeks', lessons: 20, enrolled: 0 },
+      { id: 'web-development', title: 'Web Development (HTML, CSS, JavaScript)', level: 'Intermediate', duration: '8 weeks', lessons: 30, enrolled: 0 },
+      { id: 'mobile-app-development', title: 'Mobile App Development', level: 'Advanced', duration: '10 weeks', lessons: 35, enrolled: 0 },
+      { id: 'cybersecurity-basics', title: 'Cybersecurity Basics', level: 'Beginner', duration: '4 weeks', lessons: 12, enrolled: 0 },
+      { id: 'ai-in-business', title: 'Artificial Intelligence Fundamentals', level: 'Intermediate', duration: '5 weeks', lessons: 18, enrolled: 0 },
+      { id: 'data-science-basics', title: 'Data Science Basics', level: 'Intermediate', duration: '6 weeks', lessons: 22, enrolled: 0 },
+      { id: 'cloud-computing-fundamentals', title: 'Cloud Computing Fundamentals', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
+      { id: 'ui-ux-design', title: 'Digital Product Design (UI/UX)', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
     ]
   },
   {
@@ -34,16 +34,16 @@ const courseCategories = [
     icon: '🚀',
     description: 'Start and grow successful businesses',
     courses: [
-      { id: 'entrepreneurship-intro', title: 'Introduction to Entrepreneurship', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'business-model', title: 'Business Model Development', level: 'Intermediate', duration: '4 weeks', lessons: 12, enrolled: 0 },
-      { id: 'business-plan', title: 'Business Plan Writing', level: 'Intermediate', duration: '3 weeks', lessons: 9, enrolled: 0 },
+      { id: 'intro-to-entrepreneurship', title: 'Introduction to Entrepreneurship', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'business-model-development', title: 'Business Model Development', level: 'Intermediate', duration: '4 weeks', lessons: 12, enrolled: 0 },
+      { id: 'business-plan-writing', title: 'Business Plan Writing', level: 'Intermediate', duration: '3 weeks', lessons: 9, enrolled: 0 },
       { id: 'financial-literacy', title: 'Financial Literacy', level: 'Beginner', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'accounting', title: 'Accounting for Small Businesses', level: 'Intermediate', duration: '5 weeks', lessons: 18, enrolled: 0 },
-      { id: 'marketing', title: 'Marketing & Branding', level: 'Beginner', duration: '4 weeks', lessons: 15, enrolled: 0 },
-      { id: 'sales', title: 'Sales Skills', level: 'Beginner', duration: '3 weeks', lessons: 11, enrolled: 0 },
-      { id: 'ecommerce', title: 'E-commerce Business', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
-      { id: 'crm', title: 'Customer Relationship Management', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'negotiation', title: 'Business Negotiation', level: 'Advanced', duration: '3 weeks', lessons: 9, enrolled: 0 },
+      { id: 'accounting-small-business', title: 'Accounting for Small Businesses', level: 'Intermediate', duration: '5 weeks', lessons: 18, enrolled: 0 },
+      { id: 'marketing-branding', title: 'Marketing & Branding', level: 'Beginner', duration: '4 weeks', lessons: 15, enrolled: 0 },
+      { id: 'sales-skills', title: 'Sales Skills', level: 'Beginner', duration: '3 weeks', lessons: 11, enrolled: 0 },
+      { id: 'ecommerce-business', title: 'E-commerce Business', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
+      { id: 'customer-relationship-management', title: 'Customer Relationship Management', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'business-negotiation', title: 'Business Negotiation', level: 'Advanced', duration: '3 weeks', lessons: 9, enrolled: 0 },
     ]
   },
   {
@@ -53,15 +53,15 @@ const courseCategories = [
     description: 'Build decision-making and leadership capabilities',
     courses: [
       { id: 'leadership-fundamentals', title: 'Leadership Fundamentals', level: 'Beginner', duration: '4 weeks', lessons: 12, enrolled: 0 },
-      { id: 'communication', title: 'Communication Skills', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'communication-skills', title: 'Communication Skills', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
       { id: 'emotional-intelligence', title: 'Emotional Intelligence', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'critical-thinking', title: 'Critical Thinking & Problem Solving', level: 'Intermediate', duration: '4 weeks', lessons: 13, enrolled: 0 },
-      { id: 'time-management', title: 'Time Management & Productivity', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
+      { id: 'critical-thinking-problem-solving', title: 'Critical Thinking & Problem Solving', level: 'Intermediate', duration: '4 weeks', lessons: 13, enrolled: 0 },
+      { id: 'time-management-productivity', title: 'Time Management & Productivity', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
       { id: 'conflict-resolution', title: 'Conflict Resolution', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
       { id: 'team-management', title: 'Team Management', level: 'Advanced', duration: '4 weeks', lessons: 15, enrolled: 0 },
       { id: 'public-speaking', title: 'Public Speaking', level: 'Intermediate', duration: '3 weeks', lessons: 11, enrolled: 0 },
       { id: 'decision-making', title: 'Decision Making', level: 'Advanced', duration: '3 weeks', lessons: 9, enrolled: 0 },
-      { id: 'ethics', title: 'Ethics and Professional Conduct', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
+      { id: 'ethics-professional-conduct', title: 'Ethics and Professional Conduct', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
     ]
   },
   {
@@ -70,16 +70,16 @@ const courseCategories = [
     icon: '⚙️',
     description: 'Technical skills for industrial and engineering careers',
     courses: [
-      { id: 'mechanical-concepts', title: 'Basic Mechanical Engineering Concepts', level: 'Beginner', duration: '5 weeks', lessons: 18, enrolled: 0 },
-      { id: 'electrical-systems', title: 'Electrical Systems Basics', level: 'Beginner', duration: '4 weeks', lessons: 15, enrolled: 0 },
-      { id: 'industrial-automation', title: 'Industrial Automation Basics', level: 'Intermediate', duration: '6 weeks', lessons: 20, enrolled: 0 },
+      { id: 'basic-mechanical-engineering', title: 'Basic Mechanical Engineering Concepts', level: 'Beginner', duration: '5 weeks', lessons: 18, enrolled: 0 },
+      { id: 'electrical-systems-basics', title: 'Electrical Systems Basics', level: 'Beginner', duration: '4 weeks', lessons: 15, enrolled: 0 },
+      { id: 'industrial-automation-basics', title: 'Industrial Automation Basics', level: 'Intermediate', duration: '6 weeks', lessons: 20, enrolled: 0 },
       { id: 'plc-programming', title: 'PLC Programming', level: 'Advanced', duration: '8 weeks', lessons: 25, enrolled: 0 },
       { id: 'maintenance-planning', title: 'Maintenance Planning', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
       { id: 'preventive-maintenance', title: 'Preventive Maintenance', level: 'Intermediate', duration: '4 weeks', lessons: 13, enrolled: 0 },
       { id: 'reliability-engineering', title: 'Reliability Engineering', level: 'Advanced', duration: '6 weeks', lessons: 22, enrolled: 0 },
-      { id: 'manufacturing', title: 'Manufacturing Processes', level: 'Intermediate', duration: '5 weeks', lessons: 17, enrolled: 0 },
+      { id: 'manufacturing-processes', title: 'Manufacturing Processes', level: 'Intermediate', duration: '5 weeks', lessons: 17, enrolled: 0 },
       { id: 'lean-manufacturing', title: 'Lean Manufacturing', level: 'Intermediate', duration: '4 weeks', lessons: 15, enrolled: 0 },
-      { id: 'six-sigma', title: 'Quality Control & Six Sigma', level: 'Advanced', duration: '6 weeks', lessons: 20, enrolled: 0 },
+      { id: 'quality-control-six-sigma', title: 'Quality Control & Six Sigma', level: 'Advanced', duration: '6 weeks', lessons: 20, enrolled: 0 },
     ]
   },
   {
@@ -88,14 +88,14 @@ const courseCategories = [
     icon: '💰',
     description: 'Manage money and build wealth',
     courses: [
-      { id: 'personal-finance', title: 'Personal Finance Management', level: 'Beginner', duration: '3 weeks', lessons: 11, enrolled: 0 },
-      { id: 'budgeting', title: 'Budgeting and Saving', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
+      { id: 'personal-finance-management', title: 'Personal Finance Management', level: 'Beginner', duration: '3 weeks', lessons: 11, enrolled: 0 },
+      { id: 'budgeting-and-saving', title: 'Budgeting and Saving', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
       { id: 'investing-basics', title: 'Investing Basics', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'stock-market', title: 'Stock Market Fundamentals', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'cryptocurrency', title: 'Cryptocurrency Basics', level: 'Intermediate', duration: '3 weeks', lessons: 9, enrolled: 0 },
+      { id: 'stock-market-fundamentals', title: 'Stock Market Fundamentals', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
+      { id: 'cryptocurrency-basics', title: 'Cryptocurrency Basics', level: 'Intermediate', duration: '3 weeks', lessons: 9, enrolled: 0 },
       { id: 'risk-management', title: 'Risk Management', level: 'Advanced', duration: '4 weeks', lessons: 13, enrolled: 0 },
-      { id: 'retirement', title: 'Retirement Planning', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'loans-credit', title: 'Understanding Loans and Credit', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
+      { id: 'retirement-planning', title: 'Retirement Planning', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'understanding-loans-credit', title: 'Understanding Loans and Credit', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
     ]
   },
   {
@@ -104,13 +104,13 @@ const courseCategories = [
     icon: '📈',
     description: 'Get jobs and advance your career',
     courses: [
-      { id: 'cv-writing', title: 'CV / Resume Writing', level: 'Beginner', duration: '1 week', lessons: 5, enrolled: 0 },
-      { id: 'interview-prep', title: 'Job Interview Preparation', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
+      { id: 'cv-resume-writing', title: 'CV / Resume Writing', level: 'Beginner', duration: '1 week', lessons: 5, enrolled: 0 },
+      { id: 'job-interview-preparation', title: 'Job Interview Preparation', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
       { id: 'workplace-etiquette', title: 'Workplace Etiquette', level: 'Beginner', duration: '1 week', lessons: 4, enrolled: 0 },
       { id: 'professional-communication', title: 'Professional Communication', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
-      { id: 'networking', title: 'Networking for Career Growth', level: 'Intermediate', duration: '2 weeks', lessons: 6, enrolled: 0 },
-      { id: 'remote-work', title: 'Remote Work Skills', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
-      { id: 'freelancing', title: 'Freelancing Fundamentals', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'networking-career-growth', title: 'Networking for Career Growth', level: 'Intermediate', duration: '2 weeks', lessons: 6, enrolled: 0 },
+      { id: 'remote-work-skills', title: 'Remote Work Skills', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
+      { id: 'freelancing-fundamentals', title: 'Freelancing Fundamentals', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
     ]
   },
   {
@@ -119,12 +119,12 @@ const courseCategories = [
     icon: '🔮',
     description: 'Skills for future job markets',
     courses: [
-      { id: 'ai-business', title: 'Artificial Intelligence in Business', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'automation', title: 'Automation & Robotics Overview', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'blockchain', title: 'Blockchain Technology', level: 'Intermediate', duration: '4 weeks', lessons: 13, enrolled: 0 },
+      { id: 'ai-in-business', title: 'Artificial Intelligence in Business', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
+      { id: 'automation-robotics-overview', title: 'Automation & Robotics Overview', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
+      { id: 'blockchain-technology', title: 'Blockchain Technology', level: 'Intermediate', duration: '4 weeks', lessons: 13, enrolled: 0 },
       { id: 'digital-marketing', title: 'Digital Marketing', level: 'Beginner', duration: '5 weeks', lessons: 18, enrolled: 0 },
       { id: 'content-creation', title: 'Content Creation', level: 'Beginner', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'social-media', title: 'Social Media Management', level: 'Intermediate', duration: '4 weeks', lessons: 15, enrolled: 0 },
+      { id: 'social-media-management', title: 'Social Media Management', level: 'Intermediate', duration: '4 weeks', lessons: 15, enrolled: 0 },
       { id: 'online-business', title: 'Online Business', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
     ]
   }
@@ -144,8 +144,8 @@ export default function DashboardPage() {
       setUser(user)
       setLoading(false)
       
-      // Load enrolled courses from localStorage or database
-      // For now, using localStorage as placeholder
+      // Load enrolled courses from localStorage for now
+      // In production, this should come from the database
       const saved = localStorage.getItem(`enrolled_${user?.id}`)
       if (saved) {
         setEnrolledCourses(JSON.parse(saved))
@@ -162,7 +162,8 @@ export default function DashboardPage() {
       if (user) {
         localStorage.setItem(`enrolled_${user.id}`, JSON.stringify(updated))
       }
-      router.push(`/learn/${courseId}`)
+      // FIXED: Added /dashboard/ prefix
+      router.push(`/dashboard/learn/${courseId}`)
     }
   }
 
@@ -267,7 +268,7 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     <button
-                      onClick={() => router.push(`/learn/${course.id}`)}
+                      onClick={() => router.push(`/dashboard/learn/${course.id}`)}
                       className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
                     >
                       Continue Learning
@@ -340,7 +341,7 @@ export default function DashboardPage() {
                   
                   {isEnrolled ? (
                     <button
-                      onClick={() => router.push(`/learn/${course.id}`)}
+                      onClick={() => router.push(`/dashboard/learn/${course.id}`)}
                       className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
                     >
                       Continue Learning
