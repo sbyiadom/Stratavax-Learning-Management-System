@@ -200,7 +200,8 @@ export default function DashboardPage() {
     loadUserData()
   }, [supabase])
 
-  const handleEnroll = async (courseId: string) => {
+  // FIXED: Added courseSlug parameter and use it for redirect
+  const handleEnroll = async (courseId: string, courseSlug: string) => {
     if (!user) {
       router.push('/login')
       return
@@ -216,7 +217,8 @@ export default function DashboardPage() {
       })
 
     if (!error) {
-      router.push(`/dashboard/learn/${courseId}`)
+      // Use the slug, not the ID
+      router.push(`/dashboard/learn/${courseSlug}`)
     }
   }
 
@@ -465,8 +467,9 @@ export default function DashboardPage() {
                           Continue Learning
                         </button>
                       ) : (
+                        // FIXED: Pass both course.id and course.slug to handleEnroll
                         <button
-                          onClick={() => handleEnroll(course.id)}
+                          onClick={() => handleEnroll(course.id, course.slug)}
                           className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                         >
                           Enroll Now
@@ -582,8 +585,9 @@ export default function DashboardPage() {
                       </button>
                     </>
                   ) : (
+                    // FIXED: Pass both course.id and course.slug to handleEnroll
                     <button
-                      onClick={() => handleEnroll(course.id)}
+                      onClick={() => handleEnroll(course.id, course.slug)}
                       className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
                       Enroll Now
