@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase-server'
 import { notFound, redirect } from 'next/navigation'
-import Link from 'next/link'
 
 export default async function LearnPage({
   params,
@@ -16,10 +15,10 @@ export default async function LearnPage({
     return null
   }
   
-  // First, get the course ID from the slug
+  // STEP 1: Get the course ID from the slug
   const { data: course } = await supabase
     .from('courses')
-    .select('id, title')
+    .select('id')
     .eq('slug', params.slug)
     .single()
 
@@ -27,10 +26,10 @@ export default async function LearnPage({
     notFound()
   }
 
-  // Check if user is enrolled
+  // STEP 2: Check if user is enrolled
   const { data: enrollment } = await supabase
     .from('enrollments')
-    .select('*')
+    .select('id')
     .eq('user_id', user.id)
     .eq('course_id', course.id)
     .single()
@@ -39,19 +38,11 @@ export default async function LearnPage({
     redirect(`/dashboard/courses/${params.slug}`)
   }
 
-  // First, get all modules for this course in order
+  // STEP 3: Get the first lesson directly using a raw SQL approach
+  // First, get all modules for this course
   const { data: modules } = await supabase
     .from('modules')
-    .select(`
-      id,
-      module_order,
-      lessons (
-        id,
-        title,
-        lesson_order,
-        content_type
-      )
-    `)
+    .select('id')
     .eq('course_id', course.id)
     .order('module_order', { ascending: true })
 
@@ -66,59 +57,26 @@ export default async function LearnPage({
     )
   }
 
-  // Flatten and sort all lessons
-  const allLessons: { id: string; title: string; lesson_order: number; module_order: number }[] = []
-  
-  modules.forEach(module => {
-    if (module.lessons) {
-      module.lessons.forEach((lesson: any) => {
-        allLessons.push({
-          id: lesson.id,
-          title: lesson.title,
-          lesson_order: lesson.lesson_order,
-          module_order: module.module_order
-        })
-      })
-    }
-  })
+  // Get the first lesson from the first module
+  const { data: firstLesson } = await supabase
+    .from('lessons')
+    .select('id')
+    .eq('module_id', modules[0].id)
+    .order('lesson_order', { ascending: true })
+    .limit(1)
+    .single()
 
-  // Sort by module_order first, then lesson_order
-  allLessons.sort((a, b) => {
-    if (a.module_order !== b.module_order) {
-      return a.module_order - b.module_order
-    }
-    return a.lesson_order - b.lesson_order
-  })
-
-  if (allLessons.length === 0) {
+  if (!firstLesson) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">No lessons found</h1>
-          <p className="text-gray-600">This course doesn't have any lessons yet.</p>
+          <p className="text-gray-600">The first module has no lessons.</p>
         </div>
       </div>
     )
   }
 
-  // Get completed lessons for this user
-  const { data: completedData } = await supabase
-    .from('lesson_progress')
-    .select('lesson_id')
-    .eq('user_id', user.id)
-    .eq('completed', true)
-    .in('lesson_id', allLessons.map(l => l.id))
-
-  const completedLessonIds = new Set(completedData?.map(c => c.lesson_id) || [])
-
-  // Find the first incomplete lesson
-  const firstIncompleteLesson = allLessons.find(l => !completedLessonIds.has(l.id))
-
-  // If there's an incomplete lesson, redirect to it
-  if (firstIncompleteLesson) {
-    redirect(`/dashboard/learn/${params.slug}/${firstIncompleteLesson.id}`)
-  }
-
-  // If all lessons are completed, redirect to the first lesson
-  redirect(`/dashboard/learn/${params.slug}/${allLessons[0].id}`)
+  // Redirect to the first lesson
+  redirect(`/dashboard/learn/${params.slug}/${firstLesson.id}`)
 }
