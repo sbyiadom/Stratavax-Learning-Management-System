@@ -406,32 +406,48 @@ export default async function CoursePage({
                       </div>
                     </div>
 
-                    {/* Lessons List */}
+                    {/* Lessons List - FIXED: No onClick handlers on Link components */}
                     <div className="space-y-2">
                       {module.lessons.map((lesson) => {
                         const progress = lessonProgress.find(p => p.lesson_id === lesson.id)
                         const isCompleted = progress?.completed || false
                         const isLocked = !isEnrolled
 
+                        // For non-enrolled users, render a div with lock icon
+                        if (!isEnrolled) {
+                          return (
+                            <div
+                              key={lesson.id}
+                              className="flex items-center justify-between p-3 rounded-lg cursor-not-allowed opacity-75"
+                            >
+                              <div className="flex items-center gap-3">
+                                <Lock size={18} className="text-gray-400" />
+                                <div>
+                                  <span className="font-medium">
+                                    {lesson.lesson_order}. {lesson.title}
+                                  </span>
+                                  <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                                    <span>{lesson.content_type || 'video'}</span>
+                                    {lesson.duration_minutes && (
+                                      <span>{lesson.duration_minutes} min</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        }
+
+                        // For enrolled users, render a clickable Link
                         return (
                           <Link
                             key={lesson.id}
-                            href={isEnrolled 
-                              ? `/dashboard/learn/${params.slug}/${lesson.id}`
-                              : '#'
-                            }
-                            className={`flex items-center justify-between p-3 rounded-lg transition ${
-                              isEnrolled 
-                                ? 'hover:bg-gray-50 cursor-pointer' 
-                                : 'cursor-not-allowed opacity-75'
-                            }`}
-                            onClick={(e) => !isEnrolled && e.preventDefault()}
+                            href={`/dashboard/learn/${params.slug}/${lesson.id}`}
+                            className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition cursor-pointer"
                           >
                             <div className="flex items-center gap-3">
                               {isCompleted ? (
                                 <CheckCircle size={18} className="text-green-600" />
-                              ) : isLocked ? (
-                                <Lock size={18} className="text-gray-400" />
                               ) : (
                                 <div className="w-4.5 h-4.5 rounded-full border-2 border-gray-300" />
                               )}
@@ -452,11 +468,9 @@ export default async function CoursePage({
                                 </div>
                               </div>
                             </div>
-                            {isEnrolled && (
-                              <span className="text-blue-600 text-sm">
-                                {isCompleted ? 'Review' : 'Start'}
-                              </span>
-                            )}
+                            <span className="text-blue-600 text-sm">
+                              {isCompleted ? 'Review' : 'Start'}
+                            </span>
                           </Link>
                         )
                       })}
