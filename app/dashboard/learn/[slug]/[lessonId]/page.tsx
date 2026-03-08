@@ -166,15 +166,16 @@ export default async function LessonPage({
 
     console.log('Course found:', course.id)
 
+    // FIXED: Changed from .single() to .maybeSingle()
     // Check if user is enrolled
     const { data: enrollment, error: enrollmentError } = await supabase
       .from('enrollments')
       .select('status, progress_percentage')
       .eq('user_id', user.id)
       .eq('course_id', course.id)
-      .single()
+      .maybeSingle()
 
-    if (enrollmentError && enrollmentError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+    if (enrollmentError) {
       console.error('Enrollment error:', enrollmentError)
     }
 
