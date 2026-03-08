@@ -17,136 +17,108 @@ export default async function LearnPage({
   }
   
   // First, get the course ID from the slug
-  const { data: course, error: courseError } = await supabase
+  const { data: course } = await supabase
     .from('courses')
     .select('id, title')
     .eq('slug', params.slug)
     .single()
 
-  console.log('Course query result:', { course, courseError })
-
   if (!course) {
-    return <div>Course not found: {params.slug}</div>
+    notFound()
   }
 
   // Check if user is enrolled
-  const { data: enrollment, error: enrollError } = await supabase
+  const { data: enrollment } = await supabase
     .from('enrollments')
     .select('*')
     .eq('user_id', user.id)
     .eq('course_id', course.id)
     .single()
 
-  console.log('Enrollment check:', { enrollment, enrollError })
-
   if (!enrollment) {
     redirect(`/dashboard/courses/${params.slug}`)
   }
 
-  // Get all lessons for this course with their modules
-  const { data: lessons, error: lessonsError } = await supabase
-    .from('lessons')
+  // First, get all modules for this course in order
+  const { data: modules } = await supabase
+    .from('modules')
     .select(`
       id,
-      title,
-      lesson_order,
-      module:modules!inner(
+      module_order,
+      lessons (
         id,
-        module_order,
-        course_id
+        title,
+        lesson_order,
+        content_type
       )
     `)
-    .eq('module.course_id', course.id)
-    .order('module.module_order', { ascending: true })
-    .order('lesson_order', { ascending: true })
+    .eq('course_id', course.id)
+    .order('module_order', { ascending: true })
 
-  console.log('Lessons query:', { lessons, lessonsError, count: lessons?.length })
-
-  if (!lessons || lessons.length === 0) {
+  if (!modules || modules.length === 0) {
     return (
-      <div className="min-h-screen p-8">
-        <h1 className="text-2xl font-bold mb-4">Debug Info</h1>
-        <div className="bg-yellow-50 p-4 rounded-lg mb-4">
-          <p><strong>Course:</strong> {course.title}</p>
-          <p><strong>Course ID:</strong> {course.id}</p>
-          <p><strong>User ID:</strong> {user.id}</p>
-          <p><strong>Enrollment:</strong> {enrollment ? 'Yes' : 'No'}</p>
-          <p><strong>Lessons found:</strong> {lessons?.length || 0}</p>
-          {lessonsError && <p><strong>Error:</strong> {lessonsError.message}</p>}
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">No modules found</h1>
+          <p className="text-gray-600">This course doesn't have any modules yet.</p>
         </div>
-        <p>No lessons found for this course.</p>
+      </div>
+    )
+  }
+
+  // Flatten and sort all lessons
+  const allLessons: { id: string; title: string; lesson_order: number; module_order: number }[] = []
+  
+  modules.forEach(module => {
+    if (module.lessons) {
+      module.lessons.forEach((lesson: any) => {
+        allLessons.push({
+          id: lesson.id,
+          title: lesson.title,
+          lesson_order: lesson.lesson_order,
+          module_order: module.module_order
+        })
+      })
+    }
+  })
+
+  // Sort by module_order first, then lesson_order
+  allLessons.sort((a, b) => {
+    if (a.module_order !== b.module_order) {
+      return a.module_order - b.module_order
+    }
+    return a.lesson_order - b.lesson_order
+  })
+
+  if (allLessons.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">No lessons found</h1>
+          <p className="text-gray-600">This course doesn't have any lessons yet.</p>
+        </div>
       </div>
     )
   }
 
   // Get completed lessons for this user
-  const { data: completedData, error: completedError } = await supabase
+  const { data: completedData } = await supabase
     .from('lesson_progress')
     .select('lesson_id')
     .eq('user_id', user.id)
     .eq('completed', true)
-    .in('lesson_id', lessons.map(l => l.id))
-
-  console.log('Completed lessons:', { completedData, completedError })
+    .in('lesson_id', allLessons.map(l => l.id))
 
   const completedLessonIds = new Set(completedData?.map(c => c.lesson_id) || [])
 
   // Find the first incomplete lesson
-  const firstIncompleteLesson = lessons.find(l => !completedLessonIds.has(l.id))
+  const firstIncompleteLesson = allLessons.find(l => !completedLessonIds.has(l.id))
 
-  console.log('First incomplete:', firstIncompleteLesson)
+  // If there's an incomplete lesson, redirect to it
+  if (firstIncompleteLesson) {
+    redirect(`/dashboard/learn/${params.slug}/${firstIncompleteLesson.id}`)
+  }
 
-  // Instead of redirecting, show the debug info with links
-  return (
-    <div className="min-h-screen p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Course: {course.title}</h1>
-      
-      <div className="bg-blue-50 p-4 rounded-lg mb-6">
-        <h2 className="font-semibold mb-2">Debug Info:</h2>
-        <p>Course ID: {course.id}</p>
-        <p>User ID: {user.id}</p>
-        <p>Enrolled: ✅ Yes</p>
-        <p>Total Lessons: {lessons.length}</p>
-        <p>Completed Lessons: {completedLessonIds.size}</p>
-        <p>First Incomplete: {firstIncompleteLesson?.title || 'None'}</p>
-      </div>
-
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-4">All Lessons:</h2>
-        <div className="space-y-2">
-          {lessons.map((lesson, index) => (
-            <div 
-              key={lesson.id}
-              className={`p-3 border rounded-lg flex items-center justify-between ${
-                completedLessonIds.has(lesson.id) ? 'bg-green-50' : 'bg-white'
-              }`}
-            >
-              <div>
-                <span className="text-sm text-gray-500 mr-2">#{index + 1}</span>
-                <span className="font-medium">{lesson.title}</span>
-                <span className="text-xs text-gray-400 ml-2">ID: {lesson.id}</span>
-              </div>
-              <Link
-                href={`/dashboard/learn/${params.slug}/${lesson.id}`}
-                className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-              >
-                Go to Lesson
-              </Link>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {firstIncompleteLesson && (
-        <div className="mt-6">
-          <Link
-            href={`/dashboard/learn/${params.slug}/${firstIncompleteLesson.id}`}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          >
-            Continue to First Incomplete Lesson
-          </Link>
-        </div>
-      )}
-    </div>
-  )
+  // If all lessons are completed, redirect to the first lesson
+  redirect(`/dashboard/learn/${params.slug}/${allLessons[0].id}`)
 }
