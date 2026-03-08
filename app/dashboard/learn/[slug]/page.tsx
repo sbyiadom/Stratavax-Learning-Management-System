@@ -131,7 +131,7 @@ export default async function CoursePage({
 
     const isEnrolled = !!enrollment
 
-    // Get all modules for this course with their lessons
+    // Get all modules for this course
     const { data: modules, error: modulesError } = await supabase
       .from('modules')
       .select(`
@@ -237,7 +237,6 @@ export default async function CoursePage({
                   alt={course.title}
                   title={course.title}
                   className="w-full h-full object-cover"
-                  fallbackColor="from-purple-500 to-pink-600"
                 />
               </div>
               
@@ -284,7 +283,7 @@ export default async function CoursePage({
                         style={{ width: `${progressPercentage}%` }}
                       />
                     </div>
-                    {enrollment.completed_at && (
+                    {enrollment?.completed_at && (
                       <p className="text-sm mt-2 text-green-200">
                         ✓ Completed on {new Date(enrollment.completed_at).toLocaleDateString()}
                       </p>
