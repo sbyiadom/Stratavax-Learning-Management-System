@@ -166,8 +166,7 @@ export default async function LessonPage({
 
     console.log('Course found:', course.id)
 
-    // FIXED: Changed from .single() to .maybeSingle()
-    // Check if user is enrolled
+    // FIXED: Use maybeSingle() to avoid errors when not enrolled
     const { data: enrollment, error: enrollmentError } = await supabase
       .from('enrollments')
       .select('status, progress_percentage')
@@ -181,6 +180,7 @@ export default async function LessonPage({
 
     // If not enrolled, redirect to course page
     if (!enrollment) {
+      console.log('User not enrolled, redirecting to course page')
       redirect(`/dashboard/learn/${params.slug}`)
     }
 
@@ -192,10 +192,17 @@ export default async function LessonPage({
       .select('*')
       .eq('id', params.lessonId)
       .eq('is_published', true)
-      .single()
+      .maybeSingle()  // Changed to maybeSingle for better error handling
 
     if (lessonError || !lesson) {
       console.error('Lesson error:', lessonError)
+      
+      // If lesson not found, try to redirect to the first lesson of the course
+      const { data: firstLesson } = await getFirstLesson(course.id)
+      if (firstLesson) {
+        redirect(`/dashboard/learn/${params.slug}/${firstLesson.id}`)
+      }
+      
       return (
         <div className="min-h-screen flex items-center justify-center">
           <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
@@ -475,4 +482,31 @@ export default async function LessonPage({
       </div>
     )
   }
+}
+
+// Helper function to get first lesson of a course
+async function getFirstLesson(courseId: string) {
+  const supabase = await createClient()
+  
+  const { data: firstModule } = await supabase
+    .from('modules')
+    .select('id')
+    .eq('course_id', courseId)
+    .eq('is_published', true)
+    .order('module_order', { ascending: true })
+    .limit(1)
+    .single()
+
+  if (!firstModule) return { data: null }
+
+  const { data: firstLesson } = await supabase
+    .from('lessons')
+    .select('id')
+    .eq('module_id', firstModule.id)
+    .eq('is_published', true)
+    .order('lesson_order', { ascending: true })
+    .limit(1)
+    .single()
+
+  return { data: firstLesson }
 }
