@@ -34,11 +34,6 @@ type Lesson = {
   is_published: boolean | null
 }
 
-// Extended type for lesson with module
-type LessonWithModule = Lesson & {
-  module: Module
-}
-
 type LessonProgress = {
   completed: boolean
   completed_at: string | null
@@ -57,369 +52,424 @@ export default async function LessonPage({
 }: {
   params: { slug: string; lessonId: string }
 }) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) {
-    redirect('/login')
-  }
-
-  // First, verify the course exists and get its ID from the slug
-  const { data: course, error: courseError } = await supabase
-    .from('courses')
-    .select('id, title, slug, description, difficulty_level, thumbnail_url')
-    .eq('slug', params.slug)
-    .eq('is_published', true)
-    .single()
-
-  if (courseError || !course) {
-    console.error('Course error:', courseError)
-    notFound()
-  }
-
-  // Check if user is enrolled - course is guaranteed non-null here
-  const { data: enrollment } = await supabase
-    .from('enrollments')
-    .select('status, progress_percentage')
-    .eq('user_id', user.id)
-    .eq('course_id', course.id)
-    .single()
-
-  // If not enrolled, redirect to course page
-  if (!enrollment) {
-    redirect(`/dashboard/learn/${params.slug}`)
-  }
-
-  // Get the current lesson with its module - using a simpler approach
-  const { data: lesson, error: lessonError } = await supabase
-    .from('lessons')
-    .select('*')
-    .eq('id', params.lessonId)
-    .eq('is_published', true)
-    .single()
-
-  if (lessonError || !lesson) {
-    console.error('Lesson error:', lessonError)
-    notFound()
-  }
-
-  // Get the module for this lesson
-  const { data: module, error: moduleError } = await supabase
-    .from('modules')
-    .select('*')
-    .eq('id', lesson.module_id)
-    .single()
-
-  if (moduleError || !module) {
-    console.error('Module error:', moduleError)
-    notFound()
-  }
-
-  // Verify this lesson belongs to the correct course
-  if (module.course_id !== course.id) {
-    notFound()
-  }
-
-  // Combine lesson and module for easier passing to components
-  const lessonWithModule: LessonWithModule = {
-    ...lesson,
-    module: module
-  }
-
-  // Get user's progress for this lesson
-  const { data: progress } = await supabase
-    .from('lesson_progress')
-    .select('completed, completed_at, quiz_score, time_spent, last_position')
-    .eq('user_id', user.id)
-    .eq('lesson_id', params.lessonId)
-    .single()
-
-  // Get all lessons in this course for navigation
-  // First get all modules for this course
-  const { data: courseModules } = await supabase
-    .from('modules')
-    .select('id, module_order')
-    .eq('course_id', course.id)
-    .order('module_order', { ascending: true })
-
-  let allLessons: { id: string; title: string; lesson_order: number; module_order: number }[] = []
-
-  if (courseModules && courseModules.length > 0) {
-    // Get all lessons from these modules
-    const moduleIds = courseModules.map(m => m.id)
-    
-    const { data: lessons, error: navError } = await supabase
-      .from('lessons')
-      .select('id, title, lesson_order, module_id')
-      .in('module_id', moduleIds)
-      .eq('is_published', true)
-
-    if (navError) {
-      console.error('Navigation error:', navError)
-    }
-
-    if (lessons) {
-      // Create a map of module_id to module_order
-      const moduleOrderMap = new Map()
-      courseModules.forEach(module => {
-        moduleOrderMap.set(module.id, module.module_order)
-      })
-
-      // Add module_order to each lesson
-      allLessons = lessons.map(lesson => ({
-        id: lesson.id,
-        title: lesson.title,
-        lesson_order: lesson.lesson_order,
-        module_order: moduleOrderMap.get(lesson.module_id) || 0
-      }))
-
-      // Sort by module_order then lesson_order
-      allLessons.sort((a, b) => {
-        if (a.module_order !== b.module_order) {
-          return a.module_order - b.module_order
-        }
-        return a.lesson_order - b.lesson_order
-      })
-    }
-  }
-
-  // Find current index and navigation lessons
-  const currentIndex = allLessons.findIndex(l => l.id === params.lessonId)
-  const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null
-  const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null
-
-  // Function to mark lesson as complete - now accepts courseId as a parameter
-  async function markLessonComplete(formData: FormData) {
-    'use server'
-    
-    const courseId = formData.get('courseId') as string
-    const lessonId = formData.get('lessonId') as string
-    const slug = formData.get('slug') as string
-    
+  try {
     const supabase = await createClient()
+    
     const { data: { user } } = await supabase.auth.getUser()
     
-    if (!user) return
+    if (!user) {
+      redirect('/login')
+    }
 
-    // Get current progress to preserve time_spent
-    const { data: currentProgress } = await supabase
-      .from('lesson_progress')
-      .select('time_spent')
-      .eq('user_id', user.id)
-      .eq('lesson_id', lessonId)
+    console.log('Loading lesson page for:', params)
+
+    // First, verify the course exists and get its ID from the slug
+    const { data: course, error: courseError } = await supabase
+      .from('courses')
+      .select('id, title, slug, description, difficulty_level, thumbnail_url')
+      .eq('slug', params.slug)
+      .eq('is_published', true)
       .single()
 
-    // Update or insert progress
-    const { error } = await supabase
-      .from('lesson_progress')
-      .upsert({
-        user_id: user.id,
-        lesson_id: lessonId,
-        completed: true,
-        completed_at: new Date().toISOString(),
-        time_spent: currentProgress?.time_spent || 0
-      }, {
-        onConflict: 'user_id,lesson_id'
-      })
-
-    if (!error) {
-      // Update course progress percentage
-      await updateCourseProgress(user.id, courseId)
-      
-      // Revalidate the page to show updated progress
-      redirect(`/dashboard/learn/${slug}/${lessonId}`)
-    }
-  }
-
-  // Helper function to update course progress
-  async function updateCourseProgress(userId: string, courseId: string) {
-    const supabase = await createClient()
-    
-    // Get all modules in this course
-    const { data: courseModules } = await supabase
-      .from('modules')
-      .select('id')
-      .eq('course_id', courseId)
-
-    if (!courseModules || courseModules.length === 0) return
-
-    const moduleIds = courseModules.map(m => m.id)
-    
-    // Get all lessons in this course
-    const { data: totalLessons } = await supabase
-      .from('lessons')
-      .select('id')
-      .in('module_id', moduleIds)
-      .eq('is_published', true)
-
-    if (!totalLessons || totalLessons.length === 0) return
-
-    // Get completed lessons
-    const { data: completedLessons } = await supabase
-      .from('lesson_progress')
-      .select('lesson_id')
-      .eq('user_id', userId)
-      .eq('completed', true)
-      .in('lesson_id', totalLessons.map(l => l.id))
-
-    const progressPercentage = Math.round((completedLessons?.length || 0) / totalLessons.length * 100)
-    
-    // Update enrollment
-    await supabase
-      .from('enrollments')
-      .update({ 
-        progress_percentage: progressPercentage,
-        ...(progressPercentage === 100 ? { completed_at: new Date().toISOString() } : {})
-      })
-      .eq('user_id', userId)
-      .eq('course_id', courseId)
-  }
-
-  // Type guard to ensure enrollment exists (it does, we checked earlier)
-  const typedEnrollment = enrollment as Enrollment
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link
-              href={`/dashboard/learn/${params.slug}`}
-              className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
-            >
-              <ChevronLeft size={20} />
-              <span>Back to Course</span>
+    if (courseError || !course) {
+      console.error('Course error:', courseError)
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Course Not Found</h1>
+            <p className="text-gray-600 mb-4">The course "{params.slug}" could not be found.</p>
+            <Link href="/dashboard" className="text-blue-600 hover:underline">
+              Return to Dashboard
             </Link>
-            <div className="flex items-center gap-4">
-              {lesson.duration_minutes && (
-                <span className="text-sm text-gray-500 flex items-center gap-1">
-                  <Clock size={16} />
-                  {lesson.duration_minutes} min
+          </div>
+        </div>
+      )
+    }
+
+    console.log('Course found:', course.id)
+
+    // Check if user is enrolled
+    const { data: enrollment, error: enrollmentError } = await supabase
+      .from('enrollments')
+      .select('status, progress_percentage')
+      .eq('user_id', user.id)
+      .eq('course_id', course.id)
+      .single()
+
+    if (enrollmentError && enrollmentError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      console.error('Enrollment error:', enrollmentError)
+    }
+
+    // If not enrolled, redirect to course page
+    if (!enrollment) {
+      redirect(`/dashboard/learn/${params.slug}`)
+    }
+
+    console.log('User is enrolled')
+
+    // Get the current lesson
+    const { data: lesson, error: lessonError } = await supabase
+      .from('lessons')
+      .select('*')
+      .eq('id', params.lessonId)
+      .eq('is_published', true)
+      .single()
+
+    if (lessonError || !lesson) {
+      console.error('Lesson error:', lessonError)
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Lesson Not Found</h1>
+            <p className="text-gray-600 mb-4">The lesson could not be found.</p>
+            <Link href={`/dashboard/learn/${params.slug}`} className="text-blue-600 hover:underline">
+              Back to Course
+            </Link>
+          </div>
+        </div>
+      )
+    }
+
+    console.log('Lesson found:', lesson.id)
+
+    // Get the module for this lesson
+    const { data: module, error: moduleError } = await supabase
+      .from('modules')
+      .select('*')
+      .eq('id', lesson.module_id)
+      .single()
+
+    if (moduleError || !module) {
+      console.error('Module error:', moduleError)
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Module Not Found</h1>
+            <p className="text-gray-600 mb-4">The module for this lesson could not be found.</p>
+            <Link href={`/dashboard/learn/${params.slug}`} className="text-blue-600 hover:underline">
+              Back to Course
+            </Link>
+          </div>
+        </div>
+      )
+    }
+
+    console.log('Module found:', module.id)
+
+    // Verify this lesson belongs to the correct course
+    if (module.course_id !== course.id) {
+      console.error('Course mismatch:', { moduleCourseId: module.course_id, courseId: course.id })
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Course Mismatch</h1>
+            <p className="text-gray-600 mb-4">This lesson does not belong to the specified course.</p>
+            <Link href={`/dashboard/learn/${params.slug}`} className="text-blue-600 hover:underline">
+              Back to Course
+            </Link>
+          </div>
+        </div>
+      )
+    }
+
+    // Get user's progress for this lesson
+    const { data: progress } = await supabase
+      .from('lesson_progress')
+      .select('completed, completed_at, quiz_score, time_spent, last_position')
+      .eq('user_id', user.id)
+      .eq('lesson_id', params.lessonId)
+      .maybeSingle()
+
+    console.log('Progress:', progress)
+
+    // Get all modules for this course
+    const { data: courseModules, error: modulesError } = await supabase
+      .from('modules')
+      .select('id, module_order')
+      .eq('course_id', course.id)
+      .order('module_order', { ascending: true })
+
+    if (modulesError) {
+      console.error('Modules error:', modulesError)
+    }
+
+    let allLessons: { id: string; title: string; lesson_order: number; module_order: number }[] = []
+
+    if (courseModules && courseModules.length > 0) {
+      const moduleIds = courseModules.map(m => m.id)
+      
+      const { data: lessons, error: navError } = await supabase
+        .from('lessons')
+        .select('id, title, lesson_order, module_id')
+        .in('module_id', moduleIds)
+        .eq('is_published', true)
+
+      if (navError) {
+        console.error('Navigation error:', navError)
+      }
+
+      if (lessons) {
+        const moduleOrderMap = new Map()
+        courseModules.forEach(module => {
+          moduleOrderMap.set(module.id, module.module_order)
+        })
+
+        allLessons = lessons.map(lesson => ({
+          id: lesson.id,
+          title: lesson.title,
+          lesson_order: lesson.lesson_order,
+          module_order: moduleOrderMap.get(lesson.module_id) || 0
+        }))
+
+        allLessons.sort((a, b) => {
+          if (a.module_order !== b.module_order) {
+            return a.module_order - b.module_order
+          }
+          return a.lesson_order - b.lesson_order
+        })
+      }
+    }
+
+    const currentIndex = allLessons.findIndex(l => l.id === params.lessonId)
+    const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null
+    const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null
+
+    async function markLessonComplete(formData: FormData) {
+      'use server'
+      
+      const courseId = formData.get('courseId') as string
+      const lessonId = formData.get('lessonId') as string
+      const slug = formData.get('slug') as string
+      
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) return
+
+      const { data: currentProgress } = await supabase
+        .from('lesson_progress')
+        .select('time_spent')
+        .eq('user_id', user.id)
+        .eq('lesson_id', lessonId)
+        .maybeSingle()
+
+      const { error } = await supabase
+        .from('lesson_progress')
+        .upsert({
+          user_id: user.id,
+          lesson_id: lessonId,
+          completed: true,
+          completed_at: new Date().toISOString(),
+          time_spent: currentProgress?.time_spent || 0
+        }, {
+          onConflict: 'user_id,lesson_id'
+        })
+
+      if (!error) {
+        await updateCourseProgress(user.id, courseId)
+        redirect(`/dashboard/learn/${slug}/${lessonId}`)
+      }
+    }
+
+    async function updateCourseProgress(userId: string, courseId: string) {
+      const supabase = await createClient()
+      
+      const { data: courseModules } = await supabase
+        .from('modules')
+        .select('id')
+        .eq('course_id', courseId)
+
+      if (!courseModules || courseModules.length === 0) return
+
+      const moduleIds = courseModules.map(m => m.id)
+      
+      const { data: totalLessons } = await supabase
+        .from('lessons')
+        .select('id')
+        .in('module_id', moduleIds)
+        .eq('is_published', true)
+
+      if (!totalLessons || totalLessons.length === 0) return
+
+      const { data: completedLessons } = await supabase
+        .from('lesson_progress')
+        .select('lesson_id')
+        .eq('user_id', userId)
+        .eq('completed', true)
+        .in('lesson_id', totalLessons.map(l => l.id))
+
+      const progressPercentage = Math.round((completedLessons?.length || 0) / totalLessons.length * 100)
+      
+      await supabase
+        .from('enrollments')
+        .update({ 
+          progress_percentage: progressPercentage,
+          ...(progressPercentage === 100 ? { completed_at: new Date().toISOString() } : {})
+        })
+        .eq('user_id', userId)
+        .eq('course_id', courseId)
+    }
+
+    const typedEnrollment = enrollment as Enrollment
+
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <div className="bg-white border-b sticky top-0 z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between">
+              <Link
+                href={`/dashboard/learn/${params.slug}`}
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
+              >
+                <ChevronLeft size={20} />
+                <span>Back to Course</span>
+              </Link>
+              <div className="flex items-center gap-4">
+                {lesson.duration_minutes && (
+                  <span className="text-sm text-gray-500 flex items-center gap-1">
+                    <Clock size={16} />
+                    {lesson.duration_minutes} min
+                  </span>
+                )}
+                <span className="text-sm text-gray-500">
+                  Lesson {lesson.lesson_order}
                 </span>
-              )}
-              <span className="text-sm text-gray-500">
-                Lesson {lesson.lesson_order}
-              </span>
-              {course.difficulty_level && (
-                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                  {course.difficulty_level}
-                </span>
-              )}
+                {course.difficulty_level && (
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                    {course.difficulty_level}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          {/* Progress bar for course */}
-          <div className="h-1 bg-gray-200">
-            <div 
-              className="h-1 bg-green-500 transition-all duration-300" 
-              style={{ width: `${typedEnrollment.progress_percentage || 0}%` }}
-            />
-          </div>
-
-          <div className="p-8">
-            <h1 className="text-2xl font-bold mb-6">{lesson.title}</h1>
-            
-            {/* Module info */}
-            <div className="mb-6 text-sm text-gray-500">
-              Module: {module.title}
-              {module.estimated_minutes && (
-                <span className="ml-2">• {module.estimated_minutes} min total</span>
-              )}
-            </div>
-            
-            <LessonContent 
-              lesson={{
-                ...lesson,
-                content: lesson.content_url
-              }} 
-              contentType={lesson.content_type || 'article'} 
-            />
-
-            {/* Complete button with form data */}
-            <div className="mt-8 flex justify-center">
-              {progress?.completed ? (
-                <div className="flex items-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded-lg">
-                  <CheckCircle size={20} />
-                  <span>Lesson Completed</span>
-                </div>
-              ) : (
-                <form action={markLessonComplete}>
-                  <input type="hidden" name="courseId" value={course.id} />
-                  <input type="hidden" name="lessonId" value={params.lessonId} />
-                  <input type="hidden" name="slug" value={params.slug} />
-                  <button
-                    type="submit"
-                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-                  >
-                    Mark as Completed
-                  </button>
-                </form>
-              )}
+        {/* Main Content */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            {/* Progress bar for course */}
+            <div className="h-1 bg-gray-200">
+              <div 
+                className="h-1 bg-green-500 transition-all duration-300" 
+                style={{ width: `${typedEnrollment.progress_percentage || 0}%` }}
+              />
             </div>
 
-            {/* Navigation */}
-            <div className="mt-8 flex items-center justify-between border-t pt-6">
-              {prevLesson ? (
-                <Link
-                  href={`/dashboard/learn/${params.slug}/${prevLesson.id}`}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                >
-                  ← Previous Lesson
-                </Link>
-              ) : (
-                <div />
-              )}
+            <div className="p-8">
+              <h1 className="text-2xl font-bold mb-6">{lesson.title}</h1>
               
-              {nextLesson ? (
-                <Link
-                  href={`/dashboard/learn/${params.slug}/${nextLesson.id}`}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                >
-                  Next Lesson →
-                </Link>
-              ) : (
-                <Link
-                  href={`/dashboard/learn/${params.slug}`}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                >
-                  Complete Course
-                </Link>
-              )}
+              {/* Module info */}
+              <div className="mb-6 text-sm text-gray-500">
+                Module: {module.title}
+                {module.estimated_minutes && (
+                  <span className="ml-2">• {module.estimated_minutes} min total</span>
+                )}
+              </div>
+              
+              <LessonContent 
+                lesson={{
+                  ...lesson,
+                  content: lesson.content_url
+                }} 
+                contentType={lesson.content_type || 'article'} 
+              />
+
+              {/* Complete button with form data */}
+              <div className="mt-8 flex justify-center">
+                {progress?.completed ? (
+                  <div className="flex items-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded-lg">
+                    <CheckCircle size={20} />
+                    <span>Lesson Completed</span>
+                  </div>
+                ) : (
+                  <form action={markLessonComplete}>
+                    <input type="hidden" name="courseId" value={course.id} />
+                    <input type="hidden" name="lessonId" value={params.lessonId} />
+                    <input type="hidden" name="slug" value={params.slug} />
+                    <button
+                      type="submit"
+                      className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+                    >
+                      Mark as Completed
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              {/* Navigation */}
+              <div className="mt-8 flex items-center justify-between border-t pt-6">
+                {prevLesson ? (
+                  <Link
+                    href={`/dashboard/learn/${params.slug}/${prevLesson.id}`}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                  >
+                    ← Previous Lesson
+                  </Link>
+                ) : (
+                  <div />
+                )}
+                
+                {nextLesson ? (
+                  <Link
+                    href={`/dashboard/learn/${params.slug}/${nextLesson.id}`}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  >
+                    Next Lesson →
+                  </Link>
+                ) : (
+                  <Link
+                    href={`/dashboard/learn/${params.slug}`}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                  >
+                    Complete Course
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Progress details */}
-        {progress && (
-          <div className="mt-4 grid grid-cols-3 gap-4">
-            {progress.quiz_score !== null && (
-              <div className="bg-white p-3 rounded-lg shadow text-center">
-                <div className="text-sm text-gray-500">Quiz Score</div>
-                <div className="text-xl font-bold text-blue-600">{progress.quiz_score}%</div>
-              </div>
-            )}
-            {progress.time_spent !== null && progress.time_spent > 0 && (
-              <div className="bg-white p-3 rounded-lg shadow text-center">
-                <div className="text-sm text-gray-500">Time Spent</div>
-                <div className="text-xl font-bold text-purple-600">{Math.floor(progress.time_spent / 60)} min</div>
-              </div>
-            )}
-            {progress.last_position !== null && progress.last_position > 0 && (
-              <div className="bg-white p-3 rounded-lg shadow text-center">
-                <div className="text-sm text-gray-500">Last Position</div>
-                <div className="text-xl font-bold text-orange-600">{progress.last_position}s</div>
-              </div>
-            )}
-          </div>
-        )}
+          {/* Progress details */}
+          {progress && (
+            <div className="mt-4 grid grid-cols-3 gap-4">
+              {progress.quiz_score !== null && (
+                <div className="bg-white p-3 rounded-lg shadow text-center">
+                  <div className="text-sm text-gray-500">Quiz Score</div>
+                  <div className="text-xl font-bold text-blue-600">{progress.quiz_score}%</div>
+                </div>
+              )}
+              {progress.time_spent !== null && progress.time_spent > 0 && (
+                <div className="bg-white p-3 rounded-lg shadow text-center">
+                  <div className="text-sm text-gray-500">Time Spent</div>
+                  <div className="text-xl font-bold text-purple-600">{Math.floor(progress.time_spent / 60)} min</div>
+                </div>
+              )}
+              {progress.last_position !== null && progress.last_position > 0 && (
+                <div className="bg-white p-3 rounded-lg shadow text-center">
+                  <div className="text-sm text-gray-500">Last Position</div>
+                  <div className="text-xl font-bold text-orange-600">{progress.last_position}s</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  )
+    )
+  } catch (error) {
+    console.error('Unexpected error in LessonPage:', error)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h1>
+          <p className="text-gray-600 mb-4">An unexpected error occurred while loading this page.</p>
+          <pre className="bg-gray-100 p-4 rounded text-xs mb-4 overflow-auto">
+            {error instanceof Error ? error.message : String(error)}
+          </pre>
+          <Link href="/dashboard" className="text-blue-600 hover:underline">
+            Return to Dashboard
+          </Link>
+        </div>
+      </div>
+    )
+  }
 }
