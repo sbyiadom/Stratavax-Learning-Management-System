@@ -79,15 +79,21 @@ export default async function CoursePage({
   params: { slug: string }
 }) {
   try {
-    const supabase = await createClient()
+    console.log('=== COURSE PAGE DEBUG ===')
+    console.log('1. Starting CoursePage with slug:', params.slug)
     
-    const { data: { user } } = await supabase.auth.getUser()
+    const supabase = await createClient()
+    console.log('2. Supabase client created')
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log('3. Auth check:', { user: user?.id, authError })
     
     if (!user) {
+      console.log('4. No user, redirecting to login')
       redirect('/login')
     }
 
-    console.log('Loading course page for slug:', params.slug)
+    console.log('5. Fetching course with slug:', params.slug)
 
     // Get course details
     const { data: course, error: courseError } = await supabase
@@ -97,13 +103,23 @@ export default async function CoursePage({
       .eq('is_published', true)
       .single()
 
+    console.log('6. Course query result:', { 
+      courseId: course?.id, 
+      courseTitle: course?.title,
+      courseError: courseError?.message,
+      courseErrorCode: courseError?.code
+    })
+
     if (courseError || !course) {
-      console.error('Course error:', courseError)
+      console.error('Course error details:', courseError)
       return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
             <h1 className="text-2xl font-bold text-red-600 mb-4">Course Not Found</h1>
             <p className="text-gray-600 mb-6">The course "{params.slug}" could not be found.</p>
+            <pre className="bg-gray-100 p-2 rounded text-xs mb-4 overflow-auto">
+              {JSON.stringify({ error: courseError?.message, code: courseError?.code }, null, 2)}
+            </pre>
             <Link 
               href="/dashboard" 
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 inline-block"
@@ -115,7 +131,7 @@ export default async function CoursePage({
       )
     }
 
-    console.log('Course found:', course.id)
+    console.log('7. Checking enrollment for user:', user.id, 'course:', course.id)
 
     // Check if user is enrolled
     const { data: enrollment, error: enrollmentError } = await supabase
@@ -125,11 +141,15 @@ export default async function CoursePage({
       .eq('course_id', course.id)
       .maybeSingle()
 
-    if (enrollmentError) {
-      console.error('Enrollment error:', enrollmentError)
-    }
+    console.log('8. Enrollment result:', { 
+      isEnrolled: !!enrollment, 
+      enrollmentError: enrollmentError?.message,
+      progress: enrollment?.progress_percentage 
+    })
 
     const isEnrolled = !!enrollment
+
+    console.log('9. Fetching modules for course:', course.id)
 
     // Get all modules for this course
     const { data: modules, error: modulesError } = await supabase
@@ -146,8 +166,13 @@ export default async function CoursePage({
       .eq('is_published', true)
       .order('module_order', { ascending: true })
 
+    console.log('10. Modules query result:', { 
+      moduleCount: modules?.length, 
+      modulesError: modulesError?.message 
+    })
+
     if (modulesError) {
-      console.error('Modules error:', modulesError)
+      console.error('Modules error details:', modulesError)
     }
 
     // Get lessons for each module
@@ -155,6 +180,7 @@ export default async function CoursePage({
     
     if (modules && modules.length > 0) {
       const moduleIds = modules.map(m => m.id)
+      console.log('11. Fetching lessons for modules:', moduleIds)
       
       const { data: lessons, error: lessonsError } = await supabase
         .from('lessons')
@@ -163,8 +189,13 @@ export default async function CoursePage({
         .eq('is_published', true)
         .order('lesson_order', { ascending: true })
 
+      console.log('12. Lessons query result:', { 
+        lessonCount: lessons?.length, 
+        lessonsError: lessonsError?.message 
+      })
+
       if (lessonsError) {
-        console.error('Lessons error:', lessonsError)
+        console.error('Lessons error details:', lessonsError)
       }
 
       // Group lessons by module_id
@@ -183,6 +214,11 @@ export default async function CoursePage({
         ...module,
         lessons: lessonsByModule[module.id] || []
       }))
+      
+      console.log('13. Modules with lessons:', modulesWithLessons.map(m => ({ 
+        module: m.title, 
+        lessonCount: m.lessons.length 
+      })))
     }
 
     // If user is enrolled, get their progress
@@ -193,12 +229,23 @@ export default async function CoursePage({
         m.lessons.map(l => l.id)
       )
 
+      console.log('14. Fetching progress for lessons:', lessonIds.length)
+
       if (lessonIds.length > 0) {
-        const { data: progress } = await supabase
+        const { data: progress, error: progressError } = await supabase
           .from('lesson_progress')
           .select('lesson_id, completed, quiz_score')
           .eq('user_id', user.id)
           .in('lesson_id', lessonIds)
+
+        console.log('15. Progress query result:', { 
+          progressCount: progress?.length, 
+          progressError: progressError?.message 
+        })
+
+        if (progressError) {
+          console.error('Progress error details:', progressError)
+        }
 
         lessonProgress = progress || []
       }
@@ -210,6 +257,14 @@ export default async function CoursePage({
     const progressPercentage = totalLessons > 0 
       ? Math.round((completedLessons / totalLessons) * 100) 
       : 0
+
+    console.log('16. Final stats:', { 
+      totalLessons, 
+      completedLessons, 
+      progressPercentage,
+      isEnrolled 
+    })
+    console.log('=== COURSE PAGE DEBUG END ===')
 
     return (
       <div className="min-h-screen bg-gray-50">
@@ -437,6 +492,9 @@ export default async function CoursePage({
         <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Something went wrong!</h1>
           <p className="text-gray-600 mb-6">We encountered an error while loading this page.</p>
+          <pre className="bg-gray-100 p-4 rounded text-xs mb-4 overflow-auto max-h-40">
+            {error instanceof Error ? error.message : String(error)}
+          </pre>
           <div className="flex gap-4">
             <button
               onClick={() => window.location.reload()}
