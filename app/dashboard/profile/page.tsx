@@ -31,23 +31,24 @@ export default async function ProfilePage() {
     .single()
 
   // Get user stats
-  const { data: enrollments } = await supabase
+  const { data: enrollments, error: enrollmentsError } = await supabase
     .from('enrollments')
     .select('*')
     .eq('user_id', user.id)
 
-  const { data: completedLessons } = await supabase
+  // Get completed lessons count - FIXED: using count() correctly
+  const { count: completedLessons, error: lessonsError } = await supabase
     .from('lesson_progress')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user.id)
     .eq('completed', true)
 
-  const { data: certificates } = await supabase
+  const { data: certificates, error: certError } = await supabase
     .from('certificates')
     .select('*')
     .eq('user_id', user.id)
 
-  const { data: achievements } = await supabase
+  const { data: achievements, error: achievementsError } = await supabase
     .from('user_achievements')
     .select(`
       *,
@@ -55,8 +56,9 @@ export default async function ProfilePage() {
     `)
     .eq('user_id', user.id)
 
-  // Calculate total learning time (estimate: 12 min per lesson)
-  const totalLearningMinutes = (completedLessons || 0) * 12
+  // Safely calculate learning time
+  const completedCount = completedLessons || 0
+  const totalLearningMinutes = completedCount * 12
   const totalLearningHours = Math.round(totalLearningMinutes / 60)
 
   // Get recent activity
@@ -137,7 +139,7 @@ export default async function ProfilePage() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Lessons completed</span>
-                    <span className="font-medium">{completedLessons || 0}</span>
+                    <span className="font-medium">{completedCount}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Certificates earned</span>
@@ -175,7 +177,7 @@ export default async function ProfilePage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Completed</p>
-                    <p className="text-2xl font-bold">{completedLessons || 0}</p>
+                    <p className="text-2xl font-bold">{completedCount}</p>
                   </div>
                 </div>
               </div>
