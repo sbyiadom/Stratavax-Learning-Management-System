@@ -27,11 +27,15 @@ type Lesson = {
   id: string
   title: string
   module_id: string
-  content_type: string | null  // 'video', 'article', 'quiz', etc.
-  content_url: string | null    // URL to video, article, or quiz content
+  content_type: string | null
+  content_url: string | null
   duration_minutes: number | null
   lesson_order: number
   is_published: boolean | null
+}
+
+// Extended type for lesson with module
+type LessonWithModule = Lesson & {
   module: Module
 }
 
@@ -82,27 +86,10 @@ export default async function LessonPage({
     redirect(`/dashboard/learn/${params.slug}`)
   }
 
-  // Get the current lesson with its module
+  // Get the current lesson with its module - using a simpler approach
   const { data: lesson, error: lessonError } = await supabase
     .from('lessons')
-    .select(`
-      id,
-      title,
-      module_id,
-      content_type,
-      content_url,
-      duration_minutes,
-      lesson_order,
-      is_published,
-      module:modules(
-        id,
-        title,
-        description,
-        module_order,
-        estimated_minutes,
-        course_id
-      )
-    `)
+    .select('*')
     .eq('id', params.lessonId)
     .eq('is_published', true)
     .single()
@@ -112,9 +99,27 @@ export default async function LessonPage({
     notFound()
   }
 
-  // Verify this lesson belongs to the correct course
-  if (lesson.module.course_id !== course.id) {
+  // Get the module for this lesson
+  const { data: module, error: moduleError } = await supabase
+    .from('modules')
+    .select('*')
+    .eq('id', lesson.module_id)
+    .single()
+
+  if (moduleError || !module) {
+    console.error('Module error:', moduleError)
     notFound()
+  }
+
+  // Verify this lesson belongs to the correct course
+  if (module.course_id !== course.id) {
+    notFound()
+  }
+
+  // Combine lesson and module for easier passing to components
+  const lessonWithModule: LessonWithModule = {
+    ...lesson,
+    module: module
   }
 
   // Get user's progress for this lesson
@@ -126,30 +131,64 @@ export default async function LessonPage({
     .single()
 
   // Get all lessons in this course for navigation
-  const { data: allLessons, error: navError } = await supabase
-    .from('lessons')
-    .select(`
-      id,
-      title,
-      lesson_order,
-      module:modules!inner(
-        module_order,
-        course_id
-      )
-    `)
-    .eq('module.course_id', course.id)
-    .eq('is_published', true)
-    .order('module.module_order', { ascending: true })
-    .order('lesson_order', { ascending: true })
+  // First get all modules for this course
+  const { data: courseModules } = await supabase
+    .from('modules')
+    .select('id')
+    .eq('course_id', course.id)
+    .order('module_order', { ascending: true })
 
-  if (navError) {
-    console.error('Navigation error:', navError)
+  if (!courseModules) {
+    console.error('No modules found for course')
+    // Still render the page, just without navigation
+  }
+
+  let allLessons: { id: string; title: string; lesson_order: number; module_order: number }[] = []
+
+  if (courseModules && courseModules.length > 0) {
+    // Get all lessons from these modules
+    const moduleIds = courseModules.map(m => m.id)
+    
+    const { data: lessons, error: navError } = await supabase
+      .from('lessons')
+      .select('id, title, lesson_order, module_id')
+      .in('module_id', moduleIds)
+      .eq('is_published', true)
+      .order('lesson_order', { ascending: true })
+
+    if (navError) {
+      console.error('Navigation error:', navError)
+    }
+
+    if (lessons) {
+      // Create a map of module_id to module_order
+      const moduleOrderMap = new Map()
+      courseModules.forEach((m, index) => {
+        moduleOrderMap.set(m.id, index + 1)
+      })
+
+      // Add module_order to each lesson
+      allLessons = lessons.map(lesson => ({
+        id: lesson.id,
+        title: lesson.title,
+        lesson_order: lesson.lesson_order,
+        module_order: moduleOrderMap.get(lesson.module_id) || 0
+      }))
+
+      // Sort by module_order then lesson_order
+      allLessons.sort((a, b) => {
+        if (a.module_order !== b.module_order) {
+          return a.module_order - b.module_order
+        }
+        return a.lesson_order - b.lesson_order
+      })
+    }
   }
 
   // Find current index and navigation lessons
-  const currentIndex = allLessons?.findIndex(l => l.id === params.lessonId) ?? -1
-  const prevLesson = currentIndex > 0 ? allLessons?.[currentIndex - 1] : null
-  const nextLesson = currentIndex < (allLessons?.length || 0) - 1 ? allLessons?.[currentIndex + 1] : null
+  const currentIndex = allLessons.findIndex(l => l.id === params.lessonId)
+  const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null
+  const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null
 
   // Function to mark lesson as complete
   async function markLessonComplete() {
@@ -174,9 +213,55 @@ export default async function LessonPage({
       })
 
     if (!error) {
+      // Update course progress percentage
+      await updateCourseProgress(user.id, course.id)
+      
       // Revalidate the page to show updated progress
       redirect(`/dashboard/learn/${params.slug}/${params.lessonId}`)
     }
+  }
+
+  // Helper function to update course progress
+  async function updateCourseProgress(userId: string, courseId: string) {
+    const supabase = await createClient()
+    
+    // Get all lessons in this course
+    const { data: courseModules } = await supabase
+      .from('modules')
+      .select('id')
+      .eq('course_id', courseId)
+
+    if (!courseModules || courseModules.length === 0) return
+
+    const moduleIds = courseModules.map(m => m.id)
+    
+    const { data: totalLessons } = await supabase
+      .from('lessons')
+      .select('id')
+      .in('module_id', moduleIds)
+      .eq('is_published', true)
+
+    if (!totalLessons || totalLessons.length === 0) return
+
+    // Get completed lessons
+    const { data: completedLessons } = await supabase
+      .from('lesson_progress')
+      .select('lesson_id')
+      .eq('user_id', userId)
+      .eq('completed', true)
+      .in('lesson_id', totalLessons.map(l => l.id))
+
+    const progressPercentage = Math.round((completedLessons?.length || 0) / totalLessons.length * 100)
+    
+    // Update enrollment
+    await supabase
+      .from('enrollments')
+      .update({ 
+        progress_percentage: progressPercentage,
+        ...(progressPercentage === 100 ? { completed_at: new Date().toISOString() } : {})
+      })
+      .eq('user_id', userId)
+      .eq('course_id', courseId)
   }
 
   return (
@@ -228,16 +313,16 @@ export default async function LessonPage({
             
             {/* Module info */}
             <div className="mb-6 text-sm text-gray-500">
-              Module: {lesson.module.title}
-              {lesson.module.estimated_minutes && (
-                <span className="ml-2">• {lesson.module.estimated_minutes} min total</span>
+              Module: {module.title}
+              {module.estimated_minutes && (
+                <span className="ml-2">• {module.estimated_minutes} min total</span>
               )}
             </div>
             
             <LessonContent 
               lesson={{
                 ...lesson,
-                content: lesson.content_url // Pass content_url as content for now
+                content: lesson.content_url
               }} 
               contentType={lesson.content_type || 'article'} 
             />
