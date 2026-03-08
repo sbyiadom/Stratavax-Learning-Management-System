@@ -45,6 +45,34 @@ type LessonProgress = {
   quiz_score: number | null
 }
 
+// Server action for enrollment - defined at top level
+async function enrollInCourse(formData: FormData) {
+  'use server'
+
+  const courseId = formData.get('courseId') as string
+  const slug = formData.get('slug') as string
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const { error } = await supabase
+    .from('enrollments')
+    .insert({
+      user_id: user.id,
+      course_id: courseId,
+      status: 'active',
+      progress_percentage: 0
+    })
+
+  if (!error) {
+    redirect(`/dashboard/learn/${slug}`)
+  }
+}
+
 export default async function CoursePage({
   params,
 }: {
@@ -183,31 +211,6 @@ export default async function CoursePage({
       ? Math.round((completedLessons / totalLessons) * 100) 
       : 0
 
-    // Handle enrollment
-    async function enrollInCourse() {
-      'use server'
-
-      const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        redirect('/login')
-      }
-
-      const { error } = await supabase
-        .from('enrollments')
-        .insert({
-          user_id: user.id,
-          course_id: course.id,
-          status: 'active',
-          progress_percentage: 0
-        })
-
-      if (!error) {
-        redirect(`/dashboard/learn/${params.slug}`)
-      }
-    }
-
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
@@ -289,6 +292,8 @@ export default async function CoursePage({
                   </div>
                 ) : (
                   <form action={enrollInCourse}>
+                    <input type="hidden" name="courseId" value={course.id} />
+                    <input type="hidden" name="slug" value={params.slug} />
                     <button
                       type="submit"
                       className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
@@ -412,6 +417,8 @@ export default async function CoursePage({
           {!isEnrolled && (
             <div className="mt-8 text-center">
               <form action={enrollInCourse}>
+                <input type="hidden" name="courseId" value={course.id} />
+                <input type="hidden" name="slug" value={params.slug} />
                 <button
                   type="submit"
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
