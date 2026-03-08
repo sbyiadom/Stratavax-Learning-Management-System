@@ -189,9 +189,13 @@ export default async function LessonPage({
   const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null
   const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null
 
-  // Function to mark lesson as complete
-  async function markLessonComplete() {
+  // Function to mark lesson as complete - now accepts courseId as a parameter
+  async function markLessonComplete(formData: FormData) {
     'use server'
+    
+    const courseId = formData.get('courseId') as string
+    const lessonId = formData.get('lessonId') as string
+    const slug = formData.get('slug') as string
     
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -203,7 +207,7 @@ export default async function LessonPage({
       .from('lesson_progress')
       .select('time_spent')
       .eq('user_id', user.id)
-      .eq('lesson_id', params.lessonId)
+      .eq('lesson_id', lessonId)
       .single()
 
     // Update or insert progress
@@ -211,7 +215,7 @@ export default async function LessonPage({
       .from('lesson_progress')
       .upsert({
         user_id: user.id,
-        lesson_id: params.lessonId,
+        lesson_id: lessonId,
         completed: true,
         completed_at: new Date().toISOString(),
         time_spent: currentProgress?.time_spent || 0
@@ -220,11 +224,11 @@ export default async function LessonPage({
       })
 
     if (!error) {
-      // Update course progress percentage - course is guaranteed non-null here
-      await updateCourseProgress(user.id, course.id)
+      // Update course progress percentage
+      await updateCourseProgress(user.id, courseId)
       
       // Revalidate the page to show updated progress
-      redirect(`/dashboard/learn/${params.slug}/${params.lessonId}`)
+      redirect(`/dashboard/learn/${slug}/${lessonId}`)
     }
   }
 
@@ -338,7 +342,7 @@ export default async function LessonPage({
               contentType={lesson.content_type || 'article'} 
             />
 
-            {/* Complete button */}
+            {/* Complete button with form data */}
             <div className="mt-8 flex justify-center">
               {progress?.completed ? (
                 <div className="flex items-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded-lg">
@@ -347,6 +351,9 @@ export default async function LessonPage({
                 </div>
               ) : (
                 <form action={markLessonComplete}>
+                  <input type="hidden" name="courseId" value={course.id} />
+                  <input type="hidden" name="lessonId" value={params.lessonId} />
+                  <input type="hidden" name="slug" value={params.slug} />
                   <button
                     type="submit"
                     className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
