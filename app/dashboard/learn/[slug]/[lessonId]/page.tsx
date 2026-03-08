@@ -166,7 +166,7 @@ export default async function LessonPage({
 
     console.log('Course found:', course.id)
 
-    // FIXED: Use maybeSingle() to avoid errors when not enrolled
+    // Check if user is enrolled
     const { data: enrollment, error: enrollmentError } = await supabase
       .from('enrollments')
       .select('status, progress_percentage')
@@ -192,7 +192,7 @@ export default async function LessonPage({
       .select('*')
       .eq('id', params.lessonId)
       .eq('is_published', true)
-      .maybeSingle()  // Changed to maybeSingle for better error handling
+      .maybeSingle()
 
     if (lessonError || !lesson) {
       console.error('Lesson error:', lessonError)
@@ -377,11 +377,9 @@ export default async function LessonPage({
                 )}
               </div>
               
+              {/* FIXED: Pass the original lesson object directly */}
               <LessonContent 
-                lesson={{
-                  ...lesson,
-                  content: lesson.content_url
-                }} 
+                lesson={lesson}
                 contentType={lesson.content_type || 'article'} 
               />
 
