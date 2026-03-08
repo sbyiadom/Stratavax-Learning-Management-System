@@ -4,165 +4,155 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, Clock, BarChart, ChevronRight } from 'lucide-react'
+import { BookOpen, Clock, BarChart, ChevronRight, Award, Users, TrendingUp } from 'lucide-react'
 
-// Complete course catalog based on your structure
-const courseCategories = [
-  {
-    id: 'digital',
-    name: 'Digital & Technology Skills',
-    icon: '💻',
-    description: 'Prepare for the modern digital economy',
-    courses: [
-      { id: 'basic-computer-literacy', title: 'Basic Computer Literacy', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
-      { id: 'microsoft-office', title: 'Microsoft Office (Word, Excel, PowerPoint)', level: 'Beginner', duration: '4 weeks', lessons: 15, enrolled: 0 },
-      { id: 'data-analysis-excel', title: 'Data Analysis with Excel', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'intro-to-python', title: 'Introduction to Programming (Python)', level: 'Beginner', duration: '6 weeks', lessons: 20, enrolled: 0 },
-      { id: 'intro-to-javascript', title: 'Introduction to Programming (JavaScript)', level: 'Beginner', duration: '6 weeks', lessons: 20, enrolled: 0 },
-      { id: 'web-development', title: 'Web Development (HTML, CSS, JavaScript)', level: 'Intermediate', duration: '8 weeks', lessons: 30, enrolled: 0 },
-      { id: 'mobile-app-development', title: 'Mobile App Development', level: 'Advanced', duration: '10 weeks', lessons: 35, enrolled: 0 },
-      { id: 'cybersecurity-basics', title: 'Cybersecurity Basics', level: 'Beginner', duration: '4 weeks', lessons: 12, enrolled: 0 },
-      { id: 'ai-in-business', title: 'Artificial Intelligence Fundamentals', level: 'Intermediate', duration: '5 weeks', lessons: 18, enrolled: 0 },
-      { id: 'data-science-basics', title: 'Data Science Basics', level: 'Intermediate', duration: '6 weeks', lessons: 22, enrolled: 0 },
-      { id: 'cloud-computing-fundamentals', title: 'Cloud Computing Fundamentals', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'ui-ux-design', title: 'Digital Product Design (UI/UX)', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
-    ]
-  },
-  {
-    id: 'entrepreneurship',
-    name: 'Entrepreneurship & Business Skills',
-    icon: '🚀',
-    description: 'Start and grow successful businesses',
-    courses: [
-      { id: 'intro-to-entrepreneurship', title: 'Introduction to Entrepreneurship', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'business-model-development', title: 'Business Model Development', level: 'Intermediate', duration: '4 weeks', lessons: 12, enrolled: 0 },
-      { id: 'business-plan-writing', title: 'Business Plan Writing', level: 'Intermediate', duration: '3 weeks', lessons: 9, enrolled: 0 },
-      { id: 'financial-literacy', title: 'Financial Literacy', level: 'Beginner', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'accounting-small-business', title: 'Accounting for Small Businesses', level: 'Intermediate', duration: '5 weeks', lessons: 18, enrolled: 0 },
-      { id: 'marketing-branding', title: 'Marketing & Branding', level: 'Beginner', duration: '4 weeks', lessons: 15, enrolled: 0 },
-      { id: 'sales-skills', title: 'Sales Skills', level: 'Beginner', duration: '3 weeks', lessons: 11, enrolled: 0 },
-      { id: 'ecommerce-business', title: 'E-commerce Business', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
-      { id: 'customer-relationship-management', title: 'Customer Relationship Management', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'business-negotiation', title: 'Business Negotiation', level: 'Advanced', duration: '3 weeks', lessons: 9, enrolled: 0 },
-    ]
-  },
-  {
-    id: 'leadership',
-    name: 'Leadership & Personal Development',
-    icon: '🌟',
-    description: 'Build decision-making and leadership capabilities',
-    courses: [
-      { id: 'leadership-fundamentals', title: 'Leadership Fundamentals', level: 'Beginner', duration: '4 weeks', lessons: 12, enrolled: 0 },
-      { id: 'communication-skills', title: 'Communication Skills', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'emotional-intelligence', title: 'Emotional Intelligence', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'critical-thinking-problem-solving', title: 'Critical Thinking & Problem Solving', level: 'Intermediate', duration: '4 weeks', lessons: 13, enrolled: 0 },
-      { id: 'time-management-productivity', title: 'Time Management & Productivity', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
-      { id: 'conflict-resolution', title: 'Conflict Resolution', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'team-management', title: 'Team Management', level: 'Advanced', duration: '4 weeks', lessons: 15, enrolled: 0 },
-      { id: 'public-speaking', title: 'Public Speaking', level: 'Intermediate', duration: '3 weeks', lessons: 11, enrolled: 0 },
-      { id: 'decision-making', title: 'Decision Making', level: 'Advanced', duration: '3 weeks', lessons: 9, enrolled: 0 },
-      { id: 'ethics-professional-conduct', title: 'Ethics and Professional Conduct', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
-    ]
-  },
-  {
-    id: 'engineering',
-    name: 'Engineering & Technical Skills',
-    icon: '⚙️',
-    description: 'Technical skills for industrial and engineering careers',
-    courses: [
-      { id: 'basic-mechanical-engineering', title: 'Basic Mechanical Engineering Concepts', level: 'Beginner', duration: '5 weeks', lessons: 18, enrolled: 0 },
-      { id: 'electrical-systems-basics', title: 'Electrical Systems Basics', level: 'Beginner', duration: '4 weeks', lessons: 15, enrolled: 0 },
-      { id: 'industrial-automation-basics', title: 'Industrial Automation Basics', level: 'Intermediate', duration: '6 weeks', lessons: 20, enrolled: 0 },
-      { id: 'plc-programming', title: 'PLC Programming', level: 'Advanced', duration: '8 weeks', lessons: 25, enrolled: 0 },
-      { id: 'maintenance-planning', title: 'Maintenance Planning', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'preventive-maintenance', title: 'Preventive Maintenance', level: 'Intermediate', duration: '4 weeks', lessons: 13, enrolled: 0 },
-      { id: 'reliability-engineering', title: 'Reliability Engineering', level: 'Advanced', duration: '6 weeks', lessons: 22, enrolled: 0 },
-      { id: 'manufacturing-processes', title: 'Manufacturing Processes', level: 'Intermediate', duration: '5 weeks', lessons: 17, enrolled: 0 },
-      { id: 'lean-manufacturing', title: 'Lean Manufacturing', level: 'Intermediate', duration: '4 weeks', lessons: 15, enrolled: 0 },
-      { id: 'quality-control-six-sigma', title: 'Quality Control & Six Sigma', level: 'Advanced', duration: '6 weeks', lessons: 20, enrolled: 0 },
-    ]
-  },
-  {
-    id: 'finance',
-    name: 'Financial & Investment Literacy',
-    icon: '💰',
-    description: 'Manage money and build wealth',
-    courses: [
-      { id: 'personal-finance-management', title: 'Personal Finance Management', level: 'Beginner', duration: '3 weeks', lessons: 11, enrolled: 0 },
-      { id: 'budgeting-and-saving', title: 'Budgeting and Saving', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
-      { id: 'investing-basics', title: 'Investing Basics', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'stock-market-fundamentals', title: 'Stock Market Fundamentals', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'cryptocurrency-basics', title: 'Cryptocurrency Basics', level: 'Intermediate', duration: '3 weeks', lessons: 9, enrolled: 0 },
-      { id: 'risk-management', title: 'Risk Management', level: 'Advanced', duration: '4 weeks', lessons: 13, enrolled: 0 },
-      { id: 'retirement-planning', title: 'Retirement Planning', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'understanding-loans-credit', title: 'Understanding Loans and Credit', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
-    ]
-  },
-  {
-    id: 'career',
-    name: 'Career Development & Employability',
-    icon: '📈',
-    description: 'Get jobs and advance your career',
-    courses: [
-      { id: 'cv-resume-writing', title: 'CV / Resume Writing', level: 'Beginner', duration: '1 week', lessons: 5, enrolled: 0 },
-      { id: 'job-interview-preparation', title: 'Job Interview Preparation', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
-      { id: 'workplace-etiquette', title: 'Workplace Etiquette', level: 'Beginner', duration: '1 week', lessons: 4, enrolled: 0 },
-      { id: 'professional-communication', title: 'Professional Communication', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
-      { id: 'networking-career-growth', title: 'Networking for Career Growth', level: 'Intermediate', duration: '2 weeks', lessons: 6, enrolled: 0 },
-      { id: 'remote-work-skills', title: 'Remote Work Skills', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
-      { id: 'freelancing-fundamentals', title: 'Freelancing Fundamentals', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
-    ]
-  },
-  {
-    id: 'future-skills',
-    name: 'Digital Economy & Future Skills',
-    icon: '🔮',
-    description: 'Skills for future job markets',
-    courses: [
-      { id: 'ai-in-business', title: 'Artificial Intelligence in Business', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'automation-robotics-overview', title: 'Automation & Robotics Overview', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'blockchain-technology', title: 'Blockchain Technology', level: 'Intermediate', duration: '4 weeks', lessons: 13, enrolled: 0 },
-      { id: 'digital-marketing', title: 'Digital Marketing', level: 'Beginner', duration: '5 weeks', lessons: 18, enrolled: 0 },
-      { id: 'content-creation', title: 'Content Creation', level: 'Beginner', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'social-media-management', title: 'Social Media Management', level: 'Intermediate', duration: '4 weeks', lessons: 15, enrolled: 0 },
-      { id: 'online-business', title: 'Online Business', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
-    ]
-  }
-];
+type Course = {
+  id: string
+  title: string
+  slug: string
+  description: string | null
+  short_description: string | null
+  category: string | null
+  difficulty_level: string | null
+  thumbnail_url: string | null
+  duration_hours: number | null
+  enrollment_count: number | null
+  is_featured: boolean | null
+  icon?: string
+}
+
+type Enrollment = {
+  course_id: string
+  progress_percentage: number
+  status: string
+  completed_at: string | null
+  course: Course
+}
+
+type CourseWithCategory = Course & {
+  category_name?: string
+  category_id?: string
+}
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [enrolledCourses, setEnrolledCourses] = useState<string[]>([])
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([])
+  const [allCourses, setAllCourses] = useState<Course[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [categories, setCategories] = useState<string[]>([])
+  const [stats, setStats] = useState({
+    totalEnrolled: 0,
+    completedCourses: 0,
+    totalLessons: 0,
+    completedLessons: 0
+  })
+  
   const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
-    const getUser = async () => {
+    const loadUserData = async () => {
+      setLoading(true)
+      
+      // Get current user
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
-      setLoading(false)
       
-      // Load enrolled courses from localStorage for now
-      // In production, this should come from the database
-      const saved = localStorage.getItem(`enrolled_${user?.id}`)
-      if (saved) {
-        setEnrolledCourses(JSON.parse(saved))
+      if (!user) {
+        setLoading(false)
+        return
       }
+
+      // Fetch all published courses
+      const { data: courses } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('is_published', true)
+        .order('is_featured', { ascending: false })
+        .order('title')
+
+      if (courses) {
+        setAllCourses(courses)
+        
+        // Extract unique categories
+        const uniqueCategories = Array.from(
+          new Set(courses.map(c => c.category).filter(Boolean))
+        ) as string[]
+        setCategories(uniqueCategories)
+      }
+
+      // Fetch user enrollments with course details
+      const { data: enrollmentsData } = await supabase
+        .from('enrollments')
+        .select(`
+          course_id,
+          progress_percentage,
+          status,
+          completed_at,
+          course:courses(*)
+        `)
+        .eq('user_id', user.id)
+        .order('enrolled_at', { ascending: false })
+
+      if (enrollmentsData) {
+        setEnrollments(enrollmentsData as Enrollment[])
+
+        // Calculate stats
+        const completedCourses = enrollmentsData.filter(e => e.completed_at).length
+        
+        // Get all lesson progress for this user
+        const enrolledCourseIds = enrollmentsData.map(e => e.course_id)
+        
+        if (enrolledCourseIds.length > 0) {
+          // Get all lessons in enrolled courses
+          const { data: lessons } = await supabase
+            .from('lessons')
+            .select('id, module:modules!inner(course_id)')
+            .in('module.course_id', enrolledCourseIds)
+            .eq('is_published', true)
+
+          const totalLessons = lessons?.length || 0
+
+          // Get completed lessons
+          const { data: completedLessons } = await supabase
+            .from('lesson_progress')
+            .select('lesson_id')
+            .eq('user_id', user.id)
+            .eq('completed', true)
+            .in('lesson_id', lessons?.map(l => l.id) || [])
+
+          setStats({
+            totalEnrolled: enrollmentsData.length,
+            completedCourses,
+            totalLessons,
+            completedLessons: completedLessons?.length || 0
+          })
+        }
+      }
+
+      setLoading(false)
     }
-    
-    getUser()
+
+    loadUserData()
   }, [supabase])
 
-  const handleEnroll = (courseId: string) => {
-    if (!enrolledCourses.includes(courseId)) {
-      const updated = [...enrolledCourses, courseId]
-      setEnrolledCourses(updated)
-      if (user) {
-        localStorage.setItem(`enrolled_${user.id}`, JSON.stringify(updated))
-      }
-      // FIXED: Added /dashboard/ prefix
+  const handleEnroll = async (courseId: string) => {
+    if (!user) {
+      router.push('/login')
+      return
+    }
+
+    const { error } = await supabase
+      .from('enrollments')
+      .insert({
+        user_id: user.id,
+        course_id: courseId,
+        status: 'active',
+        progress_percentage: 0
+      })
+
+    if (!error) {
       router.push(`/dashboard/learn/${courseId}`)
     }
   }
@@ -176,19 +166,20 @@ export default function DashboardPage() {
   }
 
   if (!user) {
+    router.push('/login')
     return null
   }
 
-  // Flatten all courses for filtering
-  const allCourses = courseCategories.flatMap(cat => 
-    cat.courses.map(course => ({ ...course, category: cat.name, categoryId: cat.id }))
-  )
+  // Get enrolled course IDs
+  const enrolledCourseIds = enrollments.map(e => e.course_id)
+  
+  // Filter courses by category
+  const filteredCourses = selectedCategory === 'all'
+    ? allCourses
+    : allCourses.filter(course => course.category === selectedCategory)
 
-  const filteredCourses = selectedCategory === 'all' 
-    ? allCourses 
-    : allCourses.filter(course => course.categoryId === selectedCategory)
-
-  const enrolledList = allCourses.filter(course => enrolledCourses.includes(course.id))
+  // Separate featured courses
+  const featuredCourses = allCourses.filter(c => c.is_featured).slice(0, 3)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -207,7 +198,7 @@ export default function DashboardPage() {
               <button
                 onClick={async () => {
                   await supabase.auth.signOut()
-                  window.location.href = '/login'
+                  router.push('/login')
                 }}
                 className="px-4 py-2 text-sm text-white bg-red-600 rounded-md hover:bg-red-700"
               >
@@ -223,52 +214,122 @@ export default function DashboardPage() {
         <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg shadow-lg p-8 mb-8 text-white">
           <h2 className="text-3xl font-bold mb-2">Welcome back, {user.email}!</h2>
           <p className="text-blue-100 mb-4">
-            You have access to {allCourses.length}+ free courses to develop your skills.
+            Continue your learning journey. You have access to {allCourses.length}+ courses.
           </p>
-          <div className="flex space-x-4">
+          <div className="flex flex-wrap gap-4">
             <span className="bg-blue-500 bg-opacity-30 px-3 py-1 rounded-full text-sm">
-              {enrolledCourses.length} courses enrolled
+              {stats.totalEnrolled} courses enrolled
             </span>
             <span className="bg-blue-500 bg-opacity-30 px-3 py-1 rounded-full text-sm">
-              {allCourses.length} total courses
+              {stats.completedLessons}/{stats.totalLessons} lessons completed
+            </span>
+            <span className="bg-blue-500 bg-opacity-30 px-3 py-1 rounded-full text-sm">
+              {stats.completedCourses} courses completed
             </span>
           </div>
         </div>
 
-        {/* Enrolled Courses Section */}
-        {enrolledList.length > 0 && (
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Enrolled Courses</p>
+                <p className="text-2xl font-bold">{stats.totalEnrolled}</p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <BookOpen className="text-blue-600" size={24} />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Completed Lessons</p>
+                <p className="text-2xl font-bold">{stats.completedLessons}</p>
+              </div>
+              <div className="bg-green-100 p-3 rounded-lg">
+                <CheckCircle className="text-green-600" size={24} />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Completed Courses</p>
+                <p className="text-2xl font-bold">{stats.completedCourses}</p>
+              </div>
+              <div className="bg-purple-100 p-3 rounded-lg">
+                <Award className="text-purple-600" size={24} />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Overall Progress</p>
+                <p className="text-2xl font-bold">
+                  {stats.totalLessons > 0 
+                    ? Math.round((stats.completedLessons / stats.totalLessons) * 100) 
+                    : 0}%
+                </p>
+              </div>
+              <div className="bg-orange-100 p-3 rounded-lg">
+                <TrendingUp className="text-orange-600" size={24} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Continue Learning Section */}
+        {enrollments.length > 0 && (
           <div className="mb-12">
             <h2 className="text-2xl font-bold mb-6 flex items-center">
               <BookOpen className="mr-2" size={24} />
-              My Learning
+              Continue Learning
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {enrolledList.map((course) => (
-                <div key={course.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
-                  <div className="h-2 bg-green-500"></div>
+              {enrollments.slice(0, 3).map((enrollment) => (
+                <div key={enrollment.course_id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
+                  {enrollment.course.thumbnail_url ? (
+                    <img 
+                      src={enrollment.course.thumbnail_url} 
+                      alt={enrollment.course.title}
+                      className="w-full h-40 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-40 bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center">
+                      <BookOpen size={48} className="text-white opacity-50" />
+                    </div>
+                  )}
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
-                        In Progress
+                        {enrollment.status === 'active' ? 'In Progress' : 'Completed'}
                       </span>
-                      <span className="text-xs text-gray-500">{course.level}</span>
+                      <span className="text-xs text-gray-500">{enrollment.course.difficulty_level || 'Beginner'}</span>
                     </div>
-                    <h3 className="text-lg font-semibold mb-2">{course.title}</h3>
+                    <h3 className="text-lg font-semibold mb-2">{enrollment.course.title}</h3>
                     <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {course.category}
+                      {enrollment.course.short_description || enrollment.course.description}
                     </p>
-                    <div className="flex items-center text-sm text-gray-500 mb-4 space-x-4">
-                      <span className="flex items-center">
-                        <Clock size={14} className="mr-1" />
-                        {course.duration}
-                      </span>
-                      <span className="flex items-center">
-                        <BookOpen size={14} className="mr-1" />
-                        {course.lessons} lessons
-                      </span>
+                    <div className="mb-4">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>Progress</span>
+                        <span>{enrollment.progress_percentage}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-600 h-2 rounded-full" 
+                          style={{ width: `${enrollment.progress_percentage}%` }}
+                        />
+                      </div>
                     </div>
                     <button
-                      onClick={() => router.push(`/dashboard/learn/${course.id}`)}
+                      onClick={() => router.push(`/dashboard/learn/${enrollment.course.slug}`)}
                       className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
                     >
                       Continue Learning
@@ -278,47 +339,139 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+            
+            {enrollments.length > 3 && (
+              <div className="text-center mt-4">
+                <Link href="/dashboard/my-courses" className="text-blue-600 hover:underline">
+                  View all {enrollments.length} enrolled courses →
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Featured Courses */}
+        {featuredCourses.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center">
+              <Award className="mr-2" size={24} />
+              Featured Courses
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {featuredCourses.map((course) => {
+                const isEnrolled = enrolledCourseIds.includes(course.id)
+                return (
+                  <div key={course.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
+                    {course.thumbnail_url ? (
+                      <img 
+                        src={course.thumbnail_url} 
+                        alt={course.title}
+                        className="w-full h-40 object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-40 bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center">
+                        <BookOpen size={48} className="text-white opacity-50" />
+                      </div>
+                    )}
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                          Featured
+                        </span>
+                        <span className="text-xs text-gray-500">{course.difficulty_level || 'Beginner'}</span>
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">{course.title}</h3>
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                        {course.short_description || course.description}
+                      </p>
+                      <div className="flex items-center text-sm text-gray-500 mb-4 space-x-4">
+                        <span className="flex items-center">
+                          <Clock size={14} className="mr-1" />
+                          {course.duration_hours || 0}h
+                        </span>
+                        <span className="flex items-center">
+                          <Users size={14} className="mr-1" />
+                          {course.enrollment_count || 0} enrolled
+                        </span>
+                      </div>
+                      {isEnrolled ? (
+                        <button
+                          onClick={() => router.push(`/dashboard/learn/${course.slug}`)}
+                          className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                        >
+                          Continue Learning
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleEnroll(course.id)}
+                          className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        >
+                          Enroll Now
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 
         {/* Category Filter */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4">Browse Courses</h2>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSelectedCategory('all')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                selectedCategory === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              All Categories
-            </button>
-            {courseCategories.map((cat) => (
+        {categories.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-4">Browse All Courses</h2>
+            <div className="flex flex-wrap gap-2">
               <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
+                onClick={() => setSelectedCategory('all')}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                  selectedCategory === cat.id
+                  selectedCategory === 'all'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
-                {cat.icon} {cat.name}
+                All Categories
               </button>
-            ))}
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+                    selectedCategory === category
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Course Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCourses.map((course) => {
-            const isEnrolled = enrolledCourses.includes(course.id)
+            const isEnrolled = enrolledCourseIds.includes(course.id)
+            const enrollment = enrollments.find(e => e.course_id === course.id)
             
             return (
               <div key={course.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
-                <div className={`h-2 ${isEnrolled ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                {course.thumbnail_url ? (
+                  <img 
+                    src={course.thumbnail_url} 
+                    alt={course.title}
+                    className="w-full h-40 object-cover"
+                  />
+                ) : (
+                  <div className={`w-full h-40 bg-gradient-to-r ${
+                    course.is_featured 
+                      ? 'from-purple-500 to-pink-600' 
+                      : 'from-blue-500 to-indigo-600'
+                  } flex items-center justify-center`}>
+                    <BookOpen size={48} className="text-white opacity-50" />
+                  </div>
+                )}
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-2">
                     <span className={`text-xs font-semibold px-2 py-1 rounded ${
@@ -326,27 +479,45 @@ export default function DashboardPage() {
                         ? 'text-green-600 bg-green-50' 
                         : 'text-blue-600 bg-blue-50'
                     }`}>
-                      {isEnrolled ? 'Enrolled' : course.level}
+                      {isEnrolled ? 'Enrolled' : course.difficulty_level || 'Beginner'}
                     </span>
-                    <span className="text-xs text-gray-500">{course.duration}</span>
+                    {course.category && (
+                      <span className="text-xs text-gray-500">{course.category}</span>
+                    )}
                   </div>
                   <h3 className="text-lg font-semibold mb-2">{course.title}</h3>
                   <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                    {course.category}
+                    {course.short_description || course.description}
                   </p>
                   <div className="flex items-center text-sm text-gray-500 mb-4">
-                    <BookOpen size={14} className="mr-1" />
-                    {course.lessons} lessons
+                    <Clock size={14} className="mr-1" />
+                    {course.duration_hours || 0} hours
                   </div>
                   
                   {isEnrolled ? (
-                    <button
-                      onClick={() => router.push(`/dashboard/learn/${course.id}`)}
-                      className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
-                    >
-                      Continue Learning
-                      <ChevronRight size={16} className="ml-1" />
-                    </button>
+                    <>
+                      {enrollment && (
+                        <div className="mb-4">
+                          <div className="flex justify-between text-sm mb-1">
+                            <span>Progress</span>
+                            <span>{enrollment.progress_percentage}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-green-600 h-2 rounded-full" 
+                              style={{ width: `${enrollment.progress_percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => router.push(`/dashboard/learn/${course.slug}`)}
+                        className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
+                      >
+                        {enrollment?.progress_percentage === 100 ? 'Review Course' : 'Continue Learning'}
+                        <ChevronRight size={16} className="ml-1" />
+                      </button>
+                    </>
                   ) : (
                     <button
                       onClick={() => handleEnroll(course.id)}
@@ -361,26 +532,22 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* Stats Section */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-6 rounded-lg shadow text-center">
-            <div className="text-3xl font-bold text-blue-600">{allCourses.length}+</div>
-            <div className="text-sm text-gray-600">Free Courses</div>
+        {/* Empty State */}
+        {filteredCourses.length === 0 && (
+          <div className="text-center py-12">
+            <BookOpen size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No courses found</h3>
+            <p className="text-gray-600">
+              {selectedCategory === 'all' 
+                ? 'No courses are available yet. Check back soon!' 
+                : `No courses available in ${selectedCategory} category.`}
+            </p>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow text-center">
-            <div className="text-3xl font-bold text-green-600">7</div>
-            <div className="text-sm text-gray-600">Skill Categories</div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow text-center">
-            <div className="text-3xl font-bold text-purple-600">{enrolledCourses.length}</div>
-            <div className="text-sm text-gray-600">Your Courses</div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow text-center">
-            <div className="text-3xl font-bold text-orange-600">Certificates</div>
-            <div className="text-sm text-gray-600">Earn on Completion</div>
-          </div>
-        </div>
+        )}
       </main>
     </div>
   )
 }
+
+// Add missing CheckCircle import
+import { CheckCircle } from 'lucide-react'
