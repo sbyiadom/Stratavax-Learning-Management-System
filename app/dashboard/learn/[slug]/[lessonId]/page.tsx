@@ -47,6 +47,11 @@ type LessonProgress = {
   last_position: number | null
 }
 
+type Enrollment = {
+  status: string
+  progress_percentage: number
+}
+
 export default async function LessonPage({
   params,
 }: {
@@ -73,7 +78,7 @@ export default async function LessonPage({
     notFound()
   }
 
-  // Check if user is enrolled
+  // Check if user is enrolled - course is guaranteed non-null here
   const { data: enrollment } = await supabase
     .from('enrollments')
     .select('status, progress_percentage')
@@ -134,14 +139,9 @@ export default async function LessonPage({
   // First get all modules for this course
   const { data: courseModules } = await supabase
     .from('modules')
-    .select('id')
+    .select('id, module_order')
     .eq('course_id', course.id)
     .order('module_order', { ascending: true })
-
-  if (!courseModules) {
-    console.error('No modules found for course')
-    // Still render the page, just without navigation
-  }
 
   let allLessons: { id: string; title: string; lesson_order: number; module_order: number }[] = []
 
@@ -154,7 +154,6 @@ export default async function LessonPage({
       .select('id, title, lesson_order, module_id')
       .in('module_id', moduleIds)
       .eq('is_published', true)
-      .order('lesson_order', { ascending: true })
 
     if (navError) {
       console.error('Navigation error:', navError)
@@ -163,8 +162,8 @@ export default async function LessonPage({
     if (lessons) {
       // Create a map of module_id to module_order
       const moduleOrderMap = new Map()
-      courseModules.forEach((m, index) => {
-        moduleOrderMap.set(m.id, index + 1)
+      courseModules.forEach(module => {
+        moduleOrderMap.set(module.id, module.module_order)
       })
 
       // Add module_order to each lesson
@@ -199,6 +198,14 @@ export default async function LessonPage({
     
     if (!user) return
 
+    // Get current progress to preserve time_spent
+    const { data: currentProgress } = await supabase
+      .from('lesson_progress')
+      .select('time_spent')
+      .eq('user_id', user.id)
+      .eq('lesson_id', params.lessonId)
+      .single()
+
     // Update or insert progress
     const { error } = await supabase
       .from('lesson_progress')
@@ -207,13 +214,13 @@ export default async function LessonPage({
         lesson_id: params.lessonId,
         completed: true,
         completed_at: new Date().toISOString(),
-        time_spent: progress?.time_spent || 0
+        time_spent: currentProgress?.time_spent || 0
       }, {
         onConflict: 'user_id,lesson_id'
       })
 
     if (!error) {
-      // Update course progress percentage
+      // Update course progress percentage - course is guaranteed non-null here
       await updateCourseProgress(user.id, course.id)
       
       // Revalidate the page to show updated progress
@@ -225,7 +232,7 @@ export default async function LessonPage({
   async function updateCourseProgress(userId: string, courseId: string) {
     const supabase = await createClient()
     
-    // Get all lessons in this course
+    // Get all modules in this course
     const { data: courseModules } = await supabase
       .from('modules')
       .select('id')
@@ -235,6 +242,7 @@ export default async function LessonPage({
 
     const moduleIds = courseModules.map(m => m.id)
     
+    // Get all lessons in this course
     const { data: totalLessons } = await supabase
       .from('lessons')
       .select('id')
@@ -263,6 +271,9 @@ export default async function LessonPage({
       .eq('user_id', userId)
       .eq('course_id', courseId)
   }
+
+  // Type guard to ensure enrollment exists (it does, we checked earlier)
+  const typedEnrollment = enrollment as Enrollment
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -304,7 +315,7 @@ export default async function LessonPage({
           <div className="h-1 bg-gray-200">
             <div 
               className="h-1 bg-green-500 transition-all duration-300" 
-              style={{ width: `${enrollment.progress_percentage || 0}%` }}
+              style={{ width: `${typedEnrollment.progress_percentage || 0}%` }}
             />
           </div>
 
