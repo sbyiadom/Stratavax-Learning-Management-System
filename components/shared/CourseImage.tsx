@@ -40,7 +40,7 @@ export default function CourseImage({ src, alt, title = alt, className = "w-full
 
   if (!src || error) {
     return (
-      <div className={`w-full h-40 bg-gradient-to-r ${gradient} flex items-center justify-center`}>
+      <div className={`w-full h-full bg-gradient-to-r ${gradient} flex items-center justify-center`}>
         <BookOpen size={48} className="text-white opacity-50" />
       </div>
     )
