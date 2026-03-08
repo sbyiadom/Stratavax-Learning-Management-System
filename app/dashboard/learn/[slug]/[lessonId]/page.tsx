@@ -17,8 +17,8 @@ export default async function LessonPage({
     return null
   }
 
-  // Get lesson
-  const { data: lesson } = await supabase
+  // First, get the current lesson with its module and course info
+  const { data: lesson, error: lessonError } = await supabase
     .from('lessons')
     .select(`
       id,
@@ -26,6 +26,7 @@ export default async function LessonPage({
       content_type,
       content,
       lesson_order,
+      module_id,
       module:modules(
         id,
         title,
@@ -36,12 +37,20 @@ export default async function LessonPage({
     .eq('id', params.lessonId)
     .single()
 
-  if (!lesson) {
+  if (lessonError || !lesson) {
+    console.error('Lesson error:', lessonError)
     notFound()
   }
 
-  // Get all lessons for navigation
-  const { data: allLessons } = await supabase
+  // Get the course_id from the module
+  const courseId = lesson.module?.course_id
+
+  if (!courseId) {
+    return <div>Course ID not found</div>
+  }
+
+  // Get all lessons in this course for navigation
+  const { data: allLessons, error: navError } = await supabase
     .from('lessons')
     .select(`
       id,
@@ -51,50 +60,82 @@ export default async function LessonPage({
         module_order
       )
     `)
-    .eq('module.course_id', lesson.module.course_id)
+    .eq('module.course_id', courseId)
     .order('module.module_order', { ascending: true })
     .order('lesson_order', { ascending: true })
 
-  // Find current index
+  if (navError) {
+    console.error('Navigation error:', navError)
+  }
+
+  // Find current index and navigation lessons
   const currentIndex = allLessons?.findIndex(l => l.id === params.lessonId) ?? -1
   const prevLesson = currentIndex > 0 ? allLessons?.[currentIndex - 1] : null
   const nextLesson = currentIndex < (allLessons?.length || 0) - 1 ? allLessons?.[currentIndex + 1] : null
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Link
-          href={`/dashboard/learn/${params.slug}`}
-          className="text-blue-600 hover:underline flex items-center gap-2 mb-6"
-        >
-          <ChevronLeft size={16} />
-          Back to Course
-        </Link>
+      {/* Header */}
+      <div className="bg-white border-b sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <Link
+              href={`/dashboard/learn/${params.slug}`}
+              className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
+            >
+              <ChevronLeft size={20} />
+              <span>Back to Course</span>
+            </Link>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-500">
+                Lesson {lesson.lesson_order} • {lesson.content_type}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-2xl font-bold mb-4">{lesson.title}</h1>
+          <h1 className="text-2xl font-bold mb-6">{lesson.title}</h1>
           
           <LessonContent lesson={lesson} contentType={lesson.content_type} />
 
-          <div className="mt-8 flex justify-between">
+          {/* Navigation */}
+          <div className="mt-8 flex items-center justify-between border-t pt-6">
             {prevLesson ? (
               <Link
                 href={`/dashboard/learn/${params.slug}/${prevLesson.id}`}
-                className="px-4 py-2 border rounded hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
               >
-                Previous
+                ← Previous Lesson
               </Link>
-            ) : <div />}
+            ) : (
+              <div />
+            )}
             
             {nextLesson ? (
               <Link
                 href={`/dashboard/learn/${params.slug}/${nextLesson.id}`}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
               >
-                Next
+                Next Lesson →
               </Link>
-            ) : <div />}
+            ) : (
+              <Link
+                href={`/dashboard/learn/${params.slug}`}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+              >
+                Complete Course
+              </Link>
+            )}
           </div>
+        </div>
+
+        {/* Debug Info (remove in production) */}
+        <div className="mt-4 p-4 bg-gray-100 rounded-lg text-xs">
+          <p><strong>Debug:</strong> Lesson ID: {lesson.id} | Course ID: {courseId}</p>
         </div>
       </div>
     </div>
