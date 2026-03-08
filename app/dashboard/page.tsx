@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, Clock, BarChart, ChevronRight, Award, Users, TrendingUp } from 'lucide-react'
+import { BookOpen, Clock, ChevronRight, Award, Users, TrendingUp, CheckCircle } from 'lucide-react'
 
 type Course = {
   id: string
@@ -65,12 +65,16 @@ export default function DashboardPage() {
       }
 
       // Fetch all published courses
-      const { data: courses } = await supabase
+      const { data: courses, error: coursesError } = await supabase
         .from('courses')
         .select('*')
         .eq('is_published', true)
         .order('is_featured', { ascending: false })
         .order('title')
+
+      if (coursesError) {
+        console.error('Courses error:', coursesError)
+      }
 
       if (courses) {
         setAllCourses(courses)
@@ -83,7 +87,7 @@ export default function DashboardPage() {
       }
 
       // Fetch user enrollments with course details
-      const { data: enrollmentsData } = await supabase
+      const { data: enrollmentsData, error: enrollmentsError } = await supabase
         .from('enrollments')
         .select(`
           course_id,
@@ -95,38 +99,97 @@ export default function DashboardPage() {
         .eq('user_id', user.id)
         .order('enrolled_at', { ascending: false })
 
+      if (enrollmentsError) {
+        console.error('Enrollments error:', enrollmentsError)
+      }
+
       if (enrollmentsData) {
-        setEnrollments(enrollmentsData as Enrollment[])
+        // Transform the data to match the Enrollment type
+        // Supabase returns course as an array, but we need it as a single object
+        const transformedEnrollments: Enrollment[] = enrollmentsData.map((item: any) => ({
+          course_id: item.course_id,
+          progress_percentage: item.progress_percentage,
+          status: item.status,
+          completed_at: item.completed_at,
+          course: Array.isArray(item.course) ? item.course[0] : item.course
+        }))
+        
+        setEnrollments(transformedEnrollments)
 
         // Calculate stats
-        const completedCourses = enrollmentsData.filter(e => e.completed_at).length
+        const completedCourses = transformedEnrollments.filter(e => e.completed_at).length
         
         // Get all lesson progress for this user
-        const enrolledCourseIds = enrollmentsData.map(e => e.course_id)
+        const enrolledCourseIds = transformedEnrollments.map(e => e.course_id)
         
         if (enrolledCourseIds.length > 0) {
-          // Get all lessons in enrolled courses
-          const { data: lessons } = await supabase
-            .from('lessons')
-            .select('id, module:modules!inner(course_id)')
-            .in('module.course_id', enrolledCourseIds)
-            .eq('is_published', true)
+          // First get all modules for enrolled courses
+          const { data: modules, error: modulesError } = await supabase
+            .from('modules')
+            .select('id')
+            .in('course_id', enrolledCourseIds)
 
-          const totalLessons = lessons?.length || 0
+          if (modulesError) {
+            console.error('Modules error:', modulesError)
+          }
 
-          // Get completed lessons
-          const { data: completedLessons } = await supabase
-            .from('lesson_progress')
-            .select('lesson_id')
-            .eq('user_id', user.id)
-            .eq('completed', true)
-            .in('lesson_id', lessons?.map(l => l.id) || [])
+          if (modules && modules.length > 0) {
+            const moduleIds = modules.map(m => m.id)
 
+            // Get all lessons in enrolled courses
+            const { data: lessons, error: lessonsError } = await supabase
+              .from('lessons')
+              .select('id')
+              .in('module_id', moduleIds)
+              .eq('is_published', true)
+
+            if (lessonsError) {
+              console.error('Lessons error:', lessonsError)
+            }
+
+            const totalLessons = lessons?.length || 0
+
+            // Get completed lessons
+            if (lessons && lessons.length > 0) {
+              const { data: completedLessons, error: progressError } = await supabase
+                .from('lesson_progress')
+                .select('lesson_id')
+                .eq('user_id', user.id)
+                .eq('completed', true)
+                .in('lesson_id', lessons.map(l => l.id))
+
+              if (progressError) {
+                console.error('Progress error:', progressError)
+              }
+
+              setStats({
+                totalEnrolled: transformedEnrollments.length,
+                completedCourses,
+                totalLessons,
+                completedLessons: completedLessons?.length || 0
+              })
+            } else {
+              setStats({
+                totalEnrolled: transformedEnrollments.length,
+                completedCourses,
+                totalLessons: 0,
+                completedLessons: 0
+              })
+            }
+          } else {
+            setStats({
+              totalEnrolled: transformedEnrollments.length,
+              completedCourses,
+              totalLessons: 0,
+              completedLessons: 0
+            })
+          }
+        } else {
           setStats({
-            totalEnrolled: enrollmentsData.length,
-            completedCourses,
-            totalLessons,
-            completedLessons: completedLessons?.length || 0
+            totalEnrolled: 0,
+            completedCourses: 0,
+            totalLessons: 0,
+            completedLessons: 0
           })
         }
       }
@@ -548,6 +611,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-// Add missing CheckCircle import
-import { CheckCircle } from 'lucide-react'
