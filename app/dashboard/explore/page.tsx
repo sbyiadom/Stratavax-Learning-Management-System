@@ -6,6 +6,32 @@ import CourseGrid from '@/components/courses/CourseGrid'
 import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-react'
 
+// Approved course slugs from your PDF (the ones with correct videos)
+const APPROVED_COURSE_SLUGS = [
+  'computer-basics',
+  'computer-skills-intermediate',
+  'computer-networking-advanced',
+  'excel-beginners',
+  'excel-data-analysis',
+  'excel-advanced',
+  'cs50-intro',
+  'python-programming',
+  'software-engineering',
+  'html-css',
+  'javascript',
+  'full-stack',
+  'data-analysis-excel',
+  'python-data-analysis',
+  'machine-learning',
+  'entrepreneurship-intro',
+  'business-model-design',
+  'business-plan-development',
+  'personal-finance',
+  'mechanical-engineering',
+  'electrical-engineering',
+  'plc-programming'
+]
+
 interface Course {
   id: string
   title: string
@@ -21,6 +47,7 @@ interface Course {
   difficulty?: string | null
   rating?: number | null
   students?: number | null
+  slug?: string | null  // Add slug field
 }
 
 export default function ExplorePage() {
@@ -35,11 +62,12 @@ export default function ExplorePage() {
 
     const fetchCourses = async () => {
       try {
+        // Fetch ONLY approved courses
         const { data, error } = await supabase
           .from('courses')
           .select('*')
-          .limit(20)
-          .order('created_at', { ascending: false })
+          .in('slug', APPROVED_COURSE_SLUGS)  // Only get approved courses
+          .order('title', { ascending: true })
         
         if (error) throw error
         
@@ -96,6 +124,11 @@ export default function ExplorePage() {
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
+
+      {/* Show count of courses */}
+      <p className="text-sm text-gray-500">
+        Showing {filtered.length} courses with video content
+      </p>
 
       <CourseGrid courses={filtered} loading={loading} />
     </div>
