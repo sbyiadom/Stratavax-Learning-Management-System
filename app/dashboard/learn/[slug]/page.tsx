@@ -27,7 +27,7 @@ const APPROVED_COURSE_SLUGS = [
   'personal-finance',
   'mechanical-engineering',
   'electrical-engineering',
-  'plc-programming'
+  'plc-programming',
   'lubrication-engineering'
 ]
 
