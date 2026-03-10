@@ -6,6 +6,32 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { BookOpen, Clock, ChevronRight, Award, Users, TrendingUp, CheckCircle } from 'lucide-react'
 
+// Approved course slugs from your PDF (the ones with correct videos)
+const APPROVED_COURSE_SLUGS = [
+  'computer-basics',
+  'computer-skills-intermediate',
+  'computer-networking-advanced',
+  'excel-beginners',
+  'excel-data-analysis',
+  'excel-advanced',
+  'cs50-intro',
+  'python-programming',
+  'software-engineering',
+  'html-css',
+  'javascript',
+  'full-stack',
+  'data-analysis-excel',
+  'python-data-analysis',
+  'machine-learning',
+  'entrepreneurship-intro',
+  'business-model-design',
+  'business-plan-development',
+  'personal-finance',
+  'mechanical-engineering',
+  'electrical-engineering',
+  'plc-programming'
+]
+
 type Course = {
   id: string
   title: string
@@ -27,11 +53,6 @@ type Enrollment = {
   status: string
   completed_at: string | null
   course: Course
-}
-
-type CourseWithCategory = Course & {
-  category_name?: string
-  category_id?: string
 }
 
 export default function DashboardPage() {
@@ -64,11 +85,12 @@ export default function DashboardPage() {
         return
       }
 
-      // Fetch all published courses
+      // Fetch ONLY approved published courses
       const { data: courses, error: coursesError } = await supabase
         .from('courses')
         .select('*')
         .eq('is_published', true)
+        .in('slug', APPROVED_COURSE_SLUGS)  // Only get approved courses
         .order('is_featured', { ascending: false })
         .order('title')
 
@@ -79,14 +101,14 @@ export default function DashboardPage() {
       if (courses) {
         setAllCourses(courses)
         
-        // Extract unique categories
+        // Extract unique categories from approved courses only
         const uniqueCategories = Array.from(
           new Set(courses.map(c => c.category).filter(Boolean))
         ) as string[]
         setCategories(uniqueCategories)
       }
 
-      // Fetch user enrollments with course details
+      // Fetch user enrollments with course details (filtered to approved courses)
       const { data: enrollmentsData, error: enrollmentsError } = await supabase
         .from('enrollments')
         .select(`
@@ -94,9 +116,10 @@ export default function DashboardPage() {
           progress_percentage,
           status,
           completed_at,
-          course:courses(*)
+          course:courses!inner(*)
         `)
         .eq('user_id', user.id)
+        .in('course.slug', APPROVED_COURSE_SLUGS)  // Only enrollments for approved courses
         .order('enrolled_at', { ascending: false })
 
       if (enrollmentsError) {
@@ -105,7 +128,6 @@ export default function DashboardPage() {
 
       if (enrollmentsData) {
         // Transform the data to match the Enrollment type
-        // Supabase returns course as an array, but we need it as a single object
         const transformedEnrollments: Enrollment[] = enrollmentsData.map((item: any) => ({
           course_id: item.course_id,
           progress_percentage: item.progress_percentage,
@@ -116,10 +138,10 @@ export default function DashboardPage() {
         
         setEnrollments(transformedEnrollments)
 
-        // Calculate stats
+        // Calculate stats only for approved courses
         const completedCourses = transformedEnrollments.filter(e => e.completed_at).length
         
-        // Get all lesson progress for this user
+        // Get all lesson progress for this user (for approved courses only)
         const enrolledCourseIds = transformedEnrollments.map(e => e.course_id)
         
         if (enrolledCourseIds.length > 0) {
@@ -200,7 +222,6 @@ export default function DashboardPage() {
     loadUserData()
   }, [supabase])
 
-  // FIXED: Added courseSlug parameter and use it for redirect
   const handleEnroll = async (courseId: string, courseSlug: string) => {
     if (!user) {
       router.push('/login')
@@ -217,7 +238,6 @@ export default function DashboardPage() {
       })
 
     if (!error) {
-      // Use the slug, not the ID
       router.push(`/dashboard/learn/${courseSlug}`)
     }
   }
@@ -235,15 +255,15 @@ export default function DashboardPage() {
     return null
   }
 
-  // Get enrolled course IDs
+  // Get enrolled course IDs (only for approved courses)
   const enrolledCourseIds = enrollments.map(e => e.course_id)
   
-  // Filter courses by category
+  // Filter courses by category (only approved courses)
   const filteredCourses = selectedCategory === 'all'
     ? allCourses
     : allCourses.filter(course => course.category === selectedCategory)
 
-  // Separate featured courses
+  // Separate featured courses (only from approved list)
   const featuredCourses = allCourses.filter(c => c.is_featured).slice(0, 3)
 
   return (
@@ -349,7 +369,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Continue Learning Section */}
+        {/* Continue Learning Section - Only approved courses */}
         {enrollments.length > 0 && (
           <div className="mb-12">
             <h2 className="text-2xl font-bold mb-6 flex items-center">
@@ -415,7 +435,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Featured Courses */}
+        {/* Featured Courses - Only approved courses */}
         {featuredCourses.length > 0 && (
           <div className="mb-12">
             <h2 className="text-2xl font-bold mb-6 flex items-center">
@@ -467,7 +487,6 @@ export default function DashboardPage() {
                           Continue Learning
                         </button>
                       ) : (
-                        // FIXED: Pass both course.id and course.slug to handleEnroll
                         <button
                           onClick={() => handleEnroll(course.id, course.slug)}
                           className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -483,7 +502,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Category Filter */}
+        {/* Category Filter - Only from approved courses */}
         {categories.length > 0 && (
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-4">Browse All Courses</h2>
@@ -515,7 +534,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Course Grid */}
+        {/* Course Grid - Only approved courses */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCourses.map((course) => {
             const isEnrolled = enrolledCourseIds.includes(course.id)
@@ -585,7 +604,6 @@ export default function DashboardPage() {
                       </button>
                     </>
                   ) : (
-                    // FIXED: Pass both course.id and course.slug to handleEnroll
                     <button
                       onClick={() => handleEnroll(course.id, course.slug)}
                       className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
