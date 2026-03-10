@@ -4,6 +4,32 @@ import Link from 'next/link'
 import { ChevronLeft, BookOpen, Clock, CheckCircle, Lock, Film } from 'lucide-react'
 import CourseImage from '@/components/shared/CourseImage'
 
+// Approved course slugs from your PDF (the ones with correct videos)
+const APPROVED_COURSE_SLUGS = [
+  'computer-basics',
+  'computer-skills-intermediate',
+  'computer-networking-advanced',
+  'excel-beginners',
+  'excel-data-analysis',
+  'excel-advanced',
+  'cs50-intro',
+  'python-programming',
+  'software-engineering',
+  'html-css',
+  'javascript',
+  'full-stack',
+  'data-analysis-excel',
+  'python-data-analysis',
+  'machine-learning',
+  'entrepreneurship-intro',
+  'business-model-design',
+  'business-plan-development',
+  'personal-finance',
+  'mechanical-engineering',
+  'electrical-engineering',
+  'plc-programming'
+]
+
 type Course = {
   id: string
   title: string
@@ -33,7 +59,7 @@ type Lesson = {
   duration_minutes: number | null
   lesson_order: number
   is_published: boolean | null
-  content_url: string | null  // Added to check if video exists
+  content_url: string | null
 }
 
 type ModuleWithLessons = Module & {
@@ -92,6 +118,29 @@ export default async function CoursePage({
     if (!user) {
       console.log('4. No user, redirecting to login')
       redirect('/login')
+    }
+
+    // Check if this is an approved course
+    if (!APPROVED_COURSE_SLUGS.includes(params.slug)) {
+      console.log('Course not in approved list:', params.slug)
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center">
+            <Film size={48} className="mx-auto text-gray-400 mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Course Under Maintenance</h1>
+            <p className="text-gray-600 mb-6">
+              This course is currently being updated with new video content. 
+              Please check back soon or explore our other available courses.
+            </p>
+            <Link 
+              href="/dashboard/courses" 
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-block"
+            >
+              Browse Available Courses
+            </Link>
+          </div>
+        </div>
+      )
     }
 
     console.log('5. Fetching course with slug:', params.slug)
