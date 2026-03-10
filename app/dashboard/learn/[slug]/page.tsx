@@ -28,6 +28,7 @@ const APPROVED_COURSE_SLUGS = [
   'mechanical-engineering',
   'electrical-engineering',
   'plc-programming'
+  'lubrication-engineering'
 ]
 
 type Course = {
