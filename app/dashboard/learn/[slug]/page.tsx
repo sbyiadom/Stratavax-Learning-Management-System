@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, BookOpen, Clock, CheckCircle, Lock, Film, FileText } from 'lucide-react'
+import { ChevronLeft, BookOpen, Clock, CheckCircle, Lock, Film, FileText, Code } from 'lucide-react'
 import CourseImage from '@/components/shared/CourseImage'
 
 // Approved course slugs from your PDF (the ones with correct videos)
@@ -223,7 +223,7 @@ export default async function CoursePage({
       console.error('Modules error details:', modulesError)
     }
 
-    // Get lessons for each module - including content_url to check for videos
+    // Get lessons for each module - including content_url to check for content
     let modulesWithLessons: ModuleWithLessons[] = []
     
     if (modules && modules.length > 0) {
@@ -269,13 +269,19 @@ export default async function CoursePage({
       })))
     }
 
-    // Calculate video stats
+    // Calculate content stats - ALL lessons with content (videos, HTML, interactive)
+    const totalLessonsWithContent = modulesWithLessons.reduce((acc, m) => 
+      acc + m.lessons.filter(l => l.content_url).length, 0
+    )
+    
+    // Keep video count for display
     const totalVideoLessons = modulesWithLessons.reduce((acc, m) => 
       acc + m.lessons.filter(l => l.content_type === 'video' && l.content_url).length, 0
     )
     
-    const totalLessonsWithContent = modulesWithLessons.reduce((acc, m) => 
-      acc + m.lessons.filter(l => l.content_url).length, 0
+    // Count HTML/interactive lessons
+    const totalHtmlLessons = modulesWithLessons.reduce((acc, m) => 
+      acc + m.lessons.filter(l => (l.content_type === 'html' || l.content_type === 'interactive') && l.content_url).length, 0
     )
 
     // If user is enrolled, get their progress
@@ -308,16 +314,16 @@ export default async function CoursePage({
       }
     }
 
-    // Calculate overall progress (only for video lessons)
-    const completedVideoLessons = lessonProgress.filter(p => p.completed).length
-    const videoProgressPercentage = totalVideoLessons > 0 
-      ? Math.round((completedVideoLessons / totalVideoLessons) * 100) 
+    // Calculate overall progress (for all lessons)
+    const completedLessons = lessonProgress.filter(p => p.completed).length
+    const overallProgressPercentage = totalLessonsWithContent > 0 
+      ? Math.round((completedLessons / totalLessonsWithContent) * 100) 
       : 0
 
     console.log('16. Final stats:', { 
-      totalVideoLessons, 
-      completedVideoLessons, 
-      videoProgressPercentage,
+      totalLessonsWithContent, 
+      completedLessons, 
+      overallProgressPercentage,
       isEnrolled 
     })
     console.log('=== COURSE PAGE DEBUG END ===')
@@ -382,9 +388,15 @@ export default async function CoursePage({
                     </span>
                   )}
                   <span className="bg-blue-500 bg-opacity-30 px-3 py-1 rounded-full text-sm flex items-center gap-1">
-                    <Film size={14} />
-                    {totalVideoLessons} video lessons
+                    <BookOpen size={14} />
+                    {totalLessonsWithContent} lessons
                   </span>
+                  {totalHtmlLessons > 0 && (
+                    <span className="bg-blue-500 bg-opacity-30 px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                      <Code size={14} />
+                      {totalHtmlLessons} interactive
+                    </span>
+                  )}
                   {course.enrollment_count && (
                     <span className="bg-blue-500 bg-opacity-30 px-3 py-1 rounded-full text-sm">
                       {course.enrollment_count} enrolled
@@ -392,17 +404,17 @@ export default async function CoursePage({
                   )}
                 </div>
 
-                {/* Video Progress Bar (only shows if enrolled) */}
-                {isEnrolled && totalVideoLessons > 0 && (
+                {/* Progress Bar (only shows if enrolled) */}
+                {isEnrolled && totalLessonsWithContent > 0 && (
                   <div className="bg-white bg-opacity-20 rounded-lg p-4">
                     <div className="flex justify-between text-sm mb-2">
-                      <span>Your video progress</span>
-                      <span>{videoProgressPercentage}% complete ({completedVideoLessons}/{totalVideoLessons})</span>
+                      <span>Your progress</span>
+                      <span>{overallProgressPercentage}% complete ({completedLessons}/{totalLessonsWithContent})</span>
                     </div>
                     <div className="w-full bg-blue-300 bg-opacity-30 rounded-full h-2">
                       <div 
                         className="bg-white h-2 rounded-full" 
-                        style={{ width: `${videoProgressPercentage}%` }}
+                        style={{ width: `${overallProgressPercentage}%` }}
                       />
                     </div>
                     {enrollment?.completed_at && (
@@ -430,7 +442,7 @@ export default async function CoursePage({
           </div>
         </div>
 
-        {/* Course Content - Only showing video lessons */}
+        {/* Course Content - Show ALL lessons with content */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {/* Description */}
           {course.description && (
@@ -440,38 +452,36 @@ export default async function CoursePage({
             </div>
           )}
 
-          {/* Video Content Warning if no videos */}
-          {totalVideoLessons === 0 && (
+          {/* Content Warning if no lessons */}
+          {totalLessonsWithContent === 0 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 mb-8 text-center">
-              <Film size={48} className="mx-auto text-yellow-400 mb-4" />
-              <h3 className="text-lg font-semibold text-yellow-800 mb-2">No Video Content Yet</h3>
+              <BookOpen size={48} className="mx-auto text-yellow-400 mb-4" />
+              <h3 className="text-lg font-semibold text-yellow-800 mb-2">No Content Available</h3>
               <p className="text-yellow-700">
-                This course doesn't have any video lessons available at the moment. 
+                This course doesn't have any lessons available at the moment. 
                 Check back soon for updates!
               </p>
             </div>
           )}
 
-          {/* Modules and Lessons - Filtered to only show video lessons */}
-          {totalVideoLessons > 0 && (
+          {/* Modules and Lessons - Show ALL lessons with content */}
+          {totalLessonsWithContent > 0 && (
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="p-6 border-b">
-                <h2 className="text-2xl font-bold">Video Lessons</h2>
+                <h2 className="text-2xl font-bold">Course Lessons</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  {totalVideoLessons} video{totalVideoLessons !== 1 ? 's' : ''} available
+                  {totalLessonsWithContent} lesson{totalLessonsWithContent !== 1 ? 's' : ''} available
                 </p>
               </div>
 
               <div className="divide-y">
                 {modulesWithLessons.map((module) => {
-                  // Filter lessons to only show video lessons
-                  const videoLessons = module.lessons.filter(l => 
-                    l.content_type === 'video' && l.content_url
-                  )
+                  // Filter lessons to show ALL lessons with content
+                  const lessonsWithContent = module.lessons.filter(l => l.content_url)
                   
-                  if (videoLessons.length === 0) return null
+                  if (lessonsWithContent.length === 0) return null
                   
-                  const completedInModule = videoLessons.filter(
+                  const completedInModule = lessonsWithContent.filter(
                     l => lessonProgress.find(p => p.lesson_id === l.id)?.completed
                   ).length
 
@@ -487,26 +497,28 @@ export default async function CoursePage({
                         )}
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                           <span className="flex items-center gap-1">
-                            <Film size={16} />
-                            {videoLessons.length} video lessons
+                            <BookOpen size={16} />
+                            {lessonsWithContent.length} lessons
                           </span>
                           {module.estimated_minutes && (
                             <span>{module.estimated_minutes} min total</span>
                           )}
-                          {isEnrolled && videoLessons.length > 0 && (
+                          {isEnrolled && lessonsWithContent.length > 0 && (
                             <span className="text-green-600">
-                              {completedInModule} of {videoLessons.length} completed
+                              {completedInModule} of {lessonsWithContent.length} completed
                             </span>
                           )}
                         </div>
                       </div>
 
-                      {/* Video Lessons List */}
+                      {/* Lessons List */}
                       <div className="space-y-2">
-                        {videoLessons.map((lesson) => {
+                        {lessonsWithContent.map((lesson) => {
                           const progress = lessonProgress.find(p => p.lesson_id === lesson.id)
                           const isCompleted = progress?.completed || false
                           const isLocked = !isEnrolled
+                          const isVideo = lesson.content_type === 'video'
+                          const isHtml = lesson.content_type === 'html' || lesson.content_type === 'interactive'
 
                           // For non-enrolled users, render a div with lock icon
                           if (!isEnrolled) {
@@ -522,10 +534,18 @@ export default async function CoursePage({
                                       {lesson.lesson_order}. {lesson.title}
                                     </span>
                                     <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                                      <span className="flex items-center gap-1">
-                                        <Film size={12} />
-                                        Video
-                                      </span>
+                                      {isVideo && (
+                                        <span className="flex items-center gap-1">
+                                          <Film size={12} />
+                                          Video
+                                        </span>
+                                      )}
+                                      {isHtml && (
+                                        <span className="flex items-center gap-1">
+                                          <Code size={12} />
+                                          Interactive
+                                        </span>
+                                      )}
                                       {lesson.duration_minutes && (
                                         <span>{lesson.duration_minutes} min</span>
                                       )}
@@ -554,10 +574,18 @@ export default async function CoursePage({
                                     {lesson.lesson_order}. {lesson.title}
                                   </span>
                                   <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                                    <span className="flex items-center gap-1">
-                                      <Film size={12} />
-                                      Video
-                                    </span>
+                                    {isVideo && (
+                                      <span className="flex items-center gap-1">
+                                        <Film size={12} />
+                                        Video
+                                      </span>
+                                    )}
+                                    {isHtml && (
+                                      <span className="flex items-center gap-1">
+                                        <Code size={12} />
+                                        Interactive
+                                      </span>
+                                    )}
                                     {lesson.duration_minutes && (
                                       <span>{lesson.duration_minutes} min</span>
                                     )}
@@ -565,7 +593,7 @@ export default async function CoursePage({
                                 </div>
                               </div>
                               <span className="text-blue-600 text-sm">
-                                {isCompleted ? 'Review' : 'Watch'}
+                                {isCompleted ? 'Review' : 'Start'}
                               </span>
                             </Link>
                           )
