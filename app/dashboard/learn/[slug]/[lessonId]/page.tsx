@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, Clock, CheckCircle } from 'lucide-react'
 import LessonContent from '@/components/dashboard/LessonContent'
+import LubricationModule from '@/components/courses/lubrication-module'
 
 // Types based on your actual schema
 type Course = {
@@ -322,6 +323,9 @@ export default async function LessonPage({
 
     const typedEnrollment = enrollment as Enrollment
 
+    // Check if this is the Lubrication Engineering interactive lesson
+    const isLubricationLesson = lesson.id === 'f40673f8-8262-4acb-a098-6a98b1337337'
+
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
@@ -356,7 +360,7 @@ export default async function LessonPage({
         </div>
 
         {/* Main Content */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             {/* Progress bar for course */}
             <div className="h-1 bg-gray-200">
@@ -377,11 +381,17 @@ export default async function LessonPage({
                 )}
               </div>
               
-              {/* FIXED: Pass the original lesson object directly */}
-              <LessonContent 
-                lesson={lesson}
-                contentType={lesson.content_type || 'article'} 
-              />
+              {/* Conditionally render either the Lubrication module or regular lesson content */}
+              {isLubricationLesson ? (
+                <div className="border rounded-lg p-6 bg-gray-50">
+                  <LubricationModule />
+                </div>
+              ) : (
+                <LessonContent 
+                  lesson={lesson}
+                  contentType={lesson.content_type || 'video'} 
+                />
+              )}
 
               {/* Complete button with form data */}
               <div className="mt-8 flex justify-center">
