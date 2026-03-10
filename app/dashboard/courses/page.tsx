@@ -2,6 +2,32 @@ import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import { BookOpen, Clock, BarChart, Users, Filter, ArrowLeft } from 'lucide-react'
 
+// Approved course slugs from your PDF (the ones with correct videos)
+const APPROVED_COURSE_SLUGS = [
+  'computer-basics',
+  'computer-skills-intermediate',
+  'computer-networking-advanced',
+  'excel-beginners',
+  'excel-data-analysis',
+  'excel-advanced',
+  'cs50-intro',
+  'python-programming',
+  'software-engineering',
+  'html-css',
+  'javascript',
+  'full-stack',
+  'data-analysis-excel',
+  'python-data-analysis',
+  'machine-learning',
+  'entrepreneurship-intro',
+  'business-model-design',
+  'business-plan-development',
+  'personal-finance',
+  'mechanical-engineering',
+  'electrical-engineering',
+  'plc-programming'
+]
+
 // Categories with their display names and colors
 const categories = [
   { id: 'all', name: 'All Courses', color: 'bg-gray-600' },
@@ -35,7 +61,7 @@ export default async function DashboardCoursesPage({
     return null // Let middleware handle redirect
   }
   
-  // Build query
+  // Build query - Start with approved courses only
   let query = supabase
     .from('courses')
     .select(`
@@ -44,6 +70,7 @@ export default async function DashboardCoursesPage({
       enrollments!left(user_id, course_id)
     `)
     .eq('is_published', true)
+    .in('slug', APPROVED_COURSE_SLUGS)  // Only get approved courses
   
   // Apply filters
   if (searchParams.category && searchParams.category !== 'all') {
@@ -91,7 +118,7 @@ export default async function DashboardCoursesPage({
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Course Catalog</h1>
               <p className="text-sm text-gray-600">
-                Browse and enroll in free courses to develop your skills
+                Browse and enroll in {courses?.length || 0} free courses with video content
               </p>
             </div>
           </div>
@@ -182,7 +209,7 @@ export default async function DashboardCoursesPage({
 
             {/* Results Count */}
             <div className="mb-4 text-sm text-gray-600">
-              Showing {courses?.length || 0} courses
+              Showing {courses?.length || 0} courses with video content
             </div>
 
             {/* Course Cards */}
