@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, BookOpen, Clock, CheckCircle, Lock, Film } from 'lucide-react'
+import { ChevronLeft, BookOpen, Clock, CheckCircle, Lock, Film, FileText } from 'lucide-react'
 import CourseImage from '@/components/shared/CourseImage'
 
 // Approved course slugs from your PDF (the ones with correct videos)
@@ -326,13 +326,24 @@ export default async function CoursePage({
         {/* Header */}
         <div className="bg-white border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <Link
-              href="/dashboard"
-              className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
-            >
-              <ChevronLeft size={20} />
-              <span>Back to Dashboard</span>
-            </Link>
+            <div className="flex items-center justify-between">
+              <Link
+                href="/dashboard"
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
+              >
+                <ChevronLeft size={20} />
+                <span>Back to Dashboard</span>
+              </Link>
+              
+              {/* Resources Tab */}
+              <Link
+                href={`/dashboard/learn/${params.slug}/resources`}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                <FileText size={20} />
+                <span>View Resources</span>
+              </Link>
+            </div>
           </div>
         </div>
 
