@@ -13,10 +13,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
-  GraduationCap
+  GraduationCap,
+  Shield,
+  Database,
+  Upload
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase'
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -32,6 +36,20 @@ const navItems = [
 export default function DashboardSidebar() {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const supabase = createClient()
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUserEmail(user?.email || null)
+    }
+    getUser()
+  }, [supabase])
+
+  // Admin email - change this to your email
+  const ADMIN_EMAIL = 'voltic@gmail.com'
+  const isAdmin = userEmail === ADMIN_EMAIL
 
   return (
     <div 
@@ -74,8 +92,49 @@ export default function DashboardSidebar() {
           </ul>
         </nav>
 
+        {/* Admin Section - Only visible to admin */}
+        {isAdmin && (
+          <div className="px-4 pt-4 border-t">
+            {!collapsed && (
+              <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Admin
+              </h3>
+            )}
+            <ul className="space-y-2">
+              <li>
+                <Link
+                  href="/dashboard/admin/resources"
+                  className={cn(
+                    "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-700 hover:bg-gray-100",
+                    collapsed && 'justify-center'
+                  )}
+                >
+                  <Database className="h-5 w-5 text-gray-500" />
+                  {!collapsed && (
+                    <span className="ml-3 font-medium">Manage Resources</span>
+                  )}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/dashboard/admin/upload"
+                  className={cn(
+                    "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-700 hover:bg-gray-100",
+                    collapsed && 'justify-center'
+                  )}
+                >
+                  <Upload className="h-5 w-5 text-gray-500" />
+                  {!collapsed && (
+                    <span className="ml-3 font-medium">Upload Content</span>
+                  )}
+                </Link>
+              </li>
+            </ul>
+          </div>
+        )}
+
         {/* Bottom Section */}
-        <div className="p-4 border-t">
+        <div className="p-4 border-t mt-auto">
           {/* Toggle Button */}
           <button
             onClick={() => setCollapsed(!collapsed)}
