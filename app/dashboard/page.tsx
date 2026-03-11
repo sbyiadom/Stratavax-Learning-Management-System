@@ -22,7 +22,116 @@ import {
   Filter,
   PlayCircle,
   Star,
-  Sparkles
+  Sparkles,
+  Trophy,
+  Medal,
+  UserCircle,
+  LogOut,
+  Menu,
+  X,
+  Grid,
+  BookMarked,
+  FileText,
+  Target,
+  PieChart,
+  Calendar,
+  Download,
+  HelpCircle,
+  ChevronDown,
+  ChevronLeft,
+  ChevronUp,
+  Clock3,
+  AlertCircle,
+  CheckCircle2,
+  Circle,
+  Lock,
+  Unlock,
+  Eye,
+  EyeOff,
+  Share2,
+  MoreHorizontal,
+  Plus,
+  Minus,
+  ThumbsUp,
+  MessageCircle,
+  Mail,
+  Phone,
+  MapPin,
+  Briefcase,
+  CalendarDays,
+  Award as AwardIcon,
+  Trophy as TrophyIcon,
+  Medal as MedalIcon,
+  Star as StarIcon,
+  Sparkles as SparklesIcon,
+  Flame,
+  Zap,
+  Activity,
+  TrendingUp as TrendingUpIcon,
+  BarChart,
+  PieChart as PieChartIcon,
+  LineChart,
+  Database,
+  Shield,
+  Lock as LockIcon,
+  Key,
+  Fingerprint,
+  Server,
+  Cloud,
+  Wifi,
+  Bluetooth,
+  Battery,
+  Cpu,
+  HardDrive,
+  Monitor,
+  Printer,
+  Scanner,
+  Camera,
+  Speaker,
+  Mic,
+  Headphones,
+  Mouse,
+  Keyboard,
+  Tablet,
+  Smartphone,
+  Watch,
+  Tv,
+  Radio,
+  Drone,
+  Robot,
+  Car,
+  Bike,
+  Train,
+  Plane,
+  Ship,
+  Truck,
+  Bus,
+  Motorcycle,
+  Tractor,
+  Rocket,
+  Satellite,
+  Space,
+  Globe,
+  Map,
+  Compass,
+  Flag,
+  Mountain,
+  Tree,
+  Flower,
+  Cloud as CloudIcon,
+  Sun,
+  Moon,
+  Star as StarIcon2,
+  CloudRain,
+  CloudSnow,
+  CloudLightning,
+  Wind,
+  Thermometer,
+  Droplet,
+  Waves,
+  Flame as FlameIcon,
+  Zap as ZapIcon,
+  Activity as ActivityIcon
 } from 'lucide-react'
 
 // Approved course slugs
@@ -56,6 +165,7 @@ type Course = {
   duration_hours: number | null
   enrollment_count: number | null
   is_featured: boolean | null
+  created_at?: string
 }
 
 type Enrollment = {
@@ -63,7 +173,32 @@ type Enrollment = {
   progress_percentage: number
   status: string
   completed_at: string | null
+  enrolled_at?: string
   course: Course
+}
+
+type LearningPoint = {
+  id: string
+  user_id: string
+  points: number
+  source: string
+  earned_at: string
+}
+
+type Badge = {
+  id: string
+  name: string
+  description: string
+  icon: string
+  earned_at: string
+}
+
+type Certificate = {
+  id: string
+  name: string
+  issued_at: string
+  expiry_at: string | null
+  status: string
 }
 
 export default function DashboardPage() {
@@ -73,15 +208,51 @@ export default function DashboardPage() {
   const [allCourses, setAllCourses] = useState<Course[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [categories, setCategories] = useState<string[]>([])
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState('overview')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [dateRange, setDateRange] = useState({ start: '2026-02-09', end: '2026-03-11' })
+  const [showFilters, setShowFilters] = useState(false)
+  
+  // Stats state
   const [stats, setStats] = useState({
     totalEnrolled: 0,
     completedCourses: 0,
+    inProgressCourses: 0,
+    notStartedCourses: 0,
     totalLessons: 0,
     completedLessons: 0,
-    totalHours: 0
+    totalHours: 0,
+    learningPoints: 1250,
+    badges: 8,
+    certificates: 3
   })
-  const [searchQuery, setSearchQuery] = useState('')
-  
+
+  // Leaderboard data
+  const [leaderboard, setLeaderboard] = useState([
+    { name: 'Kenny Londaisha', department: 'Route To Market', points: 230 },
+    { name: 'Mamabeka Map...', department: 'HO Logistics', points: 230 },
+    { name: 'Thato Rasethunt...', department: 'HO Logistics', points: 230 },
+    { name: 'Fatima Selai', department: 'HO Logistics', points: 230 },
+    { name: 'Samuel Boakye', department: 'Engineering', points: 215 },
+  ])
+
+  // Badges data
+  const [badges, setBadges] = useState([
+    { id: 1, name: 'Browser-in-the-Browser Hero', description: 'Cyber Security', unlocked: true, icon: '🛡️' },
+    { id: 2, name: 'Anti-Bribery Hero', description: 'Code of Conduct', unlocked: true, icon: '⚖️' },
+    { id: 3, name: 'Smishing Savvy', description: 'Cyber Security', unlocked: true, icon: '📱' },
+    { id: 4, name: 'Data and Information Basics', description: 'Data Literacy', unlocked: false, icon: '📊' },
+  ])
+
+  // Recent achievements
+  const [recentAchievements, setRecentAchievements] = useState([
+    { id: 1, name: 'Browser-in-the-Browser Hero', date: '2026-03-10', icon: '🛡️' },
+    { id: 2, name: 'Anti-Bribery Hero', date: '2026-03-08', icon: '⚖️' },
+    { id: 3, name: 'Smishing Savvy', date: '2026-03-05', icon: '📱' },
+  ])
+
   const supabase = createClient()
   const router = useRouter()
 
@@ -123,6 +294,7 @@ export default function DashboardPage() {
           progress_percentage,
           status,
           completed_at,
+          enrolled_at,
           course:courses!inner(*)
         `)
         .eq('user_id', user.id)
@@ -135,6 +307,7 @@ export default function DashboardPage() {
           progress_percentage: item.progress_percentage,
           status: item.status,
           completed_at: item.completed_at,
+          enrolled_at: item.enrolled_at,
           course: Array.isArray(item.course) ? item.course[0] : item.course
         }))
         
@@ -142,6 +315,9 @@ export default function DashboardPage() {
 
         // Calculate stats
         const completedCourses = transformedEnrollments.filter(e => e.completed_at).length
+        const inProgressCourses = transformedEnrollments.filter(e => e.status === 'active' && !e.completed_at && e.progress_percentage > 0).length
+        const notStartedCourses = transformedEnrollments.filter(e => e.status === 'active' && e.progress_percentage === 0).length
+        
         const enrolledCourseIds = transformedEnrollments.map(e => e.course_id)
         
         let totalLessons = 0
@@ -180,13 +356,16 @@ export default function DashboardPage() {
           }
         }
 
-        setStats({
+        setStats(prev => ({
+          ...prev,
           totalEnrolled: transformedEnrollments.length,
           completedCourses,
+          inProgressCourses,
+          notStartedCourses,
           totalLessons,
           completedLessons,
           totalHours
-        })
+        }))
       }
 
       setLoading(false)
@@ -210,10 +389,10 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your learning dashboard...</p>
+          <p className="text-gray-600">Loading Stratavax Learning...</p>
         </div>
       </div>
     )
@@ -226,332 +405,382 @@ export default function DashboardPage() {
     : allCourses
   ).filter(c => selectedCategory === 'all' || c.category === selectedCategory)
 
-  const inProgressCourses = enrollments.filter(e => e.status === 'active')
-  const recommendedCourses = allCourses.filter(c => !enrolledCourseIds.includes(c.id)).slice(0, 3)
+  const inProgressCourses = enrollments.filter(e => e.status === 'active' && !e.completed_at && e.progress_percentage > 0)
+  const notStartedCourses = enrollments.filter(e => e.status === 'active' && e.progress_percentage === 0)
+  const completedCoursesList = enrollments.filter(e => e.completed_at)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Top Navigation Bar */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo and Brand */}
-            <div className="flex items-center space-x-8">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <GraduationCap className="text-white" size={20} />
-                </div>
-                <span className="font-bold text-xl text-gray-900">Stratavax Learning</span>
+    <div className="min-h-screen bg-gray-50">
+      {/* Microsoft 365 Style Top Bar */}
+      <div className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
+        <div className="flex items-center justify-between h-12 px-4">
+          <div className="flex items-center space-x-4">
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 hover:bg-gray-100 rounded"
+            >
+              <Menu size={20} />
+            </button>
+            <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded flex items-center justify-center">
+                <GraduationCap className="text-white" size={14} />
               </div>
-              
-              {/* Main Navigation */}
-              <nav className="hidden md:flex items-center space-x-1">
-                <Link href="/dashboard" className="px-4 py-2 text-blue-600 bg-blue-50 rounded-lg font-medium">
-                  Home
-                </Link>
-                <Link href="/dashboard/courses" className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition">
-                  Course Catalogue
-                </Link>
-                <Link href="/dashboard/progress" className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition">
-                  My Training
-                </Link>
-                <Link href="/dashboard/community" className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition">
-                  Community
-                </Link>
-              </nav>
+              <span className="font-semibold text-sm">Stratavax Learning</span>
             </div>
-
-            {/* Right Side - User Menu */}
-            <div className="flex items-center space-x-4">
-              <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                <Bell size={20} />
-              </button>
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-medium">
-                  {user?.email?.[0].toUpperCase()}
-                </div>
-                <span className="text-sm font-medium text-gray-700 hidden md:block">{user?.email}</span>
+            <div className="hidden md:flex items-center space-x-1">
+              <Link href="/dashboard" className="px-3 py-1 text-sm text-blue-600 bg-blue-50 rounded-md">Home</Link>
+              <Link href="/dashboard/courses" className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md">Course Catalogue</Link>
+              <Link href="/dashboard/progress" className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md">My Training</Link>
+              <Link href="/dashboard/certificates" className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md">Certificates</Link>
+              <Link href="/dashboard/community" className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md">Community</Link>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button className="p-1.5 hover:bg-gray-100 rounded">
+              <HelpCircle size={18} className="text-gray-600" />
+            </button>
+            <button className="p-1.5 hover:bg-gray-100 rounded relative">
+              <Bell size={18} className="text-gray-600" />
+              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                {user?.email?.[0].toUpperCase()}
               </div>
+              <span className="text-sm font-medium hidden md:block">{user?.email?.split('@')[0]}</span>
+              <ChevronDown size={16} className="text-gray-500" />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome back, {user?.email?.split('@')[0]}! 👋
-          </h1>
-          <p className="text-gray-600">
-            Continue your learning journey. You have {stats.totalEnrolled} courses in progress.
-          </p>
+      {/* Sidebar Navigation */}
+      <div className={`fixed left-0 top-12 bottom-0 bg-white border-r border-gray-200 transition-all duration-300 z-40 ${sidebarCollapsed ? 'w-16' : 'w-64'} hidden lg:block`}>
+        <div className="flex flex-col h-full">
+          <div className="p-4">
+            <button 
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="w-full flex items-center justify-center p-2 hover:bg-gray-100 rounded"
+            >
+              {sidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            </button>
+          </div>
+
+          <nav className="flex-1 px-2 space-y-1">
+            <Link href="/dashboard" className={`flex items-center space-x-3 px-3 py-2 rounded-md transition ${sidebarCollapsed ? 'justify-center' : ''} text-blue-600 bg-blue-50`}>
+              <Home size={20} />
+              {!sidebarCollapsed && <span className="text-sm font-medium">Overview</span>}
+            </Link>
+            <Link href="/dashboard/courses" className={`flex items-center space-x-3 px-3 py-2 rounded-md transition ${sidebarCollapsed ? 'justify-center' : ''} text-gray-600 hover:text-gray-900 hover:bg-gray-100`}>
+              <BookOpen size={20} />
+              {!sidebarCollapsed && <span className="text-sm">Course Catalogue</span>}
+            </Link>
+            <Link href="/dashboard/training" className={`flex items-center space-x-3 px-3 py-2 rounded-md transition ${sidebarCollapsed ? 'justify-center' : ''} text-gray-600 hover:text-gray-900 hover:bg-gray-100`}>
+              <Target size={20} />
+              {!sidebarCollapsed && <span className="text-sm">Training Plans</span>}
+            </Link>
+            <Link href="/dashboard/certificates" className={`flex items-center space-x-3 px-3 py-2 rounded-md transition ${sidebarCollapsed ? 'justify-center' : ''} text-gray-600 hover:text-gray-900 hover:bg-gray-100`}>
+              <Award size={20} />
+              {!sidebarCollapsed && <span className="text-sm">Certificates</span>}
+            </Link>
+            <Link href="/dashboard/skills" className={`flex items-center space-x-3 px-3 py-2 rounded-md transition ${sidebarCollapsed ? 'justify-center' : ''} text-gray-600 hover:text-gray-900 hover:bg-gray-100`}>
+              <Star size={20} />
+              {!sidebarCollapsed && <span className="text-sm">Skills</span>}
+            </Link>
+            <Link href="/dashboard/transcript" className={`flex items-center space-x-3 px-3 py-2 rounded-md transition ${sidebarCollapsed ? 'justify-center' : ''} text-gray-600 hover:text-gray-900 hover:bg-gray-100`}>
+              <FileText size={20} />
+              {!sidebarCollapsed && <span className="text-sm">Transcript</span>}
+            </Link>
+            <Link href="/dashboard/leaderboard" className={`flex items-center space-x-3 px-3 py-2 rounded-md transition ${sidebarCollapsed ? 'justify-center' : ''} text-gray-600 hover:text-gray-900 hover:bg-gray-100`}>
+              <Trophy size={20} />
+              {!sidebarCollapsed && <span className="text-sm">Leaderboard</span>}
+            </Link>
+
+            <div className="border-t my-4"></div>
+
+            <Link href="/dashboard/manager" className={`flex items-center space-x-3 px-3 py-2 rounded-md transition ${sidebarCollapsed ? 'justify-center' : ''} text-gray-600 hover:text-gray-900 hover:bg-gray-100`}>
+              <Users size={20} />
+              {!sidebarCollapsed && <span className="text-sm">Line Manager Dashboard</span>}
+            </Link>
+            <Link href="/dashboard/reports" className={`flex items-center space-x-3 px-3 py-2 rounded-md transition ${sidebarCollapsed ? 'justify-center' : ''} text-gray-600 hover:text-gray-900 hover:bg-gray-100`}>
+              <BarChart size={20} />
+              {!sidebarCollapsed && <span className="text-sm">Reports</span>}
+            </Link>
+            <Link href="/dashboard/settings" className={`flex items-center space-x-3 px-3 py-2 rounded-md transition ${sidebarCollapsed ? 'justify-center' : ''} text-gray-600 hover:text-gray-900 hover:bg-gray-100`}>
+              <Settings size={20} />
+              {!sidebarCollapsed && <span className="text-sm">Settings</span>}
+            </Link>
+          </nav>
+
+          <div className="p-4 border-t">
+            <button className={`flex items-center space-x-3 px-3 py-2 w-full rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 ${sidebarCollapsed ? 'justify-center' : ''}`}>
+              <LogOut size={20} />
+              {!sidebarCollapsed && <span className="text-sm">Sign out</span>}
+            </button>
+          </div>
         </div>
+      </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <BookOpen className="text-blue-600" size={24} />
-              </div>
-              <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">Active</span>
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden" onClick={() => setMobileMenuOpen(false)}>
+          <div className="fixed left-0 top-12 bottom-0 w-64 bg-white" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b flex justify-between items-center">
+              <span className="font-semibold">Menu</span>
+              <button onClick={() => setMobileMenuOpen(false)}>
+                <X size={20} />
+              </button>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.totalEnrolled}</h3>
-            <p className="text-sm text-gray-600">Enrolled Courses</p>
-            <div className="mt-4 h-1 bg-gray-100 rounded-full">
-              <div className="h-1 bg-blue-600 rounded-full" style={{ width: '70%' }}></div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <CheckCircle className="text-green-600" size={24} />
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.completedLessons}/{stats.totalLessons}</h3>
-            <p className="text-sm text-gray-600">Lessons Completed</p>
-            <div className="mt-4 h-1 bg-gray-100 rounded-full">
-              <div className="h-1 bg-green-600 rounded-full" style={{ width: `${stats.totalLessons ? (stats.completedLessons/stats.totalLessons)*100 : 0}%` }}></div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Award className="text-purple-600" size={24} />
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.completedCourses}</h3>
-            <p className="text-sm text-gray-600">Completed Courses</p>
-            <div className="mt-4 h-1 bg-gray-100 rounded-full">
-              <div className="h-1 bg-purple-600 rounded-full" style={{ width: `${stats.totalEnrolled ? (stats.completedCourses/stats.totalEnrolled)*100 : 0}%` }}></div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-orange-100 rounded-lg">
-                <Clock className="text-orange-600" size={24} />
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.totalHours}h</h3>
-            <p className="text-sm text-gray-600">Learning Time</p>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Link href="/dashboard/courses" className="group bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-6 text-white hover:shadow-xl transition">
-            <div className="flex items-center justify-between mb-4">
-              <BookOpen size={32} />
-              <ChevronRight size={20} className="group-hover:translate-x-1 transition" />
-            </div>
-            <h3 className="text-xl font-bold mb-2">Browse Course Catalogue</h3>
-            <p className="text-blue-100">Explore {allCourses.length}+ courses in various disciplines</p>
-          </Link>
-
-          <Link href="/dashboard/explore" className="group bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition">
-            <div className="flex items-center justify-between mb-4">
-              <Sparkles className="text-blue-600" size={32} />
-              <ChevronRight size={20} className="text-gray-400 group-hover:translate-x-1 transition" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Discover New Skills</h3>
-            <p className="text-gray-600">Find personalized recommendations based on your interests</p>
-          </Link>
-        </div>
-
-        {/* Continue Learning Section */}
-        {inProgressCourses.length > 0 && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Continue Learning</h2>
-              <Link href="/dashboard/my-courses" className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1">
-                View all <ChevronRight size={16} />
+            <nav className="p-2 space-y-1">
+              <Link href="/dashboard" className="flex items-center space-x-3 px-3 py-2 rounded-md bg-blue-50 text-blue-600">
+                <Home size={20} />
+                <span className="text-sm font-medium">Overview</span>
               </Link>
+              <Link href="/dashboard/courses" className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100">
+                <BookOpen size={20} />
+                <span className="text-sm">Course Catalogue</span>
+              </Link>
+              <Link href="/dashboard/training" className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100">
+                <Target size={20} />
+                <span className="text-sm">Training Plans</span>
+              </Link>
+              <Link href="/dashboard/certificates" className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100">
+                <Award size={20} />
+                <span className="text-sm">Certificates</span>
+              </Link>
+              <Link href="/dashboard/skills" className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100">
+                <Star size={20} />
+                <span className="text-sm">Skills</span>
+              </Link>
+              <Link href="/dashboard/transcript" className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100">
+                <FileText size={20} />
+                <span className="text-sm">Transcript</span>
+              </Link>
+            </nav>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className={`pt-12 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Header with breadcrumbs */}
+          <div className="mb-6">
+            <div className="flex items-center text-sm text-gray-500 mb-2">
+              <span>Stratavax Learning</span>
+              <ChevronRight size={14} className="mx-1" />
+              <span className="text-gray-900">Home</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {inProgressCourses.slice(0, 3).map((enrollment) => (
-                <div key={enrollment.course_id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition group">
-                  <div className="h-40 bg-gradient-to-br from-blue-500 to-indigo-600 relative">
-                    {enrollment.course.thumbnail_url ? (
-                      <img src={enrollment.course.thumbnail_url} alt={enrollment.course.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <BookOpen size={48} className="text-white opacity-50" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-30 transition"></div>
-                    <PlayCircle className="absolute bottom-3 right-3 text-white opacity-75 group-hover:opacity-100 transition" size={32} />
-                  </div>
-                  <div className="p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                        {enrollment.course.difficulty_level || 'Beginner'}
-                      </span>
-                      {enrollment.course.category && (
-                        <span className="text-xs text-gray-500">{enrollment.course.category.split(' ')[0]}</span>
-                      )}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+              <h1 className="text-2xl font-semibold text-gray-900">My Training Dashboard</h1>
+              <div className="flex items-center space-x-3 mt-2 md:mt-0">
+                <button className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 flex items-center space-x-2">
+                  <Download size={16} />
+                  <span>Export to PDF</span>
+                </button>
+                <button className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 flex items-center space-x-2">
+                  <Share2 size={16} />
+                  <span>Share</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Tab Navigation */}
+          <div className="border-b border-gray-200 mb-6">
+            <nav className="flex space-x-8">
+              <button 
+                onClick={() => setActiveTab('overview')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition ${activeTab === 'overview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                Overview
+              </button>
+              <button 
+                onClick={() => setActiveTab('training')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition ${activeTab === 'training' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                Training
+              </button>
+              <button 
+                onClick={() => setActiveTab('certificates')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition ${activeTab === 'certificates' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                Certificates
+              </button>
+              <button 
+                onClick={() => setActiveTab('skills')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition ${activeTab === 'skills' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                Skills
+              </button>
+              <button 
+                onClick={() => setActiveTab('transcript')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition ${activeTab === 'transcript' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                Transcript
+              </button>
+            </nav>
+          </div>
+
+          {/* Overview Tab */}
+          {activeTab === 'overview' && (
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 bg-blue-100 rounded">
+                      <BookOpen className="text-blue-600" size={18} />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{enrollment.course.title}</h3>
-                    <div className="mb-4">
+                    <span className="text-xs text-gray-500">Total</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900">{stats.totalEnrolled}</h3>
+                  <p className="text-sm text-gray-600">Enrolled Courses</p>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 bg-yellow-100 rounded">
+                      <Clock className="text-yellow-600" size={18} />
+                    </div>
+                    <span className="text-xs text-gray-500">In progress</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900">{stats.inProgressCourses}</h3>
+                  <p className="text-sm text-gray-600">Active Courses</p>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 bg-green-100 rounded">
+                      <CheckCircle className="text-green-600" size={18} />
+                    </div>
+                    <span className="text-xs text-gray-500">Completed</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900">{stats.completedCourses}</h3>
+                  <p className="text-sm text-gray-600">Completed Courses</p>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 bg-purple-100 rounded">
+                      <Trophy className="text-purple-600" size={18} />
+                    </div>
+                    <span className="text-xs text-gray-500">Points</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900">{stats.learningPoints}</h3>
+                  <p className="text-sm text-gray-600">Learning Points</p>
+                </div>
+              </div>
+
+              {/* Status Distribution */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+                  <h3 className="font-medium text-gray-900 mb-4">Enrollments by status</h3>
+                  <div className="space-y-4">
+                    <div>
                       <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-600">Progress</span>
-                        <span className="font-medium text-blue-600">{enrollment.progress_percentage}%</span>
+                        <span className="text-gray-600">Not started</span>
+                        <span className="font-medium">{stats.notStartedCourses}</span>
                       </div>
                       <div className="h-2 bg-gray-100 rounded-full">
-                        <div className="h-2 bg-blue-600 rounded-full" style={{ width: `${enrollment.progress_percentage}%` }}></div>
+                        <div className="h-2 bg-gray-400 rounded-full" style={{ width: `${stats.totalEnrolled ? (stats.notStartedCourses/stats.totalEnrolled)*100 : 0}%` }}></div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => router.push(`/dashboard/learn/${enrollment.course.slug}`)}
-                      className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition font-medium"
-                    >
-                      Continue Learning
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Recommended For You */}
-        {recommendedCourses.length > 0 && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-bold text-gray-900">Recommended For You</h2>
-                <span className="bg-orange-100 text-orange-600 text-xs font-medium px-2 py-1 rounded-full">Personalized</span>
-              </div>
-              <Link href="/dashboard/explore" className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1">
-                View all <ChevronRight size={16} />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {recommendedCourses.map((course) => (
-                <div key={course.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition group">
-                  <div className="h-40 bg-gradient-to-br from-purple-500 to-pink-600 relative">
-                    {course.thumbnail_url ? (
-                      <img src={course.thumbnail_url} alt={course.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Star className="text-white opacity-50" size={48} />
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-gray-600">In progress</span>
+                        <span className="font-medium">{stats.inProgressCourses}</span>
                       </div>
-                    )}
-                  </div>
-                  <div className="p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
-                        {course.difficulty_level || 'Beginner'}
-                      </span>
+                      <div className="h-2 bg-gray-100 rounded-full">
+                        <div className="h-2 bg-yellow-500 rounded-full" style={{ width: `${stats.totalEnrolled ? (stats.inProgressCourses/stats.totalEnrolled)*100 : 0}%` }}></div>
+                      </div>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{course.title}</h3>
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">{course.short_description || course.description}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">{course.duration_hours || 0} hours</span>
-                      <button
-                        onClick={() => handleEnroll(course.id, course.slug)}
-                        className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition text-sm font-medium"
-                      >
-                        Enroll Now
-                      </button>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-gray-600">Completed</span>
+                        <span className="font-medium">{stats.completedCourses}</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full">
+                        <div className="h-2 bg-green-500 rounded-full" style={{ width: `${stats.totalEnrolled ? (stats.completedCourses/stats.totalEnrolled)*100 : 0}%` }}></div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Browse All Courses */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 md:mb-0">Browse All Courses</h2>
-            
-            {/* Search and Filter */}
-            <div className="flex gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Search courses..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+                  <h3 className="font-medium text-gray-900 mb-4">Enrollments by course</h3>
+                  <div className="space-y-3">
+                    {enrollments.slice(0, 5).map((enrollment, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 truncate max-w-[150px]">{enrollment.course.title}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${
+                          enrollment.completed_at ? 'bg-green-100 text-green-700' :
+                          enrollment.progress_percentage > 0 ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {enrollment.completed_at ? 'Completed' : enrollment.progress_percentage > 0 ? 'In progress' : 'Not started'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Leaderboard */}
+                <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-medium text-gray-900">Learning Points</h3>
+                    <Link href="/dashboard/leaderboard" className="text-xs text-blue-600 hover:underline">View all</Link>
+                  </div>
+                  <div className="space-y-3">
+                    {leaderboard.map((person, idx) => (
+                      <div key={idx} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <span className={`text-sm font-medium ${idx < 3 ? 'text-yellow-600' : 'text-gray-500'}`}>#{idx + 1}</span>
+                          <div>
+                            <p className="text-sm font-medium">{person.name}</p>
+                            <p className="text-xs text-gray-500">{person.department}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold">{person.points}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Categories</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-          </div>
 
-          {/* Course Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCourses.map((course) => {
-              const isEnrolled = enrolledCourseIds.includes(course.id)
-              const enrollment = enrollments.find(e => e.course_id === course.id)
-              
-              return (
-                <div key={course.id} className="border border-gray-100 rounded-lg p-6 hover:shadow-md transition">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
-                      <BookOpen className="text-blue-600" size={24} />
-                    </div>
-                    {isEnrolled && (
-                      <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">Enrolled</span>
-                    )}
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{course.title}</h3>
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">{course.short_description || course.description}</p>
-                  <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
-                    <span className="flex items-center gap-1">
-                      <Clock size={14} />
-                      {course.duration_hours || 0}h
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users size={14} />
-                      {course.enrollment_count || 0}
-                    </span>
-                  </div>
-                  {isEnrolled ? (
-                    <button
-                      onClick={() => router.push(`/dashboard/learn/${course.slug}`)}
-                      className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-                    >
-                      {enrollment?.progress_percentage === 100 ? 'Review Course' : 'Continue'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleEnroll(course.id, course.slug)}
-                      className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition font-medium"
-                    >
-                      Enroll Now
-                    </button>
-                  )}
+              {/* Recent Badges */}
+              <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-gray-900">Recent Achievements</h3>
+                  <Link href="/dashboard/badges" className="text-xs text-blue-600 hover:underline">View all</Link>
                 </div>
-              )
-            })}
-          </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {recentAchievements.map((badge) => (
+                    <div key={badge.id} className="flex items-center space-x-3 p-3 border border-gray-100 rounded-lg hover:shadow-sm transition">
+                      <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-xl">
+                        {badge.icon}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{badge.name}</p>
+                        <p className="text-xs text-gray-500">Earned {new Date(badge.date).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-          {filteredCourses.length === 0 && (
-            <div className="text-center py-12">
-              <BookOpen size={48} className="mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No courses found</h3>
-              <p className="text-gray-600">Try adjusting your search or filter criteria</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
+              {/* Continue Learning */}
+              {inProgressCourses.length > 0 && (
+                <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100 mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-medium text-gray-900">Continue Learning</h3>
+                    <Link href="/dashboard/my-courses" className="text-xs text-blue-600 hover:underline">View all</Link>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {inProgressCourses.slice(0, 3).map((enrollment) => (
+                      <div key={enrollment.course_id} className="border border-gray-100 rounded-lg p-4 hover:shadow-md transition">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="p-2 bg-blue-50 rounded">
+                            <BookOpen className="text-blue-600" size={18} />
+                          </div>
+                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full
