@@ -211,7 +211,7 @@ export default function DashboardPage() {
   const userInitial = userProfile?.full_name?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase() || 'U'
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-screen bg-gray-100">
       {/* Top Navigation Bar - Fixed */}
       <div className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-50 h-14">
         <div className="flex items-center justify-between h-full px-4">
@@ -257,7 +257,31 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Sidebar Navigation - Fixed */}
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden" onClick={() => setMobileMenuOpen(false)}>
+          <div className="fixed left-0 top-14 bottom-0 w-64 bg-white" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b flex justify-between items-center">
+              <span className="font-semibold">Menu</span>
+              <button onClick={() => setMobileMenuOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="p-3 space-y-1">
+              <Link href="/dashboard" className="flex items-center space-x-3 px-3 py-2.5 rounded-md bg-blue-50 text-blue-600">
+                <LayoutDashboard size={20} />
+                <span className="text-sm font-medium">Overview</span>
+              </Link>
+              <Link href="/dashboard/courses" className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
+                <BookOpen size={20} />
+                <span className="text-sm">Course Catalogue</span>
+              </Link>
+            </nav>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Sidebar - Fixed position */}
       <div className={`fixed left-0 top-14 bottom-0 bg-white border-r border-gray-200 transition-all duration-300 z-40 ${sidebarCollapsed ? 'w-20' : 'w-64'} hidden lg:block`}>
         <div className="flex flex-col h-full">
           <div className="p-4 flex justify-end">
@@ -327,33 +351,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden" onClick={() => setMobileMenuOpen(false)}>
-          <div className="fixed left-0 top-14 bottom-0 w-64 bg-white" onClick={e => e.stopPropagation()}>
-            <div className="p-4 border-b flex justify-between items-center">
-              <span className="font-semibold">Menu</span>
-              <button onClick={() => setMobileMenuOpen(false)}>
-                <X size={20} />
-              </button>
-            </div>
-            <nav className="p-3 space-y-1">
-              <Link href="/dashboard" className="flex items-center space-x-3 px-3 py-2.5 rounded-md bg-blue-50 text-blue-600">
-                <LayoutDashboard size={20} />
-                <span className="text-sm font-medium">Overview</span>
-              </Link>
-              <Link href="/dashboard/courses" className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
-                <BookOpen size={20} />
-                <span className="text-sm">Course Catalogue</span>
-              </Link>
-            </nav>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content - Takes remaining width */}
-      <div className={`flex-1 pt-14 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
-        <div className="p-6 max-w-full">
+      {/* Main Content - Takes full width with padding for sidebar */}
+      <div className={`pt-14 transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
+        <div className="p-4 sm:p-6 w-full">
           {/* Breadcrumb */}
           <div className="flex items-center text-sm text-gray-500 mb-6">
             <span>Stratavax Learning</span>
@@ -384,8 +384,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Stats Cards - 4 across the top */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* Stats Cards - Full width grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 w-full">
             <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
               <div className="flex items-center justify-between mb-2">
                 <div className="p-2.5 bg-blue-100 rounded-lg">
@@ -431,12 +431,12 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Two Column Layout - Properly proportioned */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Two Column Layout - Full width proportionally */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
             {/* Left Column - Takes 2/3 of available width */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-6 w-full">
               {/* Enrollment Status */}
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 w-full">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Learning Progress</h3>
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
@@ -454,13 +454,13 @@ export default function DashboardPage() {
                 </div>
                 
                 {/* Progress Bars */}
-                <div className="space-y-3 mt-4">
+                <div className="space-y-3 mt-4 w-full">
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-gray-600">Not Started</span>
                       <span className="font-medium">{notStarted} courses</span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden w-full">
                       <div className="h-2 bg-gray-400 rounded-full" style={{ width: totalEnrolled ? `${(notStarted/totalEnrolled)*100}%` : '0%' }}></div>
                     </div>
                   </div>
@@ -469,7 +469,7 @@ export default function DashboardPage() {
                       <span className="text-gray-600">In Progress</span>
                       <span className="font-medium">{inProgress} courses</span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden w-full">
                       <div className="h-2 bg-yellow-500 rounded-full" style={{ width: totalEnrolled ? `${(inProgress/totalEnrolled)*100}%` : '0%' }}></div>
                     </div>
                   </div>
@@ -478,7 +478,7 @@ export default function DashboardPage() {
                       <span className="text-gray-600">Completed</span>
                       <span className="font-medium">{completed} courses</span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden w-full">
                       <div className="h-2 bg-green-500 rounded-full" style={{ width: totalEnrolled ? `${(completed/totalEnrolled)*100}%` : '0%' }}></div>
                     </div>
                   </div>
@@ -487,7 +487,7 @@ export default function DashboardPage() {
 
               {/* Continue Learning Section */}
               {inProgressCourses.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 w-full">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Continue Learning</h3>
                     <Link href="/dashboard/my-courses" className="text-sm text-blue-600 hover:text-blue-700 flex items-center">
@@ -495,10 +495,10 @@ export default function DashboardPage() {
                     </Link>
                   </div>
                   
-                  <div className="space-y-4">
+                  <div className="space-y-4 w-full">
                     {inProgressCourses.slice(0, 3).map((enrollment) => (
-                      <div key={enrollment.course_id} className="border border-gray-100 rounded-lg p-4 hover:shadow-md transition">
-                        <div className="flex items-start justify-between">
+                      <div key={enrollment.course_id} className="border border-gray-100 rounded-lg p-4 hover:shadow-md transition w-full">
+                        <div className="flex items-start justify-between w-full">
                           <div className="flex items-start space-x-3">
                             <div className="p-2 bg-blue-50 rounded-lg">
                               <BookOpen className="text-blue-600" size={20} />
@@ -510,8 +510,8 @@ export default function DashboardPage() {
                           </div>
                           <span className="text-sm font-medium text-blue-600">{enrollment.progress_percentage}%</span>
                         </div>
-                        <div className="mt-3">
-                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="mt-3 w-full">
+                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden w-full">
                             <div className="h-1.5 bg-blue-600 rounded-full" style={{ width: `${enrollment.progress_percentage}%` }}></div>
                           </div>
                           <button
@@ -528,7 +528,7 @@ export default function DashboardPage() {
               )}
 
               {/* Recommended Courses */}
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 w-full">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Recommended for You</h3>
                   <Link href="/dashboard/courses" className="text-sm text-blue-600 hover:text-blue-700 flex items-center">
@@ -536,9 +536,9 @@ export default function DashboardPage() {
                   </Link>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                   {allCourses.filter(c => !enrolledCourseIds.includes(c.id)).slice(0, 4).map((course) => (
-                    <div key={course.id} className="border border-gray-100 rounded-lg p-4 hover:shadow-md transition">
+                    <div key={course.id} className="border border-gray-100 rounded-lg p-4 hover:shadow-md transition w-full">
                       <div className="flex items-start space-x-3">
                         <div className="p-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
                           <BookOpen className="text-blue-600" size={20} />
@@ -561,13 +561,13 @@ export default function DashboardPage() {
             </div>
 
             {/* Right Column - Takes 1/3 of available width */}
-            <div className="space-y-6">
+            <div className="space-y-6 w-full">
               {/* Recent Achievements */}
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 w-full">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Achievements</h3>
-                <div className="space-y-4">
+                <div className="space-y-4 w-full">
                   {completedCourses.slice(0, 3).map((enrollment, idx) => (
-                    <div key={idx} className="flex items-center space-x-3">
+                    <div key={idx} className="flex items-center space-x-3 w-full">
                       <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-white font-bold">
                         🏆
                       </div>
@@ -586,7 +586,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Quick Actions */}
-              <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-sm p-6 text-white">
+              <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-sm p-6 text-white w-full">
                 <h3 className="text-lg font-semibold mb-2">Ready to learn more?</h3>
                 <p className="text-sm text-blue-100 mb-4">Browse our catalog of {allCourses.length}+ courses</p>
                 <Link 
@@ -600,9 +600,9 @@ export default function DashboardPage() {
 
               {/* Profile Summary */}
               {userProfile && (
-                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 w-full">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Summary</h3>
-                  <div className="space-y-3">
+                  <div className="space-y-3 w-full">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
                         {userInitial}
