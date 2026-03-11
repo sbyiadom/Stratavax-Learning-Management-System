@@ -37,9 +37,26 @@ export default function LessonContent({ lesson, contentType }: LessonContentProp
       )
     }
 
-    // Check if it's a YouTube URL
+    // Clean YouTube URLs - remove playlist parameters and get clean video ID
+    let processedUrl = videoUrl
     const isYouTube = videoUrl.includes('youtube') || videoUrl.includes('youtu.be')
     
+    if (isYouTube) {
+      // Extract just the video ID
+      let videoId = ''
+      if (videoUrl.includes('youtu.be')) {
+        videoId = videoUrl.split('youtu.be/')[1]?.split('?')[0] || ''
+      } else if (videoUrl.includes('watch')) {
+        videoId = videoUrl.split('v=')[1]?.split('&')[0] || ''
+      } else if (videoUrl.includes('embed')) {
+        videoId = videoUrl.split('embed/')[1]?.split('?')[0] || ''
+      }
+      
+      if (videoId) {
+        processedUrl = `https://www.youtube.com/watch?v=${videoId}`
+      }
+    }
+
     // If it's YouTube and ReactPlayer fails, use iframe as fallback
     if (isYouTube && playerError) {
       // Convert to embed URL
@@ -83,7 +100,7 @@ export default function LessonContent({ lesson, contentType }: LessonContentProp
           </div>
         )}
         <ReactPlayer
-          url={videoUrl}
+          url={processedUrl}
           width="100%"
           height="100%"
           controls={true}
@@ -93,7 +110,11 @@ export default function LessonContent({ lesson, contentType }: LessonContentProp
           onError={() => setPlayerError(true)}
           config={{
             youtube: {
-              playerVars: { showinfo: 1 }
+              playerVars: { 
+                showinfo: 1,
+                rel: 0,
+                modestbranding: 1
+              }
             }
           }}
         />
@@ -116,6 +137,27 @@ export default function LessonContent({ lesson, contentType }: LessonContentProp
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-xl font-semibold mb-4">Quiz: {lesson.title}</h3>
         <p className="text-gray-600">Quiz content would be loaded here.</p>
+      </div>
+    )
+  }
+
+  // Handle HTML/interactive content
+  if (contentType === 'html' || contentType === 'interactive') {
+    if (lesson.content_url) {
+      return (
+        <div className="w-full bg-white rounded-lg overflow-hidden">
+          <iframe
+            srcDoc={lesson.content_url}
+            className="w-full min-h-[600px] border-0"
+            title={lesson.title}
+            sandbox="allow-scripts allow-same-origin allow-forms"
+          />
+        </div>
+      )
+    }
+    return (
+      <div className="text-center py-12 bg-gray-50 rounded-lg">
+        <p className="text-gray-500">Interactive content not available</p>
       </div>
     )
   }
