@@ -2,30 +2,23 @@ import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import { BookOpen, Clock, BarChart, Users, Filter, ArrowLeft } from 'lucide-react'
 
-// Approved course slugs from your PDF (the ones with correct videos)
+// Approved course slugs from your Excel file (all 15 courses)
 const APPROVED_COURSE_SLUGS = [
-  'computer-basics',
-  'computer-skills-intermediate',
-  'computer-networking-advanced',
-  'excel-beginners',
-  'excel-data-analysis',
-  'excel-advanced',
-  'cs50-intro',
-  'python-programming',
-  'software-engineering',
-  'html-css',
-  'javascript',
-  'full-stack',
-  'data-analysis-excel',
-  'python-data-analysis',
-  'machine-learning',
-  'entrepreneurship-intro',
+  'electrical-engineering',
+  'microsoft-office',
+  'programming-fundamentals',
+  'web-development',
+  'data-analysis',
+  'ai-fundamentals',
+  'entrepreneurship-pathway',
+  'financial-literacy',
   'business-model-design',
   'business-plan-development',
-  'personal-finance',
-  'mechanical-engineering',
-  'electrical-engineering',
-  'plc-programming'
+  'marketing-sales',
+  'digital-marketing',
+  'business-growth-strategy',
+  'leadership',
+  'basic-mechanical-engineering'
 ]
 
 // Categories with their display names and colors
