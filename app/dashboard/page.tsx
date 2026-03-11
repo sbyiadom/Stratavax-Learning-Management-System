@@ -353,7 +353,7 @@ export default function DashboardPage() {
 
       {/* Main Content - Takes full width with padding for sidebar */}
       <div className={`pt-14 transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
-        <div className="p-6 lg:p-8 w-full">
+        <div className="p-6 lg:p-8 w-full max-w-[1600px] mx-auto">
           {/* Breadcrumb */}
           <div className="flex items-center text-sm text-gray-500 mb-6">
             <span>Stratavax Learning</span>
@@ -361,84 +361,104 @@ export default function DashboardPage() {
             <span className="text-gray-900">Dashboard</span>
           </div>
 
-          {/* Welcome Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-semibold text-gray-900">
-                Welcome back, {displayName}! 👋
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">
-                {userProfile?.department ? `${userProfile.department} • ` : ''}
-                {totalEnrolled} {totalEnrolled === 1 ? 'course' : 'courses'} in progress
-              </p>
+          {/* Welcome Header - Now stretches full width */}
+          <div className="w-full mb-8">
+            <h1 className="text-3xl font-semibold text-gray-900">
+              Welcome back, {displayName}! 👋
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {userProfile?.department ? `${userProfile.department} • ` : ''}
+              {totalEnrolled} {totalEnrolled === 1 ? 'course' : 'courses'} in progress
+            </p>
+          </div>
+
+          {/* Stats Cards - Larger and centered */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100 hover:shadow-lg transition">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-4 bg-blue-100 rounded-xl">
+                  <BookOpen className="text-blue-600" size={32} />
+                </div>
+                <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full">Total</span>
+              </div>
+              <h3 className="text-4xl font-bold text-gray-900 mb-1">{totalEnrolled}</h3>
+              <p className="text-base text-gray-500">Enrolled Courses</p>
             </div>
-            <div className="flex items-center space-x-3 mt-4 md:mt-0">
-              <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center space-x-2">
-                <Download size={16} />
-                <span>Export</span>
-              </button>
-              <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center space-x-2">
-                <Share2 size={16} />
-                <span>Share</span>
-              </button>
+
+            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100 hover:shadow-lg transition">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-4 bg-yellow-100 rounded-xl">
+                  <Clock className="text-yellow-600" size={32} />
+                </div>
+                <span className="text-sm font-medium text-yellow-600 bg-yellow-50 px-3 py-1.5 rounded-full">Active</span>
+              </div>
+              <h3 className="text-4xl font-bold text-gray-900 mb-1">{inProgress}</h3>
+              <p className="text-base text-gray-500">In Progress</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100 hover:shadow-lg transition">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-4 bg-green-100 rounded-xl">
+                  <CheckCircle className="text-green-600" size={32} />
+                </div>
+                <span className="text-sm font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-full">Done</span>
+              </div>
+              <h3 className="text-4xl font-bold text-gray-900 mb-1">{completed}</h3>
+              <p className="text-base text-gray-500">Completed</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100 hover:shadow-lg transition">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-4 bg-purple-100 rounded-xl">
+                  <Trophy className="text-purple-600" size={32} />
+                </div>
+                <span className="text-sm font-medium text-purple-600 bg-purple-50 px-3 py-1.5 rounded-full">Points</span>
+              </div>
+              <h3 className="text-4xl font-bold text-gray-900 mb-1">{userProfile?.total_points || 0}</h3>
+              <p className="text-base text-gray-500">Learning Points</p>
             </div>
           </div>
 
-          {/* Stats Cards - 4 across the top */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          {/* Progress Indicators - Below stats cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <BookOpen className="text-blue-600" size={24} />
-                </div>
-                <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">Total</span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600 font-medium">Enrolled Courses</span>
+                <span className="text-2xl font-bold text-blue-600">{totalEnrolled}</span>
               </div>
-              <h3 className="text-3xl font-bold text-gray-900">{totalEnrolled}</h3>
-              <p className="text-sm text-gray-500 mt-1">Enrolled Courses</p>
+              <div className="w-full bg-gray-100 rounded-full h-2.5">
+                <div className="h-2.5 bg-blue-600 rounded-full" style={{ width: '100%' }}></div>
+              </div>
             </div>
-
+            
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-3 bg-yellow-100 rounded-lg">
-                  <Clock className="text-yellow-600" size={24} />
-                </div>
-                <span className="text-xs font-medium text-yellow-600 bg-yellow-50 px-2.5 py-1 rounded-full">Active</span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600 font-medium">In Progress</span>
+                <span className="text-2xl font-bold text-yellow-600">{inProgress}</span>
               </div>
-              <h3 className="text-3xl font-bold text-gray-900">{inProgress}</h3>
-              <p className="text-sm text-gray-500 mt-1">In Progress</p>
+              <div className="w-full bg-gray-100 rounded-full h-2.5">
+                <div className="h-2.5 bg-yellow-500 rounded-full" style={{ width: totalEnrolled ? `${(inProgress/totalEnrolled)*100}%` : '0%' }}></div>
+              </div>
             </div>
-
+            
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <CheckCircle className="text-green-600" size={24} />
-                </div>
-                <span className="text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">Done</span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600 font-medium">Completed</span>
+                <span className="text-2xl font-bold text-green-600">{completed}</span>
               </div>
-              <h3 className="text-3xl font-bold text-gray-900">{completed}</h3>
-              <p className="text-sm text-gray-500 mt-1">Completed</p>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <Trophy className="text-purple-600" size={24} />
-                </div>
-                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">Points</span>
+              <div className="w-full bg-gray-100 rounded-full h-2.5">
+                <div className="h-2.5 bg-green-500 rounded-full" style={{ width: totalEnrolled ? `${(completed/totalEnrolled)*100}%` : '0%' }}></div>
               </div>
-              <h3 className="text-3xl font-bold text-gray-900">{userProfile?.total_points || 0}</h3>
-              <p className="text-sm text-gray-500 mt-1">Learning Points</p>
             </div>
           </div>
 
-          {/* Main Content Area - Better proportions */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Left Column - Takes 3/4 of available width (75%) */}
-            <div className="lg:col-span-3 space-y-6">
-              {/* Your Learning Progress - Now Wider */}
+          {/* Two-Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column - Your Learning Progress (2/3 width) */}
+            <div className="lg:col-span-2 space-y-6">
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Learning Progress</h3>
-                <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-3 gap-4 mb-4">
                   <div className="text-center p-4 bg-gray-50 rounded-lg">
                     <span className="text-3xl font-bold text-gray-700">{notStarted}</span>
                     <p className="text-sm text-gray-500 mt-1">Not Started</p>
@@ -452,39 +472,8 @@ export default function DashboardPage() {
                     <p className="text-sm text-gray-500 mt-1">Completed</p>
                   </div>
                 </div>
-                
-                {/* Progress Bars */}
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-600 font-medium">Not Started</span>
-                      <span className="font-semibold">{notStarted} courses</span>
-                    </div>
-                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-3 bg-gray-400 rounded-full" style={{ width: totalEnrolled ? `${(notStarted/totalEnrolled)*100}%` : '0%' }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-600 font-medium">In Progress</span>
-                      <span className="font-semibold">{inProgress} courses</span>
-                    </div>
-                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-3 bg-yellow-500 rounded-full" style={{ width: totalEnrolled ? `${(inProgress/totalEnrolled)*100}%` : '0%' }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-600 font-medium">Completed</span>
-                      <span className="font-semibold">{completed} courses</span>
-                    </div>
-                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-3 bg-green-500 rounded-full" style={{ width: totalEnrolled ? `${(completed/totalEnrolled)*100}%` : '0%' }}></div>
-                    </div>
-                  </div>
-                </div>
               </div>
-
+              
               {/* Continue Learning Section */}
               {inProgressCourses.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
@@ -495,92 +484,53 @@ export default function DashboardPage() {
                     </Link>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {inProgressCourses.slice(0, 4).map((enrollment) => (
+                  <div className="space-y-4">
+                    {inProgressCourses.slice(0, 3).map((enrollment) => (
                       <div key={enrollment.course_id} className="border border-gray-100 rounded-lg p-4 hover:shadow-md transition">
                         <div className="flex items-start justify-between">
-                          <div className="flex items-start space-x-3">
-                            <div className="p-2 bg-blue-50 rounded-lg">
-                              <BookOpen className="text-blue-600" size={20} />
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-gray-900 line-clamp-1">{enrollment.course.title}</h4>
-                              <p className="text-xs text-gray-500 mt-1">{enrollment.course.duration_hours || 0} hours</p>
-                            </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">{enrollment.course.title}</h4>
+                            <p className="text-sm text-gray-500 mt-1">Progress: {enrollment.progress_percentage}%</p>
                           </div>
-                          <span className="text-sm font-medium text-blue-600">{enrollment.progress_percentage}%</span>
+                          <button
+                            onClick={() => router.push(`/dashboard/learn/${enrollment.course.slug}`)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                          >
+                            Continue
+                          </button>
                         </div>
                         <div className="mt-3">
                           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                             <div className="h-2 bg-blue-600 rounded-full" style={{ width: `${enrollment.progress_percentage}%` }}></div>
                           </div>
-                          <button
-                            onClick={() => router.push(`/dashboard/learn/${enrollment.course.slug}`)}
-                            className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center"
-                          >
-                            Continue <ChevronRight size={14} className="ml-1" />
-                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-
-              {/* Recommended for You - Now Wider with Better Layout */}
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Recommended for You</h3>
-                  <Link href="/dashboard/courses" className="text-sm text-blue-600 hover:text-blue-700 flex items-center">
-                    Browse all <ChevronRight size={16} className="ml-1" />
-                  </Link>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {allCourses.filter(c => !enrolledCourseIds.includes(c.id)).slice(0, 6).map((course) => (
-                    <div key={course.id} className="border border-gray-100 rounded-lg p-4 hover:shadow-md transition">
-                      <div className="flex items-start space-x-3">
-                        <div className="p-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
-                          <BookOpen className="text-blue-600" size={20} />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 line-clamp-1">{course.title}</h4>
-                          <p className="text-xs text-gray-500 mt-1">{course.duration_hours || 0} hours</p>
-                          <button
-                            onClick={() => handleEnroll(course.id, course.slug)}
-                            className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
-                          >
-                            Enroll Now →
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
 
-            {/* Right Column - Takes 1/4 of available width (25%) */}
+            {/* Right Column - Recent Achievements (1/3 width) */}
             <div className="space-y-6">
-              {/* Recent Achievements */}
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Achievements</h3>
                 <div className="space-y-4">
                   {completedCourses.slice(0, 3).map((enrollment, idx) => (
                     <div key={idx} className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                      <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-white text-xl">
                         🏆
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 line-clamp-1">{enrollment.course.title}</p>
-                        <p className="text-xs text-gray-500">
+                      <div>
+                        <p className="font-medium text-gray-900">{enrollment.course.title}</p>
+                        <p className="text-sm text-gray-500">
                           {enrollment.completed_at ? new Date(enrollment.completed_at).toLocaleDateString() : 'Completed'}
                         </p>
                       </div>
                     </div>
                   ))}
                   {completedCourses.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">Complete a course to earn achievements!</p>
+                    <p className="text-gray-500 text-center py-4">No achievements yet</p>
                   )}
                 </div>
               </div>
@@ -597,36 +547,6 @@ export default function DashboardPage() {
                   <ChevronRight size={16} className="ml-1" />
                 </Link>
               </div>
-
-              {/* Profile Summary */}
-              {userProfile && (
-                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                        {userInitial}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{userProfile.full_name}</p>
-                        <p className="text-xs text-gray-500">{userProfile.email}</p>
-                      </div>
-                    </div>
-                    {userProfile.department && (
-                      <div className="pt-2 border-t border-gray-100">
-                        <p className="text-xs text-gray-500">Department</p>
-                        <p className="text-sm font-medium">{userProfile.department}</p>
-                      </div>
-                    )}
-                    {userProfile.role && (
-                      <div>
-                        <p className="text-xs text-gray-500">Role</p>
-                        <p className="text-sm font-medium">{userProfile.role}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
