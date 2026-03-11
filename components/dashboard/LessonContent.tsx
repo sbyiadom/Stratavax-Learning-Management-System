@@ -13,6 +13,7 @@ interface LessonContentProps {
 export default function LessonContent({ lesson, contentType }: LessonContentProps) {
   const [isClient, setIsClient] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [playerError, setPlayerError] = useState(false)
 
   useEffect(() => {
     setIsClient(true)
@@ -36,8 +37,51 @@ export default function LessonContent({ lesson, contentType }: LessonContentProp
       )
     }
 
+    // Check if it's a YouTube URL
+    const isYouTube = videoUrl.includes('youtube') || videoUrl.includes('youtu.be')
+    
+    // If it's YouTube and ReactPlayer fails, use iframe as fallback
+    if (isYouTube && playerError) {
+      // Convert to embed URL
+      let embedUrl = videoUrl
+      if (videoUrl.includes('youtu.be')) {
+        const videoId = videoUrl.split('youtu.be/')[1]?.split('?')[0]
+        embedUrl = `https://www.youtube.com/embed/${videoId}`
+      } else if (videoUrl.includes('watch')) {
+        const videoId = videoUrl.split('v=')[1]?.split('&')[0]
+        embedUrl = `https://www.youtube.com/embed/${videoId}`
+      } else if (videoUrl.includes('youtube.com/embed')) {
+        embedUrl = videoUrl // Already in embed format
+      }
+
+      return (
+        <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
+          <iframe
+            src={embedUrl}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      )
+    }
+
+    // Try ReactPlayer first
     return (
-      <div className="aspect-video bg-black rounded-lg overflow-hidden">
+      <div className="aspect-video bg-black rounded-lg overflow-hidden relative">
+        {playerError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-900 text-white z-10">
+            <div className="text-center">
+              <p className="mb-2">Failed to load video with ReactPlayer</p>
+              <button 
+                onClick={() => setPlayerError(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        )}
         <ReactPlayer
           url={videoUrl}
           width="100%"
@@ -46,6 +90,12 @@ export default function LessonContent({ lesson, contentType }: LessonContentProp
           playing={isPlaying}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
+          onError={() => setPlayerError(true)}
+          config={{
+            youtube: {
+              playerVars: { showinfo: 1 }
+            }
+          }}
         />
       </div>
     )
