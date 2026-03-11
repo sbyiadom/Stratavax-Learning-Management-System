@@ -4,86 +4,199 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Eye, EyeOff, User, Mail, Lock, ArrowRight } from 'lucide-react'
 
 export default function RegisterPage() {
+  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  
   const supabase = createClient()
+  const router = useRouter()
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError('')
+    setError(null)
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-
-    if (error) {
-      setError(error.message)
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
       setLoading(false)
-    } else {
-      router.push('/login?message=Check your email to confirm your account')
-      router.refresh()
+      return
+    }
+
+    // Validate password strength
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters')
+      setLoading(false)
+      return
+    }
+
+    try {
+      // Sign up the user
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName, // Store full name in user metadata
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        }
+      })
+
+      if (signUpError) throw signUpError
+
+      if (data.user) {
+        // Show success message
+        alert('Registration successful! Please check your email to confirm your account.')
+        router.push('/login')
+      }
+    } catch (error: any) {
+      setError(error.message || 'An error occurred during registration')
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
-        <div>
-          <h2 className="text-3xl font-bold text-center">Create Account</h2>
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="text-white" size={32} />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
+          <p className="text-sm text-gray-600 mt-1">Join Stratavax Learning today</p>
         </div>
-        
+
+        {/* Error Message */}
         {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
-            {error}
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
           </div>
         )}
-        
-        <form className="mt-8 space-y-6" onSubmit={handleRegister}>
-          <div className="space-y-4">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email address"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              disabled={loading}
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              disabled={loading}
-            />
+
+        {/* Registration Form */}
+        <form onSubmit={handleRegister} className="space-y-5">
+          {/* Full Name Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Full Name
+            </label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter your full name"
+              />
+            </div>
           </div>
 
+          {/* Email Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="you@example.com"
+              />
+            </div>
+          </div>
+
+          {/* Password Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Password
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters</p>
+          </div>
+
+          {/* Confirm Password Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm Password
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2.5 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition disabled:opacity-50 flex items-center justify-center"
           >
-            {loading ? 'Creating account...' : 'Sign up'}
+            {loading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+            ) : (
+              <>
+                Create Account
+                <ArrowRight size={18} className="ml-2" />
+              </>
+            )}
           </button>
         </form>
 
-        <div className="text-center space-x-4">
-          <Link href="/login" className="text-blue-600 hover:underline">
-            Already have an account? Sign in
+        {/* Login Link */}
+        <p className="text-center text-sm text-gray-600 mt-6">
+          Already have an account?{' '}
+          <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+            Sign in
           </Link>
-        </div>
+        </p>
       </div>
     </div>
   )
