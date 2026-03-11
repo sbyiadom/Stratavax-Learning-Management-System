@@ -29,10 +29,8 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronLeft,
-  ChevronUp,
   Share2,
   LayoutDashboard,
-  BookMarked,
   TrendingUp
 } from 'lucide-react'
 
@@ -78,8 +76,19 @@ type Enrollment = {
   course: Course
 }
 
+type UserProfile = {
+  id: string
+  full_name: string
+  email: string
+  department: string | null
+  role: string | null
+  avatar_url: string | null
+  total_points: number
+}
+
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [allCourses, setAllCourses] = useState<Course[]>([])
@@ -99,6 +108,17 @@ export default function DashboardPage() {
       if (!user) {
         setLoading(false)
         return
+      }
+
+      // Fetch user profile
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      if (profile) {
+        setUserProfile(profile)
       }
 
       // Fetch all approved courses
@@ -184,8 +204,11 @@ export default function DashboardPage() {
   
   const enrolledCourseIds = enrollments.map(e => e.course_id)
   const inProgressCourses = enrollments.filter(e => e.status === 'active' && !e.completed_at && e.progress_percentage > 0)
-  const notStartedCourses = enrollments.filter(e => e.status === 'active' && e.progress_percentage === 0)
   const completedCourses = enrollments.filter(e => e.completed_at)
+
+  // Get display name
+  const displayName = userProfile?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Learner'
+  const userInitial = userProfile?.full_name?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase() || 'U'
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -225,9 +248,9 @@ export default function DashboardPage() {
             </button>
             <div className="flex items-center space-x-2 ml-2">
               <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
-                {user?.email?.[0].toUpperCase()}
+                {userInitial}
               </div>
-              <span className="text-sm font-medium hidden md:block">{user?.email?.split('@')[0]}</span>
+              <span className="text-sm font-medium hidden md:block">{displayName}</span>
               <ChevronDown size={16} className="text-gray-500" />
             </div>
           </div>
@@ -323,16 +346,12 @@ export default function DashboardPage() {
                 <BookOpen size={20} />
                 <span className="text-sm">Course Catalogue</span>
               </Link>
-              <Link href="/dashboard/training" className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
-                <Target size={20} />
-                <span className="text-sm">Training Plans</span>
-              </Link>
             </nav>
           </div>
         </div>
       )}
 
-      {/* Main Content - Adjusted for full width */}
+      {/* Main Content */}
       <div className={`pt-14 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <div className="p-6">
           {/* Breadcrumb */}
@@ -342,11 +361,16 @@ export default function DashboardPage() {
             <span className="text-gray-900">Dashboard</span>
           </div>
 
-          {/* Header with actions */}
+          {/* Welcome Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">My Training Dashboard</h1>
-              <p className="text-sm text-gray-500 mt-1">Welcome back, {user?.email?.split('@')[0]}</p>
+              <h1 className="text-2xl font-semibold text-gray-900">
+                Welcome back, {displayName}! 👋
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                {userProfile?.department ? `${userProfile.department} • ` : ''}
+                {totalEnrolled} {totalEnrolled === 1 ? 'course' : 'courses'} in progress
+              </p>
             </div>
             <div className="flex items-center space-x-3 mt-4 md:mt-0">
               <button className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center space-x-2">
@@ -360,7 +384,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Stats Cards - 4 across the top */}
+          {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
               <div className="flex items-center justify-between mb-2">
@@ -402,18 +426,18 @@ export default function DashboardPage() {
                 </div>
                 <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">Points</span>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900">1,250</h3>
+              <h3 className="text-2xl font-bold text-gray-900">{userProfile?.total_points || 0}</h3>
               <p className="text-sm text-gray-500">Learning Points</p>
             </div>
           </div>
 
-          {/* Two Column Layout - Left side 70%, Right side 30% */}
+          {/* Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - 2/3 width */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Enrollment Status Chart */}
+              {/* Enrollment Status */}
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Enrollment Status</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Learning Progress</h3>
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
                     <span className="text-2xl font-bold text-gray-700">{notStarted}</span>
@@ -503,47 +527,35 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* Course Catalog Preview */}
+              {/* Recommended Courses */}
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Popular Courses</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Recommended for You</h3>
                   <Link href="/dashboard/courses" className="text-sm text-blue-600 hover:text-blue-700 flex items-center">
                     Browse all <ChevronRight size={16} className="ml-1" />
                   </Link>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {allCourses.slice(0, 4).map((course) => {
-                    const isEnrolled = enrolledCourseIds.includes(course.id)
-                    return (
-                      <div key={course.id} className="border border-gray-100 rounded-lg p-4 hover:shadow-md transition">
-                        <div className="flex items-start space-x-3">
-                          <div className="p-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
-                            <BookOpen className="text-blue-600" size={20} />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 line-clamp-1">{course.title}</h4>
-                            <p className="text-xs text-gray-500 mt-1">{course.duration_hours || 0} hours</p>
-                            {isEnrolled ? (
-                              <button
-                                onClick={() => router.push(`/dashboard/learn/${course.slug}`)}
-                                className="mt-2 text-xs text-green-600 hover:text-green-700 font-medium"
-                              >
-                                Continue Learning →
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleEnroll(course.id, course.slug)}
-                                className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
-                              >
-                                Enroll Now →
-                              </button>
-                            )}
-                          </div>
+                  {allCourses.filter(c => !enrolledCourseIds.includes(c.id)).slice(0, 4).map((course) => (
+                    <div key={course.id} className="border border-gray-100 rounded-lg p-4 hover:shadow-md transition">
+                      <div className="flex items-start space-x-3">
+                        <div className="p-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
+                          <BookOpen className="text-blue-600" size={20} />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 line-clamp-1">{course.title}</h4>
+                          <p className="text-xs text-gray-500 mt-1">{course.duration_hours || 0} hours</p>
+                          <button
+                            onClick={() => handleEnroll(course.id, course.slug)}
+                            className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            Enroll Now →
+                          </button>
                         </div>
                       </div>
-                    )
-                  })}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -561,47 +573,21 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">{enrollment.course.title}</p>
-                        <p className="text-xs text-gray-500">Completed {enrollment.completed_at ? new Date(enrollment.completed_at).toLocaleDateString() : ''}</p>
+                        <p className="text-xs text-gray-500">
+                          Completed {enrollment.completed_at ? new Date(enrollment.completed_at).toLocaleDateString() : ''}
+                        </p>
                       </div>
                     </div>
                   ))}
                   {completedCourses.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">No achievements yet. Complete a course to earn badges!</p>
+                    <p className="text-sm text-gray-500 text-center py-4">Complete a course to earn achievements!</p>
                   )}
-                </div>
-              </div>
-
-              {/* Leaderboard Preview */}
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Top Learners</h3>
-                  <Link href="/dashboard/leaderboard" className="text-xs text-blue-600 hover:underline">View all</Link>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { name: 'Kenny Londaisha', dept: 'Route To Market', points: 230, rank: 1 },
-                    { name: 'Mamabeka Map...', dept: 'HO Logistics', points: 230, rank: 2 },
-                    { name: 'Thato Rasethunt...', dept: 'HO Logistics', points: 230, rank: 3 },
-                  ].map((person) => (
-                    <div key={person.rank} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <span className={`text-sm font-medium w-6 ${person.rank === 1 ? 'text-yellow-600' : person.rank === 2 ? 'text-gray-500' : 'text-orange-600'}`}>
-                          #{person.rank}
-                        </span>
-                        <div>
-                          <p className="text-sm font-medium">{person.name}</p>
-                          <p className="text-xs text-gray-500">{person.dept}</p>
-                        </div>
-                      </div>
-                      <span className="text-sm font-semibold">{person.points}</span>
-                    </div>
-                  ))}
                 </div>
               </div>
 
               {/* Quick Actions */}
               <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-sm p-6 text-white">
-                <h3 className="text-lg font-semibold mb-2">Ready to learn?</h3>
+                <h3 className="text-lg font-semibold mb-2">Ready to learn more?</h3>
                 <p className="text-sm text-blue-100 mb-4">Browse our catalog of {allCourses.length}+ courses</p>
                 <Link 
                   href="/dashboard/courses" 
@@ -611,6 +597,36 @@ export default function DashboardPage() {
                   <ChevronRight size={16} className="ml-1" />
                 </Link>
               </div>
+
+              {/* Profile Summary */}
+              {userProfile && (
+                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Summary</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                        {userInitial}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{userProfile.full_name}</p>
+                        <p className="text-xs text-gray-500">{userProfile.email}</p>
+                      </div>
+                    </div>
+                    {userProfile.department && (
+                      <div className="pt-2 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">Department</p>
+                        <p className="text-sm font-medium">{userProfile.department}</p>
+                      </div>
+                    )}
+                    {userProfile.role && (
+                      <div>
+                        <p className="text-xs text-gray-500">Role</p>
+                        <p className="text-sm font-medium">{userProfile.role}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
