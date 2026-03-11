@@ -211,7 +211,7 @@ export default function DashboardPage() {
   const userInitial = userProfile?.full_name?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase() || 'U'
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex">
       {/* Top Navigation Bar - Fixed */}
       <div className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-50 h-14">
         <div className="flex items-center justify-between h-full px-4">
@@ -351,9 +351,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Main Content */}
-      <div className={`pt-14 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
-        <div className="p-6">
+      {/* Main Content - Takes remaining width */}
+      <div className={`flex-1 pt-14 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+        <div className="p-6 max-w-full">
           {/* Breadcrumb */}
           <div className="flex items-center text-sm text-gray-500 mb-6">
             <span>Stratavax Learning</span>
@@ -384,7 +384,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Stats Cards */}
+          {/* Stats Cards - 4 across the top */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
               <div className="flex items-center justify-between mb-2">
@@ -431,9 +431,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Two Column Layout */}
+          {/* Two Column Layout - Properly proportioned */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - 2/3 width */}
+            {/* Left Column - Takes 2/3 of available width */}
             <div className="lg:col-span-2 space-y-6">
               {/* Enrollment Status */}
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
@@ -560,7 +560,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Right Column - 1/3 width */}
+            {/* Right Column - Takes 1/3 of available width */}
             <div className="space-y-6">
               {/* Recent Achievements */}
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
