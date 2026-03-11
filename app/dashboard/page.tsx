@@ -40,98 +40,15 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronUp,
-  Clock3,
-  AlertCircle,
   CheckCircle2,
   Circle,
   Lock,
-  Unlock,
-  Eye,
-  EyeOff,
   Share2,
   MoreHorizontal,
   Plus,
   Minus,
   ThumbsUp,
-  MessageCircle,
-  Mail,
-  Phone,
-  MapPin,
-  Briefcase,
-  CalendarDays,
-  Award as AwardIcon,
-  Trophy as TrophyIcon,
-  Medal as MedalIcon,
-  Star as StarIcon,
-  Sparkles as SparklesIcon,
-  Flame,
-  Zap,
-  Activity,
-  TrendingUp as TrendingUpIcon,
-  BarChart,
-  PieChart as PieChartIcon,
-  LineChart,
-  Database,
-  Shield,
-  Lock as LockIcon,
-  Key,
-  Fingerprint,
-  Server,
-  Cloud,
-  Wifi,
-  Bluetooth,
-  Battery,
-  Cpu,
-  HardDrive,
-  Monitor,
-  Printer,
-  Scanner,
-  Camera,
-  Speaker,
-  Mic,
-  Headphones,
-  Mouse,
-  Keyboard,
-  Tablet,
-  Smartphone,
-  Watch,
-  Tv,
-  Radio,
-  Drone,
-  Robot,
-  Car,
-  Bike,
-  Train,
-  Plane,
-  Ship,
-  Truck,
-  Bus,
-  Motorcycle,
-  Tractor,
-  Rocket,
-  Satellite,
-  Space,
-  Globe,
-  Map,
-  Compass,
-  Flag,
-  Mountain,
-  Tree,
-  Flower,
-  Cloud as CloudIcon,
-  Sun,
-  Moon,
-  Star as StarIcon2,
-  CloudRain,
-  CloudSnow,
-  CloudLightning,
-  Wind,
-  Thermometer,
-  Droplet,
-  Waves,
-  Flame as FlameIcon,
-  Zap as ZapIcon,
-  Activity as ActivityIcon
+  MessageCircle
 } from 'lucide-react'
 
 // Approved course slugs
@@ -387,6 +304,11 @@ export default function DashboardPage() {
     router.push(`/dashboard/learn/${courseSlug}`)
   }
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -503,7 +425,7 @@ export default function DashboardPage() {
               {!sidebarCollapsed && <span className="text-sm">Line Manager Dashboard</span>}
             </Link>
             <Link href="/dashboard/reports" className={`flex items-center space-x-3 px-3 py-2 rounded-md transition ${sidebarCollapsed ? 'justify-center' : ''} text-gray-600 hover:text-gray-900 hover:bg-gray-100`}>
-              <BarChart size={20} />
+              <BarChart3 size={20} />
               {!sidebarCollapsed && <span className="text-sm">Reports</span>}
             </Link>
             <Link href="/dashboard/settings" className={`flex items-center space-x-3 px-3 py-2 rounded-md transition ${sidebarCollapsed ? 'justify-center' : ''} text-gray-600 hover:text-gray-900 hover:bg-gray-100`}>
@@ -513,7 +435,10 @@ export default function DashboardPage() {
           </nav>
 
           <div className="p-4 border-t">
-            <button className={`flex items-center space-x-3 px-3 py-2 w-full rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 ${sidebarCollapsed ? 'justify-center' : ''}`}>
+            <button 
+              onClick={handleSignOut}
+              className={`flex items-center space-x-3 px-3 py-2 w-full rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 ${sidebarCollapsed ? 'justify-center' : ''}`}
+            >
               <LogOut size={20} />
               {!sidebarCollapsed && <span className="text-sm">Sign out</span>}
             </button>
@@ -783,4 +708,185 @@ export default function DashboardPage() {
                           <div className="p-2 bg-blue-50 rounded">
                             <BookOpen className="text-blue-600" size={18} />
                           </div>
-                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full
+                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                            {enrollment.progress_percentage}%
+                          </span>
+                        </div>
+                        <h4 className="font-medium text-gray-900 mb-1 line-clamp-1">{enrollment.course.title}</h4>
+                        <p className="text-xs text-gray-500 mb-3">{enrollment.course.duration_hours || 0} hours total</p>
+                        <div className="h-1.5 bg-gray-100 rounded-full mb-3">
+                          <div className="h-1.5 bg-blue-600 rounded-full" style={{ width: `${enrollment.progress_percentage}%` }}></div>
+                        </div>
+                        <button
+                          onClick={() => router.push(`/dashboard/learn/${enrollment.course.slug}`)}
+                          className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium text-center"
+                        >
+                          Continue →
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Training Tab */}
+          {activeTab === 'training' && (
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+              <h2 className="text-lg font-medium mb-4">My Training</h2>
+              
+              {/* Filter bar */}
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <div className="flex items-center space-x-2">
+                  <button className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md">All</button>
+                  <button className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">Not started</button>
+                  <button className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">In progress</button>
+                  <button className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">Completed</button>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    placeholder="Search training..."
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Training list */}
+              <div className="space-y-3">
+                {enrollments.map((enrollment, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-2 rounded ${
+                        enrollment.completed_at ? 'bg-green-100' :
+                        enrollment.progress_percentage > 0 ? 'bg-yellow-100' : 'bg-gray-100'
+                      }`}>
+                        <BookOpen size={18} className={
+                          enrollment.completed_at ? 'text-green-600' :
+                          enrollment.progress_percentage > 0 ? 'text-yellow-600' : 'text-gray-600'
+                        } />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{enrollment.course.title}</p>
+                        <p className="text-xs text-gray-500">Due date: {enrollment.enrolled_at ? new Date(enrollment.enrolled_at).toLocaleDateString() : 'Not set'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        enrollment.completed_at ? 'bg-green-100 text-green-700' :
+                        enrollment.progress_percentage > 0 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {enrollment.completed_at ? 'Completed' : enrollment.progress_percentage > 0 ? 'In progress' : 'Not started'}
+                      </span>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Certificates Tab */}
+          {activeTab === 'certificates' && (
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+              <h2 className="text-lg font-medium mb-4">My Certificates</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {completedCoursesList.map((enrollment, idx) => (
+                  <div key={idx} className="border border-gray-100 rounded-lg p-4 hover:shadow-md transition">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="p-2 bg-green-100 rounded">
+                        <Award className="text-green-600" size={24} />
+                      </div>
+                      <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">Valid</span>
+                    </div>
+                    <h4 className="font-medium text-gray-900 mb-1">{enrollment.course.title}</h4>
+                    <p className="text-xs text-gray-500 mb-2">Issued: {enrollment.completed_at ? new Date(enrollment.completed_at).toLocaleDateString() : 'N/A'}</p>
+                    <p className="text-xs text-gray-500">Expiry: Not set</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Skills Tab */}
+          {activeTab === 'skills' && (
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+              <h2 className="text-lg font-medium mb-4">My Skills</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Earned Skills</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm">Cyber Security</span>
+                      <CheckCircle size={16} className="text-green-600" />
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm">Data Analysis</span>
+                      <CheckCircle size={16} className="text-green-600" />
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm">Electrical Safety</span>
+                      <CheckCircle size={16} className="text-green-600" />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium mb-3">In Progress</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm">Machine Learning</span>
+                      <Clock size={16} className="text-yellow-600" />
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm">Web Development</span>
+                      <Clock size={16} className="text-yellow-600" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Transcript Tab */}
+          {activeTab === 'transcript' && (
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+              <h2 className="text-lg font-medium mb-4">Learning Transcript</h2>
+              <table className="min-w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 text-sm font-medium text-gray-600">Training Name</th>
+                    <th className="text-left py-2 text-sm font-medium text-gray-600">Type</th>
+                    <th className="text-left py-2 text-sm font-medium text-gray-600">Status</th>
+                    <th className="text-left py-2 text-sm font-medium text-gray-600">Completed</th>
+                    <th className="text-left py-2 text-sm font-medium text-gray-600">Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {enrollments.slice(0, 5).map((enrollment, idx) => (
+                    <tr key={idx} className="border-b">
+                      <td className="py-2 text-sm">{enrollment.course.title}</td>
+                      <td className="py-2 text-sm">e-Learning</td>
+                      <td className="py-2 text-sm">
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${
+                          enrollment.completed_at ? 'bg-green-100 text-green-700' :
+                          enrollment.progress_percentage > 0 ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {enrollment.completed_at ? 'Completed' : enrollment.progress_percentage > 0 ? 'In progress' : 'Not started'}
+                        </span>
+                      </td>
+                      <td className="py-2 text-sm">{enrollment.completed_at ? new Date(enrollment.completed_at).toLocaleDateString() : '-'}</td>
+                      <td className="py-2 text-sm">10</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
