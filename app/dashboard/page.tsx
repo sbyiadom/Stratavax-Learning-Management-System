@@ -241,7 +241,7 @@ export default function DashboardPage() {
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
                   <GraduationCap className="text-white" size={20} />
                 </div>
-                <span className="font-bold text-xl text-gray-900">CCBA Learning</span>
+                <span className="font-bold text-xl text-gray-900">Stratavax Learning</span>
               </div>
               
               {/* Main Navigation */}
