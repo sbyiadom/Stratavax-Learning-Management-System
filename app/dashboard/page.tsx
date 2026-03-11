@@ -66,9 +66,11 @@ export default async function DashboardCoursesPage({
     .eq('is_published', true)
     .in('slug', APPROVED_COURSE_SLUGS)
   
-  // Apply filters - Using exact category names from your database
+  // Apply filters - DECODE the URL parameter first
   if (searchParams.category && searchParams.category !== 'all') {
-    query = query.eq('category', searchParams.category)
+    const decodedCategory = decodeURIComponent(searchParams.category)
+    console.log('Filtering by category:', decodedCategory) // For debugging
+    query = query.eq('category', decodedCategory)
   }
   
   if (searchParams.difficulty) {
@@ -96,6 +98,9 @@ export default async function DashboardCoursesPage({
     .eq('user_id', user.id)
 
   const enrolledCourseIds = new Set(enrollments?.map(e => e.course_id) || [])
+
+  // Debug: Log what we found
+  console.log('Found courses:', courses?.length)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -137,9 +142,11 @@ export default async function DashboardCoursesPage({
                   {categories.map((category) => (
                     <Link
                       key={category.id}
-                      href={`/dashboard/courses?category=${category.id}`}
+                      href={`/dashboard/courses?category=${encodeURIComponent(category.id)}`}
                       className={`block px-3 py-2 rounded-md text-sm transition ${
-                        (searchParams.category || 'all') === category.id
+                        (searchParams.category && decodeURIComponent(searchParams.category) === category.id)
+                          ? `${category.color} text-white`
+                          : (!searchParams.category && category.id === 'all')
                           ? `${category.color} text-white`
                           : 'text-gray-600 hover:bg-gray-50'
                       }`}
