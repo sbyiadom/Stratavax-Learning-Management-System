@@ -351,9 +351,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Main Content - Takes full width with padding for sidebar */}
+      {/* Main Content - Takes full width */}
       <div className={`pt-14 transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
-        <div className="p-6 lg:p-8 w-full max-w-[1600px] mx-auto">
+        <div className="p-6 lg:p-8 w-full">
           {/* Breadcrumb */}
           <div className="flex items-center text-sm text-gray-500 mb-6">
             <span>Stratavax Learning</span>
@@ -361,7 +361,7 @@ export default function DashboardPage() {
             <span className="text-gray-900">Dashboard</span>
           </div>
 
-          {/* Welcome Header - Now stretches full width */}
+          {/* Welcome Header - Full width */}
           <div className="w-full mb-8">
             <h1 className="text-3xl font-semibold text-gray-900">
               Welcome back, {displayName}! 👋
@@ -372,9 +372,9 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Stats Cards - Larger and centered */}
+          {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100 hover:shadow-lg transition">
+            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-4 bg-blue-100 rounded-xl">
                   <BookOpen className="text-blue-600" size={32} />
@@ -385,7 +385,7 @@ export default function DashboardPage() {
               <p className="text-base text-gray-500">Enrolled Courses</p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100 hover:shadow-lg transition">
+            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-4 bg-yellow-100 rounded-xl">
                   <Clock className="text-yellow-600" size={32} />
@@ -396,7 +396,7 @@ export default function DashboardPage() {
               <p className="text-base text-gray-500">In Progress</p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100 hover:shadow-lg transition">
+            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-4 bg-green-100 rounded-xl">
                   <CheckCircle className="text-green-600" size={32} />
@@ -407,7 +407,7 @@ export default function DashboardPage() {
               <p className="text-base text-gray-500">Completed</p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100 hover:shadow-lg transition">
+            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-4 bg-purple-100 rounded-xl">
                   <Trophy className="text-purple-600" size={32} />
@@ -419,7 +419,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Progress Indicators - Below stats cards */}
+          {/* Progress Indicators */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
               <div className="flex items-center justify-between mb-2">
@@ -454,8 +454,9 @@ export default function DashboardPage() {
 
           {/* Two-Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - Your Learning Progress (2/3 width) */}
+            {/* Left Column - Learning Progress (2/3 width) */}
             <div className="lg:col-span-2 space-y-6">
+              {/* Your Learning Progress */}
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Learning Progress</h3>
                 <div className="grid grid-cols-3 gap-4 mb-4">
@@ -474,7 +475,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               
-              {/* Continue Learning Section */}
+              {/* Continue Learning Section - Full width cards */}
               {inProgressCourses.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                   <div className="flex items-center justify-between mb-4">
@@ -484,31 +485,75 @@ export default function DashboardPage() {
                     </Link>
                   </div>
                   
-                  <div className="space-y-4">
+                  {/* Full width cards - stacked vertically like the screenshot */}
+                  <div className="flex flex-col space-y-4 w-full">
                     {inProgressCourses.slice(0, 3).map((enrollment) => (
-                      <div key={enrollment.course_id} className="border border-gray-100 rounded-lg p-4 hover:shadow-md transition">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className="font-medium text-gray-900">{enrollment.course.title}</h4>
-                            <p className="text-sm text-gray-500 mt-1">Progress: {enrollment.progress_percentage}%</p>
+                      <div key={enrollment.course_id} className="border border-gray-100 rounded-lg p-5 hover:shadow-md transition w-full">
+                        <div className="flex items-start justify-between w-full">
+                          <div className="flex items-start space-x-4">
+                            <div className="p-3 bg-blue-50 rounded-lg">
+                              <BookOpen className="text-blue-600" size={24} />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-gray-900 text-lg">{enrollment.course.title}</h4>
+                              <p className="text-sm text-gray-500 mt-1">{enrollment.course.duration_hours || 0} hours total</p>
+                              <div className="flex items-center mt-2">
+                                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">In progress</span>
+                              </div>
+                            </div>
                           </div>
-                          <button
-                            onClick={() => router.push(`/dashboard/learn/${enrollment.course.slug}`)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-                          >
-                            Continue
-                          </button>
+                          <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full">
+                            {enrollment.progress_percentage}%
+                          </span>
                         </div>
-                        <div className="mt-3">
+                        <div className="mt-4 w-full">
                           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                             <div className="h-2 bg-blue-600 rounded-full" style={{ width: `${enrollment.progress_percentage}%` }}></div>
                           </div>
+                          <button
+                            onClick={() => router.push(`/dashboard/learn/${enrollment.course.slug}`)}
+                            className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center"
+                          >
+                            Continue <ChevronRight size={14} className="ml-1" />
+                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+
+              {/* Recommended for You */}
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Recommended for You</h3>
+                  <Link href="/dashboard/courses" className="text-sm text-blue-600 hover:text-blue-700 flex items-center">
+                    Browse all <ChevronRight size={16} className="ml-1" />
+                  </Link>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {allCourses.filter(c => !enrolledCourseIds.includes(c.id)).slice(0, 4).map((course) => (
+                    <div key={course.id} className="border border-gray-100 rounded-lg p-4 hover:shadow-md transition">
+                      <div className="flex items-start space-x-3">
+                        <div className="p-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
+                          <BookOpen className="text-blue-600" size={20} />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 line-clamp-1">{course.title}</h4>
+                          <p className="text-xs text-gray-500 mt-1">{course.duration_hours || 0} hours</p>
+                          <button
+                            onClick={() => handleEnroll(course.id, course.slug)}
+                            className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            Enroll Now →
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Right Column - Recent Achievements (1/3 width) */}
