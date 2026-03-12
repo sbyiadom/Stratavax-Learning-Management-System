@@ -152,7 +152,7 @@ export default async function DashboardCoursesPage({
     // First, let's fetch ALL published courses to see what categories exist
     const { data: allCourses, error: allCoursesError } = await supabase
       .from('courses')
-      .select('category, count')
+      .select('category')
       .eq('is_published', true)
       .in('slug', APPROVED_COURSE_SLUGS)
 
@@ -160,8 +160,17 @@ export default async function DashboardCoursesPage({
       console.error('Error fetching categories:', allCoursesError)
     }
 
-    // Log all unique categories from the database for debugging
-    const uniqueCategories = [...new Set(allCourses?.map(c => c.category).filter(Boolean))]
+    // Fix: Use array reduce instead of Set spread to avoid TypeScript iteration issue
+    const uniqueCategories = (allCourses || [])
+      .map(c => c.category)
+      .filter((category): category is string => Boolean(category))
+      .reduce((acc: string[], category) => {
+        if (!acc.includes(category)) {
+          acc.push(category)
+        }
+        return acc
+      }, [])
+    
     console.log('Categories found in database:', uniqueCategories)
 
     // Build query with proper filters
