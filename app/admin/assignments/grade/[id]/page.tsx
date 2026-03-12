@@ -3,11 +3,40 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { CheckCircle, XCircle, Download, Eye, ChevronLeft } from 'lucide-react'
+import { CheckCircle, Download, Eye, ChevronLeft } from 'lucide-react'
+
+type UserProfile = {
+  full_name: string
+  email: string
+  department: string | null
+}
+
+type Assignment = {
+  title: string
+  description: string
+  solution_text: string | null
+  solution_file_url: string | null
+  grading_rubric: Record<string, { max_points: number; criteria: string }>
+  points: number
+  passing_score: number
+}
+
+type Submission = {
+  id: string
+  user_id: string
+  assignment_id: string
+  status: string
+  submission_text: string | null
+  submission_url: string | null
+  submitted_at: string
+  grade: number | null
+  feedback: string | null
+  user_profiles: UserProfile
+  assignments: Assignment
+}
 
 export default function GradeAssignmentPage({ params }: { params: { id: string } }) {
-  const [submission, setSubmission] = useState<any>(null)
-  const [assignment, setAssignment] = useState<any>(null)
+  const [submission, setSubmission] = useState<Submission | null>(null)
   const [grades, setGrades] = useState<Record<string, number>>({})
   const [feedback, setFeedback] = useState('')
   const [loading, setLoading] = useState(true)
@@ -30,6 +59,7 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
           title, 
           description, 
           solution_text, 
+          solution_file_url,
           grading_rubric,
           points,
           passing_score
@@ -39,11 +69,10 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
       .single()
 
     if (data) {
-      setSubmission(data)
-      setAssignment(data.assignments)
+      setSubmission(data as Submission)
       
       // Initialize grades from rubric
-      const rubric = data.assignments.grading_rubric
+      const rubric = (data as any).assignments.grading_rubric
       if (rubric) {
         const initialGrades: Record<string, number> = {}
         Object.keys(rubric).forEach(key => {
@@ -60,10 +89,12 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
   }
 
   const handleSubmitGrade = async () => {
+    if (!submission) return
+    
     setSubmitting(true)
     
     const total = calculateTotal()
-    const passed = total >= (assignment.passing_score || 70)
+    const passed = total >= (submission.assignments.passing_score || 70)
 
     await supabase
       .from('user_assignments')
@@ -79,7 +110,9 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
   }
 
   if (loading) return <div className="p-8 text-center">Loading...</div>
+  if (!submission) return <div className="p-8 text-center">Submission not found</div>
 
+  const assignment = submission.assignments
   const rubric = assignment.grading_rubric
 
   return (
@@ -127,6 +160,7 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
                   <a
                     href={submission.submission_url}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
                     <Download size={16} />
@@ -135,6 +169,7 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
                   <a
                     href={submission.submission_url}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
                   >
                     <Eye size={16} />
@@ -158,6 +193,7 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
                   <a
                     href={assignment.solution_file_url}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 mt-3 text-green-700 hover:text-green-800"
                   >
                     <Download size={16} />
@@ -173,7 +209,7 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
             <div className="bg-white rounded-lg shadow-sm p-6 sticky top-6">
               <h2 className="text-lg font-semibold mb-4">Grading Rubric</h2>
               
-              {rubric && Object.entries(rubric).map(([key, value]: [string, any]) => (
+              {rubric && Object.entries(rubric).map(([key, value]) => (
                 <div key={key} className="mb-4">
                   <div className="flex justify-between text-sm mb-1">
                     <label className="capitalize font-medium">
