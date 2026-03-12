@@ -232,4 +232,145 @@ export default async function DashboardCoursesPage({
               </div>
 
               {/* Clear Filters */}
-     
+              {(searchParams.category && searchParams.category !== 'all') || searchParams.difficulty || searchParams.search ? (
+                <Link
+                  href="/dashboard/courses"
+                  className="block w-full text-center px-4 py-2 text-sm text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 transition"
+                >
+                  Clear All Filters
+                </Link>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Course Grid */}
+          <div className="flex-1">
+            {/* Search Bar */}
+            <div className="mb-6">
+              <form className="flex gap-2">
+                <input
+                  type="text"
+                  name="search"
+                  defaultValue={searchParams.search}
+                  placeholder="Search courses..."
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                  Search
+                </button>
+              </form>
+            </div>
+
+            {/* Results Count */}
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Showing {courses?.length || 0} courses
+              </p>
+              <select className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option>Sort by: Featured</option>
+                <option>Sort by: Title A-Z</option>
+                <option>Sort by: Most Popular</option>
+                <option>Sort by: Newest</option>
+              </select>
+            </div>
+
+            {/* Course Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {courses?.map((course) => {
+                const isEnrolled = enrolledCourseIds.has(course.id)
+                
+                return (
+                  <Link
+                    key={course.id}
+                    href={isEnrolled ? `/dashboard/learn/${course.slug}` : `/dashboard/courses/${course.slug}`}
+                    className="bg-white rounded-lg shadow-sm hover:shadow-md transition overflow-hidden group"
+                  >
+                    {/* Course Image Placeholder */}
+                    <div className="h-40 bg-gradient-to-br from-blue-500 to-indigo-600 relative">
+                      {course.is_featured && (
+                        <span className="absolute top-3 right-3 bg-yellow-400 text-xs font-semibold px-2 py-1 rounded">
+                          Featured
+                        </span>
+                      )}
+                      {isEnrolled && (
+                        <span className="absolute top-3 left-3 bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded">
+                          Enrolled
+                        </span>
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center text-white text-4xl opacity-20">
+                        {course.category === 'Business & Entrepreneurship' && '🚀'}
+                        {course.category === 'Data Science & AI' && '🤖'}
+                        {course.category === 'Digital & Technology Skills' && '💻'}
+                        {course.category === 'Engineering & Technical Skills' && '⚙️'}
+                        {course.category === 'Financial Literacy' && '💰'}
+                        {course.category === 'Leadership & Personal Development' && '🌟'}
+                        {course.category === 'Programming & Development' && '👨‍💻'}
+                        {course.category === 'Web Development' && '🌐'}
+                      </div>
+                    </div>
+
+                    {/* Course Info */}
+                    <div className="p-5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                          difficultyColors[course.difficulty_level as keyof typeof difficultyColors]
+                        }`}>
+                          {course.difficulty_level}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {course.category?.split(' ')[0] || ''}
+                        </span>
+                      </div>
+
+                      <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition">
+                        {course.title}
+                      </h3>
+
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                        {course.short_description}
+                      </p>
+
+                      {/* Course Stats */}
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <BookOpen size={14} />
+                          {course.modules?.[0]?.count || 0} modules
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock size={14} />
+                          {course.duration_hours}h
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Users size={14} />
+                          {course.enrollments?.length || 0}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* No Results */}
+            {(!courses || courses.length === 0) && (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4 opacity-30">
+                  {currentCategory !== 'all' 
+                    ? categories.find(c => c.id === currentCategory)?.icon || '📚'
+                    : '📚'}
+                </div>
+                <p className="text-gray-500">No courses found matching your criteria.</p>
+                <Link href="/dashboard/courses" className="text-blue-600 hover:underline mt-2 inline-block">
+                  View all courses
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
