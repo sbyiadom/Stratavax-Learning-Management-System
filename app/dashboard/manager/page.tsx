@@ -68,9 +68,30 @@ type ManagerStats = {
   topPerformer: TeamMember | null
 }
 
+type UserProfile = {
+  id: string
+  user_id: string
+  full_name: string
+  email: string
+  department: string | null
+  role: string | null
+  total_points: number
+}
+
+type Enrollment = {
+  course_id: string
+  completed_at: string | null
+  status: string
+}
+
+type UserAssignment = {
+  status: string
+  grade: number | null
+}
+
 export default function ManagerDashboardPage() {
   const [user, setUser] = useState<any>(null)
-  const [userProfile, setUserProfile] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [filteredMembers, setFilteredMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
@@ -149,7 +170,7 @@ export default function ManagerDashboardPage() {
       setFilteredMembers(teamData)
 
       // Extract unique departments
-      const depts = Array.from(new Set(teamData.map(m => m.department).filter(Boolean))) as string[]
+      const depts = Array.from(new Set(teamData.map((m: any) => m.department).filter(Boolean))) as string[]
       setDepartments(depts)
 
       // Calculate team stats
@@ -174,7 +195,7 @@ export default function ManagerDashboardPage() {
 
     if (allStudents) {
       // For each student, get their progress
-      const studentsWithProgress = await Promise.all(
+      const studentsWithProgress: TeamMember[] = await Promise.all(
         allStudents.map(async (student) => {
           // Get course progress
           const { data: enrollments } = await supabase
@@ -183,8 +204,8 @@ export default function ManagerDashboardPage() {
             .eq('user_id', student.user_id)
 
           const courses_started = enrollments?.length || 0
-          const courses_completed = enrollments?.filter(e => e.completed_at).length || 0
-          const courses_in_progress = enrollments?.filter(e => !e.completed_at && e.status === 'active').length || 0
+          const courses_completed = enrollments?.filter((e: Enrollment) => e.completed_at).length || 0
+          const courses_in_progress = enrollments?.filter((e: Enrollment) => !e.completed_at && e.status === 'active').length || 0
 
           // Get assignment progress
           const { data: assignments } = await supabase
@@ -193,10 +214,16 @@ export default function ManagerDashboardPage() {
             .eq('user_id', student.user_id)
 
           const assignments_submitted = assignments?.length || 0
-          const assignments_passed = assignments?.filter(a => a.status === 'passed').length || 0
-          const assignments_failed = assignments?.filter(a => a.status === 'failed').length || 0
-          const assignments_pending = assignments?.filter(a => a.status === 'submitted').length || 0
-          const avg_grade = assignments?.reduce((acc, a) => acc + (a.grade || 0), 0) / (assignments?.length || 1) || 0
+          const assignments_passed = assignments?.filter((a: UserAssignment) => a.status === 'passed').length || 0
+          const assignments_failed = assignments?.filter((a: UserAssignment) => a.status === 'failed').length || 0
+          const assignments_pending = assignments?.filter((a: UserAssignment) => a.status === 'submitted').length || 0
+          
+          // Fix the avg_grade calculation with proper type checking
+          let avg_grade = 0
+          if (assignments && assignments.length > 0) {
+            const totalGrade = assignments.reduce((acc: number, a: UserAssignment) => acc + (a.grade || 0), 0)
+            avg_grade = totalGrade / assignments.length
+          }
 
           return {
             student_id: student.id,
@@ -243,11 +270,15 @@ export default function ManagerDashboardPage() {
     const completedCourses = members.reduce((acc, m) => acc + m.courses_completed, 0)
     const totalAssignments = members.reduce((acc, m) => acc + m.assignments_submitted, 0)
     const passedAssignments = members.reduce((acc, m) => acc + m.assignments_passed, 0)
-    const averageGrade = members.reduce((acc, m) => acc + m.avg_assignment_grade, 0) / members.length
+    const averageGrade = members.length > 0 
+      ? members.reduce((acc, m) => acc + m.avg_assignment_grade, 0) / members.length
+      : 0
 
-    const topPerformer = members.reduce((best, current) => 
-      current.total_points > (best?.total_points || 0) ? current : best
-    , null)
+    const topPerformer = members.length > 0
+      ? members.reduce((best, current) => 
+          current.total_points > (best?.total_points || 0) ? current : best
+        , members[0])
+      : null
 
     setStats({
       totalMembers: members.length,
