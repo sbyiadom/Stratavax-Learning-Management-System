@@ -152,22 +152,6 @@ const durationRanges = [
   { value: '20+', label: '20+ hours', min: 20, max: null },
 ]
 
-// Helper function to render icon based on name
-const renderIcon = (iconName: string, className: string = "w-5 h-5") => {
-  switch(iconName) {
-    case 'Layers': return <Layers className={className} />;
-    case 'Briefcase': return <Briefcase className={className} />;
-    case 'LineChart': return <LineChart className={className} />;
-    case 'Cpu': return <Cpu className={className} />;
-    case 'Zap': return <Zap className={className} />;
-    case 'TrendingUp': return <TrendingUp className={className} />;
-    case 'Star': return <Star className={className} />;
-    case 'Code': return <Code className={className} />;
-    case 'Globe': return <Globe className={className} />;
-    default: return <Layers className={className} />;
-  }
-}
-
 interface PageProps {
   searchParams: {
     category?: string
@@ -211,7 +195,46 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
   
   const totalCourses = Object.values(categoryCounts).reduce((a, b) => a + b, 0)
   
-  // Build query with all filters
+  // First, get total count for pagination
+  let countQuery = supabase
+    .from('courses')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_published', true)
+    .in('slug', APPROVED_COURSE_SLUGS)
+  
+  // Apply filters to count query
+  if (searchParams.category && searchParams.category !== 'all') {
+    const decodedCategory = decodeURIComponent(searchParams.category)
+    countQuery = countQuery.eq('category', decodedCategory)
+  }
+  
+  if (searchParams.difficulty) {
+    countQuery = countQuery.eq('difficulty_level', searchParams.difficulty)
+  }
+  
+  if (searchParams.duration) {
+    const range = durationRanges.find(r => r.value === searchParams.duration)
+    if (range) {
+      countQuery = countQuery.gte('duration_hours', range.min)
+      if (range.max) {
+        countQuery = countQuery.lt('duration_hours', range.max)
+      } else {
+        countQuery = countQuery.gte('duration_hours', range.min)
+      }
+    }
+  }
+  
+  if (searchParams.search) {
+    countQuery = countQuery.or(`title.ilike.%${searchParams.search}%,description.ilike.%${searchParams.search}%,short_description.ilike.%${searchParams.search}%`)
+  }
+  
+  const { count: totalCount, error: countError } = await countQuery
+
+  if (countError) {
+    console.error('Error getting course count:', countError)
+  }
+  
+  // Build main data query
   let query = supabase
     .from('courses')
     .select(`
@@ -261,7 +284,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
       query = query.order('title', { ascending: false })
       break
     case 'popular':
-      query = query.order('enrollments.count', { ascending: false })
+      query = query.order('enrollments.count', { ascending: false, nullsFirst: false })
       break
     case 'newest':
       query = query.order('created_at', { ascending: false })
@@ -278,9 +301,6 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
   const pageSize = 12
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
-  
-  // Get total count for pagination
-  const { count: totalCount } = await query.select('*', { count: 'exact', head: true })
   
   // Apply pagination
   query = query.range(from, to)
@@ -472,8 +492,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                             ? 'bg-white/20' 
                             : category.lightColor
                         }`}>
-                          {category.displayIcon && <span className="text-lg">{category.displayIcon}</span>}
-                          {!category.displayIcon && renderIcon(category.iconComponent || 'Layers', 'w-4 h-4')}
+                          <span className="text-lg">{category.displayIcon || category.icon}</span>
                         </div>
                         <span className="flex-1 font-medium">{category.name}</span>
                         <span className={`text-xs px-2 py-1 rounded-full ${
@@ -497,16 +516,22 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                 <h3 className="text-sm font-medium text-slate-700 mb-3">Difficulty Level</h3>
                 <div className="space-y-2">
                   {Object.entries(difficultyConfig).map(([key, config]) => {
-                    const params = new URLSearchParams({
-                      ...searchParams,
-                      difficulty: key,
-                      category: currentCategory !== 'all' ? currentCategory : '',
-                    })
+                    const params = new URLSearchParams()
+                    
+                    // Add all existing params except difficulty
+                    if (searchParams.category) params.set('category', searchParams.category)
+                    if (searchParams.search) params.set('search', searchParams.search)
+                    if (searchParams.sort) params.set('sort', searchParams.sort)
+                    if (searchParams.duration) params.set('duration', searchParams.duration)
+                    if (searchParams.view) params.set('view', searchParams.view)
+                    
+                    // Add new difficulty
+                    params.set('difficulty', key)
                     
                     return (
                       <Link
                         key={key}
-                        href={`/dashboard/courses?${params}`}
+                        href={`/dashboard/courses?${params.toString()}`}
                         className={`flex items-center justify-between p-3 rounded-xl transition-all ${
                           searchParams.difficulty === key
                             ? `bg-gradient-to-r ${config.gradient} text-white shadow-md`
@@ -535,16 +560,22 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                 <h3 className="text-sm font-medium text-slate-700 mb-3">Course Duration</h3>
                 <div className="space-y-2">
                   {durationRanges.map((range) => {
-                    const params = new URLSearchParams({
-                      ...searchParams,
-                      duration: range.value,
-                      category: currentCategory !== 'all' ? currentCategory : '',
-                    })
+                    const params = new URLSearchParams()
+                    
+                    // Add all existing params except duration
+                    if (searchParams.category) params.set('category', searchParams.category)
+                    if (searchParams.difficulty) params.set('difficulty', searchParams.difficulty)
+                    if (searchParams.search) params.set('search', searchParams.search)
+                    if (searchParams.sort) params.set('sort', searchParams.sort)
+                    if (searchParams.view) params.set('view', searchParams.view)
+                    
+                    // Add new duration
+                    params.set('duration', range.value)
                     
                     return (
                       <Link
                         key={range.value}
-                        href={`/dashboard/courses?${params}`}
+                        href={`/dashboard/courses?${params.toString()}`}
                         className={`flex items-center justify-between p-3 rounded-xl transition-all ${
                           searchParams.duration === range.value
                             ? 'bg-blue-600 text-white shadow-md'
@@ -609,14 +640,23 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                 {/* Search Bar */}
                 <div className="flex-1">
                   <form action="/dashboard/courses" method="GET" className="relative">
-                    {Object.entries(searchParams).map(([key, value]) => {
-                      if (key !== 'search' && value) {
-                        return (
-                          <input key={key} type="hidden" name={key} value={value} />
-                        )
-                      }
-                      return null
-                    })}
+                    {/* Preserve other params */}
+                    {searchParams.category && (
+                      <input type="hidden" name="category" value={searchParams.category} />
+                    )}
+                    {searchParams.difficulty && (
+                      <input type="hidden" name="difficulty" value={searchParams.difficulty} />
+                    )}
+                    {searchParams.sort && searchParams.sort !== 'featured' && (
+                      <input type="hidden" name="sort" value={searchParams.sort} />
+                    )}
+                    {searchParams.duration && (
+                      <input type="hidden" name="duration" value={searchParams.duration} />
+                    )}
+                    {searchParams.view && searchParams.view !== 'grid' && (
+                      <input type="hidden" name="view" value={searchParams.view} />
+                    )}
+                    
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
                     <input
                       type="text"
@@ -625,31 +665,29 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       placeholder="Search courses by title, description, or topic..."
                       className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 bg-white"
                     />
-                    {searchParams.search && (
-                      <Link
-                        href={`/dashboard/courses?${new URLSearchParams({
-                          ...searchParams,
-                          search: '',
-                        })}`}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      >
-                        <X size={18} />
-                      </Link>
-                    )}
                   </form>
                 </div>
 
                 {/* Sort and View Controls */}
                 <div className="flex gap-2">
                   <form action="/dashboard/courses" method="GET">
-                    {Object.entries(searchParams).map(([key, value]) => {
-                      if (key !== 'sort' && value) {
-                        return (
-                          <input key={key} type="hidden" name={key} value={value} />
-                        )
-                      }
-                      return null
-                    })}
+                    {/* Preserve other params */}
+                    {searchParams.category && (
+                      <input type="hidden" name="category" value={searchParams.category} />
+                    )}
+                    {searchParams.difficulty && (
+                      <input type="hidden" name="difficulty" value={searchParams.difficulty} />
+                    )}
+                    {searchParams.search && (
+                      <input type="hidden" name="search" value={searchParams.search} />
+                    )}
+                    {searchParams.duration && (
+                      <input type="hidden" name="duration" value={searchParams.duration} />
+                    )}
+                    {searchParams.view && searchParams.view !== 'grid' && (
+                      <input type="hidden" name="view" value={searchParams.view} />
+                    )}
+                    
                     <select
                       name="sort"
                       defaultValue={searchParams.sort || 'featured'}
@@ -672,7 +710,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       href={`/dashboard/courses?${new URLSearchParams({
                         ...searchParams,
                         view: 'grid',
-                      })}`}
+                      } as any)}`}
                       className={`p-2 transition-colors ${
                         viewMode === 'grid' 
                           ? 'bg-blue-600 text-white' 
@@ -685,7 +723,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       href={`/dashboard/courses?${new URLSearchParams({
                         ...searchParams,
                         view: 'list',
-                      })}`}
+                      } as any)}`}
                       className={`p-2 transition-colors ${
                         viewMode === 'list' 
                           ? 'bg-blue-600 text-white' 
@@ -706,7 +744,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       href={`/dashboard/courses?${new URLSearchParams({
                         ...searchParams,
                         difficulty: '',
-                      })}`}
+                      } as any)}`}
                       className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-sm hover:bg-slate-200 transition-colors group"
                     >
                       <span>Difficulty: {searchParams.difficulty}</span>
@@ -718,7 +756,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       href={`/dashboard/courses?${new URLSearchParams({
                         ...searchParams,
                         duration: '',
-                      })}`}
+                      } as any)}`}
                       className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-sm hover:bg-slate-200 transition-colors group"
                     >
                       <span>Duration: {durationRanges.find(r => r.value === searchParams.duration)?.label}</span>
@@ -730,7 +768,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       href={`/dashboard/courses?${new URLSearchParams({
                         ...searchParams,
                         search: '',
-                      })}`}
+                      } as any)}`}
                       className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-sm hover:bg-slate-200 transition-colors group"
                     >
                       <span>Search: "{searchParams.search}"</span>
@@ -800,7 +838,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                         <button 
                           onClick={(e) => {
                             e.preventDefault()
-                            // Toggle save functionality
+                            // Toggle save functionality would go here
                           }}
                           className="absolute top-3 right-3 w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center hover:bg-white/40 transition-colors"
                         >
@@ -932,7 +970,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                           <button 
                             onClick={(e) => {
                               e.preventDefault()
-                              // Toggle save functionality
+                              // Toggle save functionality would go here
                             }}
                             className="p-2 text-slate-400 hover:text-yellow-500 transition-colors"
                           >
@@ -1013,10 +1051,10 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                     href={`/dashboard/courses?${new URLSearchParams({
                       ...searchParams,
                       page: Math.max(1, page - 1).toString(),
-                    })}`}
+                    } as any)}`}
                     className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                       page === 1
-                        ? 'text-slate-300 cursor-not-allowed'
+                        ? 'text-slate-300 cursor-not-allowed pointer-events-none'
                         : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -1029,7 +1067,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       href={`/dashboard/courses?${new URLSearchParams({
                         ...searchParams,
                         page: p.toString(),
-                      })}`}
+                      } as any)}`}
                       className={`w-10 h-10 rounded-lg flex items-center justify-center font-medium transition-colors ${
                         page === p
                           ? 'bg-blue-600 text-white'
@@ -1044,10 +1082,10 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                     href={`/dashboard/courses?${new URLSearchParams({
                       ...searchParams,
                       page: Math.min(totalPages, page + 1).toString(),
-                    })}`}
+                    } as any)}`}
                     className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                       page === totalPages
-                        ? 'text-slate-300 cursor-not-allowed'
+                        ? 'text-slate-300 cursor-not-allowed pointer-events-none'
                         : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
