@@ -4,9 +4,8 @@ import {
   BookOpen, Clock, Users, Filter, ArrowLeft, ChevronRight, 
   Search, Star, TrendingUp, Award, Grid, List, SlidersHorizontal,
   GraduationCap, Sparkles, Target, Zap, Globe, Code, Database,
-  Palette, LineChart, Briefcase, Lightbulb, Cpu, Cloud,
-  Layers, Compass, BookMarked, PlayCircle, CheckCircle,
-  X, Download, Share2, Bookmark, Eye, ThumbsUp
+  Layers, Briefcase, LineChart, Cpu, CheckCircle,
+  X, Bookmark
 } from 'lucide-react'
 
 // Approved course slugs
@@ -33,71 +32,80 @@ const categories = [
   { 
     id: 'all', 
     name: 'All Courses', 
-    icon: 'Layers', 
+    icon: '📚', 
+    iconComponent: 'Layers',
     color: 'from-slate-600 to-slate-700',
     lightColor: 'bg-slate-100 text-slate-700',
     description: 'Browse our complete course catalog'
   },
   { 
     id: 'Business & Entrepreneurship', 
-    name: '🚀 Entrepreneurship', 
-    icon: 'Briefcase', 
+    name: 'Entrepreneurship', 
+    displayIcon: '🚀',
+    iconComponent: 'Briefcase',
     color: 'from-emerald-600 to-teal-600',
     lightColor: 'bg-emerald-100 text-emerald-700',
     description: 'Start and scale your business'
   },
   { 
     id: 'Data Science & AI', 
-    name: '🤖 Data Science & AI', 
-    icon: 'LineChart', 
+    name: 'Data Science & AI', 
+    displayIcon: '🤖',
+    iconComponent: 'LineChart',
     color: 'from-indigo-600 to-purple-600',
     lightColor: 'bg-indigo-100 text-indigo-700',
     description: 'Master data analysis and artificial intelligence'
   },
   { 
     id: 'Digital & Technology Skills', 
-    name: '💻 Digital & Technology', 
-    icon: 'Cpu', 
+    name: 'Digital & Technology', 
+    displayIcon: '💻',
+    iconComponent: 'Cpu',
     color: 'from-blue-600 to-cyan-600',
     lightColor: 'bg-blue-100 text-blue-700',
     description: 'Essential digital skills for modern careers'
   },
   { 
     id: 'Engineering & Technical Skills', 
-    name: '⚙️ Engineering', 
-    icon: 'Zap', 
+    name: 'Engineering', 
+    displayIcon: '⚙️',
+    iconComponent: 'Zap',
     color: 'from-orange-600 to-amber-600',
     lightColor: 'bg-orange-100 text-orange-700',
     description: 'Practical engineering and technical training'
   },
   { 
     id: 'Financial Literacy', 
-    name: '💰 Finance', 
-    icon: 'TrendingUp', 
+    name: 'Finance', 
+    displayIcon: '💰',
+    iconComponent: 'TrendingUp',
     color: 'from-emerald-600 to-green-600',
     lightColor: 'bg-emerald-100 text-emerald-700',
     description: 'Master personal and business finance'
   },
   { 
     id: 'Leadership & Personal Development', 
-    name: '🌟 Leadership', 
-    icon: 'Star', 
+    name: 'Leadership', 
+    displayIcon: '🌟',
+    iconComponent: 'Star',
     color: 'from-purple-600 to-pink-600',
     lightColor: 'bg-purple-100 text-purple-700',
     description: 'Develop leadership and soft skills'
   },
   { 
     id: 'Programming & Development', 
-    name: '👨‍💻 Programming', 
-    icon: 'Code', 
+    name: 'Programming', 
+    displayIcon: '👨‍💻',
+    iconComponent: 'Code',
     color: 'from-pink-600 to-rose-600',
     lightColor: 'bg-pink-100 text-pink-700',
     description: 'Learn to code and build applications'
   },
   { 
     id: 'Web Development', 
-    name: '🌐 Web Development', 
-    icon: 'Globe', 
+    name: 'Web Development', 
+    displayIcon: '🌐',
+    iconComponent: 'Globe',
     color: 'from-cyan-600 to-blue-600',
     lightColor: 'bg-cyan-100 text-cyan-700',
     description: 'Create modern websites and web apps'
@@ -128,12 +136,12 @@ const difficultyConfig = {
 
 // Sort options
 const sortOptions = [
-  { value: 'featured', label: 'Featured', icon: 'Star' },
-  { value: 'title-asc', label: 'Title A-Z', icon: 'ArrowUp' },
-  { value: 'title-desc', label: 'Title Z-A', icon: 'ArrowDown' },
-  { value: 'popular', label: 'Most Popular', icon: 'Users' },
-  { value: 'newest', label: 'Newest', icon: 'Clock' },
-  { value: 'duration', label: 'Duration', icon: 'Hourglass' },
+  { value: 'featured', label: 'Featured' },
+  { value: 'title-asc', label: 'Title A-Z' },
+  { value: 'title-desc', label: 'Title Z-A' },
+  { value: 'popular', label: 'Most Popular' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'duration', label: 'Duration' },
 ]
 
 // Duration ranges
@@ -144,20 +152,20 @@ const durationRanges = [
   { value: '20+', label: '20+ hours', min: 20, max: null },
 ]
 
-// Helper function to get icon component
-const getIcon = (iconName: string) => {
-  const icons: Record<string, any> = {
-    'Layers': Layers,
-    'Briefcase': Briefcase,
-    'LineChart': LineChart,
-    'Cpu': Cpu,
-    'Zap': Zap,
-    'TrendingUp': TrendingUp,
-    'Star': Star,
-    'Code': Code,
-    'Globe': Globe,
+// Helper function to render icon based on name
+const renderIcon = (iconName: string, className: string = "w-5 h-5") => {
+  switch(iconName) {
+    case 'Layers': return <Layers className={className} />;
+    case 'Briefcase': return <Briefcase className={className} />;
+    case 'LineChart': return <LineChart className={className} />;
+    case 'Cpu': return <Cpu className={className} />;
+    case 'Zap': return <Zap className={className} />;
+    case 'TrendingUp': return <TrendingUp className={className} />;
+    case 'Star': return <Star className={className} />;
+    case 'Code': return <Code className={className} />;
+    case 'Globe': return <Globe className={className} />;
+    default: return <Layers className={className} />;
   }
-  return icons[iconName] || Layers
 }
 
 interface PageProps {
@@ -389,11 +397,13 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
 
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 mb-8 text-white relative overflow-hidden">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: '20px 20px'
-          }}></div>
+          <div 
+            className="absolute inset-0 opacity-10"
+            style={{
+              backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
+              backgroundSize: '24px 24px'
+            }}
+          />
           <div className="relative">
             <h1 className="text-3xl font-bold mb-2">Explore Your Learning Journey</h1>
             <p className="text-white/90 mb-6 max-w-2xl">
@@ -418,7 +428,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Advanced Sidebar Filters */}
+          {/* Sidebar Filters */}
           <div className="lg:w-80 flex-shrink-0">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sticky top-24">
               <div className="flex items-center justify-between mb-6">
@@ -437,7 +447,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                 )}
               </div>
 
-              {/* Category Filter with enhanced visuals */}
+              {/* Category Filter */}
               <div className="mb-8">
                 <h3 className="text-sm font-medium text-slate-700 mb-3">Categories</h3>
                 <div className="space-y-1">
@@ -446,7 +456,6 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       ? totalCourses 
                       : categoryCounts[category.id as keyof typeof categoryCounts] || 0
                     const isActive = currentCategory === category.id
-                    const Icon = getIcon(category.icon)
 
                     return (
                       <Link
@@ -463,7 +472,8 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                             ? 'bg-white/20' 
                             : category.lightColor
                         }`}>
-                          <Icon size={16} className={isActive ? 'text-white' : ''} />
+                          {category.displayIcon && <span className="text-lg">{category.displayIcon}</span>}
+                          {!category.displayIcon && renderIcon(category.iconComponent || 'Layers', 'w-4 h-4')}
                         </div>
                         <span className="flex-1 font-medium">{category.name}</span>
                         <span className={`text-xs px-2 py-1 rounded-full ${
@@ -486,33 +496,37 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
               <div className="mb-8 pt-6 border-t border-slate-200">
                 <h3 className="text-sm font-medium text-slate-700 mb-3">Difficulty Level</h3>
                 <div className="space-y-2">
-                  {Object.entries(difficultyConfig).map(([key, config]) => (
-                    <Link
-                      key={key}
-                      href={`/dashboard/courses?${new URLSearchParams({
-                        ...searchParams,
-                        difficulty: key,
-                        category: currentCategory !== 'all' ? currentCategory : '',
-                      })}`}
-                      className={`flex items-center justify-between p-3 rounded-xl transition-all ${
-                        searchParams.difficulty === key
-                          ? `bg-gradient-to-r ${config.gradient} text-white shadow-md`
-                          : 'hover:bg-slate-100'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">{config.icon}</span>
-                        <span className={`text-sm font-medium ${
-                          searchParams.difficulty === key ? 'text-white' : 'text-slate-700'
-                        }`}>
-                          {config.label}
-                        </span>
-                      </div>
-                      {searchParams.difficulty === key && (
-                        <CheckCircle size={16} className="text-white/70" />
-                      )}
-                    </Link>
-                  ))}
+                  {Object.entries(difficultyConfig).map(([key, config]) => {
+                    const params = new URLSearchParams({
+                      ...searchParams,
+                      difficulty: key,
+                      category: currentCategory !== 'all' ? currentCategory : '',
+                    })
+                    
+                    return (
+                      <Link
+                        key={key}
+                        href={`/dashboard/courses?${params}`}
+                        className={`flex items-center justify-between p-3 rounded-xl transition-all ${
+                          searchParams.difficulty === key
+                            ? `bg-gradient-to-r ${config.gradient} text-white shadow-md`
+                            : 'hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{config.icon}</span>
+                          <span className={`text-sm font-medium ${
+                            searchParams.difficulty === key ? 'text-white' : 'text-slate-700'
+                          }`}>
+                            {config.label}
+                          </span>
+                        </div>
+                        {searchParams.difficulty === key && (
+                          <CheckCircle size={16} className="text-white/70" />
+                        )}
+                      </Link>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -520,30 +534,34 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
               <div className="mb-8 pt-6 border-t border-slate-200">
                 <h3 className="text-sm font-medium text-slate-700 mb-3">Course Duration</h3>
                 <div className="space-y-2">
-                  {durationRanges.map((range) => (
-                    <Link
-                      key={range.value}
-                      href={`/dashboard/courses?${new URLSearchParams({
-                        ...searchParams,
-                        duration: range.value,
-                        category: currentCategory !== 'all' ? currentCategory : '',
-                      })}`}
-                      className={`flex items-center justify-between p-3 rounded-xl transition-all ${
-                        searchParams.duration === range.value
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'hover:bg-slate-100'
-                      }`}
-                    >
-                      <span className={`text-sm font-medium ${
-                        searchParams.duration === range.value ? 'text-white' : 'text-slate-700'
-                      }`}>
-                        {range.label}
-                      </span>
-                      {searchParams.duration === range.value && (
-                        <CheckCircle size={16} className="text-white/70" />
-                      )}
-                    </Link>
-                  ))}
+                  {durationRanges.map((range) => {
+                    const params = new URLSearchParams({
+                      ...searchParams,
+                      duration: range.value,
+                      category: currentCategory !== 'all' ? currentCategory : '',
+                    })
+                    
+                    return (
+                      <Link
+                        key={range.value}
+                        href={`/dashboard/courses?${params}`}
+                        className={`flex items-center justify-between p-3 rounded-xl transition-all ${
+                          searchParams.duration === range.value
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className={`text-sm font-medium ${
+                          searchParams.duration === range.value ? 'text-white' : 'text-slate-700'
+                        }`}>
+                          {range.label}
+                        </span>
+                        {searchParams.duration === range.value && (
+                          <CheckCircle size={16} className="text-white/70" />
+                        )}
+                      </Link>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -590,7 +608,15 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
               <div className="flex flex-col md:flex-row gap-4">
                 {/* Search Bar */}
                 <div className="flex-1">
-                  <form className="relative">
+                  <form action="/dashboard/courses" method="GET" className="relative">
+                    {Object.entries(searchParams).map(([key, value]) => {
+                      if (key !== 'search' && value) {
+                        return (
+                          <input key={key} type="hidden" name={key} value={value} />
+                        )
+                      }
+                      return null
+                    })}
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
                     <input
                       type="text"
@@ -615,22 +641,31 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
 
                 {/* Sort and View Controls */}
                 <div className="flex gap-2">
-                  <select
-                    name="sort"
-                    defaultValue={searchParams.sort || 'featured'}
-                    onChange={(e) => {
-                      const url = new URL(window.location.href)
-                      url.searchParams.set('sort', e.target.value)
-                      window.location.href = url.toString()
-                    }}
-                    className="px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/20 bg-white text-sm"
-                  >
-                    {sortOptions.map(option => (
-                      <option key={option.value} value={option.value}>
-                        Sort by: {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <form action="/dashboard/courses" method="GET">
+                    {Object.entries(searchParams).map(([key, value]) => {
+                      if (key !== 'sort' && value) {
+                        return (
+                          <input key={key} type="hidden" name={key} value={value} />
+                        )
+                      }
+                      return null
+                    })}
+                    <select
+                      name="sort"
+                      defaultValue={searchParams.sort || 'featured'}
+                      onChange={(e) => {
+                        const form = e.target.form
+                        if (form) form.submit()
+                      }}
+                      className="px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/20 bg-white text-sm"
+                    >
+                      {sortOptions.map(option => (
+                        <option key={option.value} value={option.value}>
+                          Sort by: {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </form>
 
                   <div className="flex border border-slate-200 rounded-xl overflow-hidden bg-white">
                     <Link
@@ -741,7 +776,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                         {/* Course Icon */}
                         <div className="absolute inset-0 flex items-center justify-center">
                           <span className="text-6xl opacity-20 transform group-hover:scale-110 transition-transform duration-300">
-                            {category?.icon || '📚'}
+                            {category?.displayIcon || '📚'}
                           </span>
                         </div>
 
@@ -762,7 +797,13 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                         </div>
 
                         {/* Save Button */}
-                        <button className="absolute top-3 right-3 w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center hover:bg-white/40 transition-colors">
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault()
+                            // Toggle save functionality
+                          }}
+                          className="absolute top-3 right-3 w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center hover:bg-white/40 transition-colors"
+                        >
                           <Bookmark size={16} className="text-white" fill={isSaved ? 'white' : 'none'} />
                         </button>
 
@@ -812,7 +853,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                           <div className="flex items-center gap-3 text-xs text-slate-500">
                             <span className="flex items-center gap-1">
                               <BookOpen size={14} />
-                              {course.modules?.[0]?.count || 0} mod
+                              {course.modules?.[0]?.count || 0}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock size={14} />
@@ -853,7 +894,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       } relative`}>
                         <div className="absolute inset-0 flex items-center justify-center">
                           <span className="text-4xl opacity-20">
-                            {category?.icon || '📚'}
+                            {category?.displayIcon || '📚'}
                           </span>
                         </div>
                         {course.is_featured && (
@@ -888,7 +929,13 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                               {course.title}
                             </h3>
                           </div>
-                          <button className="p-2 text-slate-400 hover:text-yellow-500 transition-colors">
+                          <button 
+                            onClick={(e) => {
+                              e.preventDefault()
+                              // Toggle save functionality
+                            }}
+                            className="p-2 text-slate-400 hover:text-yellow-500 transition-colors"
+                          >
                             <Bookmark size={18} fill={isSaved ? 'currentColor' : 'none'} />
                           </button>
                         </div>
@@ -1033,7 +1080,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                     category?.color || 'from-slate-500 to-slate-600'
                   } relative`}>
                     <div className="absolute inset-0 flex items-center justify-center opacity-20">
-                      <span className="text-3xl">{category?.icon || '📚'}</span>
+                      <span className="text-3xl">{category?.displayIcon || '📚'}</span>
                     </div>
                   </div>
                   <div className="p-4">
