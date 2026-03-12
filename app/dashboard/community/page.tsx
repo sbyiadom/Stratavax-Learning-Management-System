@@ -50,7 +50,18 @@ interface StudyGroup {
   is_joined: boolean;
 }
 
-interface GroupDetail extends StudyGroup {
+interface GroupDetail {
+  id: string;
+  name: string;
+  description: string;
+  course: string;
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
+  member_count: number;
+  topic_count: number;
+  resource_count: number;
+  is_joined: boolean;
   members: GroupMember[];
   topics: DiscussionTopic[];
   resources: Resource[];
@@ -134,6 +145,7 @@ export default function CommunityPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error'} | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [replyTopicId, setReplyTopicId] = useState<string | null>(null);
 
   // Form states
   const [newGroup, setNewGroup] = useState({
@@ -182,58 +194,75 @@ export default function CommunityPage() {
         // Load data after user is loaded
         loadStudyGroups();
         loadEvents();
+      } else {
+        setLoading(prev => ({ ...prev, user: false, groups: false, events: false }));
       }
     } catch (error) {
       console.error('Error loading user:', error);
       showNotification('Failed to load user', 'error');
-    } finally {
-      setLoading(prev => ({ ...prev, user: false }));
+      setLoading(prev => ({ ...prev, user: false, groups: false, events: false }));
     }
   };
 
   // ==================== STUDY GROUPS ====================
   const loadStudyGroups = async () => {
+    if (!user) return;
+    
     try {
       setLoading(prev => ({ ...prev, groups: true }));
       
       // Get all study groups
       const { data: groups, error } = await supabase
         .from('study_groups')
-        .select(`
-          *,
-          profiles:created_by (name),
-          study_group_members (count),
-          discussion_topics (count),
-          resources (count)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Get user's joined groups
-      const { data: userGroups } = await supabase
-        .from('study_group_members')
-        .select('group_id')
-        .eq('user_id', user?.id);
+      // Get counts for each group
+      const groupsWithCounts = await Promise.all((groups || []).map(async (group) => {
+        // Get member count
+        const { count: memberCount } = await supabase
+          .from('study_group_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('group_id', group.id);
 
-      const joinedGroupIds = new Set(userGroups?.map(ug => ug.group_id) || []);
+        // Get topic count
+        const { count: topicCount } = await supabase
+          .from('discussion_topics')
+          .select('*', { count: 'exact', head: true })
+          .eq('group_id', group.id);
 
-      // Transform data
-      const transformedGroups: StudyGroup[] = groups.map((group: any) => ({
-        id: group.id,
-        name: group.name,
-        description: group.description,
-        course: group.course,
-        created_by: group.created_by,
-        created_by_name: group.profiles?.name || 'Unknown',
-        created_at: new Date(group.created_at).toLocaleDateString(),
-        member_count: group.study_group_members?.[0]?.count || 0,
-        topic_count: group.discussion_topics?.[0]?.count || 0,
-        resource_count: group.resources?.[0]?.count || 0,
-        is_joined: joinedGroupIds.has(group.id)
+        // Get resource count
+        const { count: resourceCount } = await supabase
+          .from('resources')
+          .select('*', { count: 'exact', head: true })
+          .eq('group_id', group.id);
+
+        // Check if user is joined
+        const { data: memberData } = await supabase
+          .from('study_group_members')
+          .select('*')
+          .eq('group_id', group.id)
+          .eq('user_id', user.id)
+          .single();
+
+        return {
+          id: group.id,
+          name: group.name,
+          description: group.description,
+          course: group.course,
+          created_by: group.created_by,
+          created_by_name: group.created_by_name,
+          created_at: new Date(group.created_at).toLocaleDateString(),
+          member_count: memberCount || 0,
+          topic_count: topicCount || 0,
+          resource_count: resourceCount || 0,
+          is_joined: !!memberData
+        };
       }));
 
-      setStudyGroups(transformedGroups);
+      setStudyGroups(groupsWithCounts);
     } catch (error) {
       console.error('Error loading study groups:', error);
       showNotification('Failed to load study groups', 'error');
@@ -243,6 +272,8 @@ export default function CommunityPage() {
   };
 
   const loadGroupDetails = async (groupId: string) => {
+    if (!user) return;
+    
     try {
       setLoading(prev => ({ ...prev, action: true }));
 
@@ -256,41 +287,116 @@ export default function CommunityPage() {
       if (groupError) throw groupError;
 
       // Get members
-      const { data: members } = await supabase
+      const { data: members, error: membersError } = await supabase
         .from('study_group_members')
         .select(`
           user_id,
           joined_at,
-          role,
-          profiles:user_id (name)
+          role
         `)
         .eq('group_id', groupId);
 
-      // Get discussions with replies
-      const { data: topics } = await supabase
+      if (membersError) throw membersError;
+
+      // Get member names from profiles
+      const membersWithNames = await Promise.all((members || []).map(async (member) => {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', member.user_id)
+          .single();
+          
+        return {
+          user_id: member.user_id,
+          user_name: profile?.name || 'Unknown',
+          joined_at: new Date(member.joined_at).toLocaleDateString(),
+          role: member.role
+        };
+      }));
+
+      // Get discussions
+      const { data: topics, error: topicsError } = await supabase
         .from('discussion_topics')
-        .select(`
-          *,
-          profiles:author_id (name),
-          discussion_replies (
-            *,
-            profiles:author_id (name)
-          )
-        `)
+        .select('*')
         .eq('group_id', groupId)
         .order('created_at', { ascending: false });
 
+      if (topicsError) throw topicsError;
+
+      // Get replies for each topic and author names
+      const topicsWithReplies = await Promise.all((topics || []).map(async (topic) => {
+        // Get topic author name
+        const { data: topicAuthor } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', topic.author_id)
+          .single();
+
+        // Get replies for this topic
+        const { data: replies } = await supabase
+          .from('discussion_replies')
+          .select('*')
+          .eq('topic_id', topic.id)
+          .order('created_at', { ascending: true });
+
+        // Get reply author names
+        const repliesWithNames = await Promise.all((replies || []).map(async (reply) => {
+          const { data: replyAuthor } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', reply.author_id')
+            .single();
+            
+          return {
+            id: reply.id,
+            content: reply.content,
+            author_id: reply.author_id,
+            author_name: replyAuthor?.name || 'Unknown',
+            created_at: new Date(reply.created_at).toLocaleString()
+          };
+        }));
+
+        return {
+          id: topic.id,
+          title: topic.title,
+          content: topic.content,
+          author_id: topic.author_id,
+          author_name: topicAuthor?.name || 'Unknown',
+          created_at: new Date(topic.created_at).toLocaleString(),
+          tags: topic.tags || [],
+          replies: repliesWithNames
+        };
+      }));
+
       // Get resources
-      const { data: resources } = await supabase
+      const { data: resources, error: resourcesError } = await supabase
         .from('resources')
-        .select(`
-          *,
-          profiles:uploaded_by (name)
-        `)
+        .select('*')
         .eq('group_id', groupId)
         .order('uploaded_at', { ascending: false });
 
-      // Transform data
+      if (resourcesError) throw resourcesError;
+
+      // Get resource uploader names
+      const resourcesWithNames = await Promise.all((resources || []).map(async (resource) => {
+        const { data: uploader } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', resource.uploaded_by)
+          .single();
+          
+        return {
+          id: resource.id,
+          title: resource.title,
+          type: resource.type,
+          url: resource.url,
+          uploaded_by: resource.uploaded_by,
+          uploaded_by_name: uploader?.name || 'Unknown',
+          uploaded_at: new Date(resource.uploaded_at).toLocaleDateString(),
+          description: resource.description
+        };
+      }));
+
       const transformedGroup: GroupDetail = {
         id: group.id,
         name: group.name,
@@ -299,42 +405,13 @@ export default function CommunityPage() {
         created_by: group.created_by,
         created_by_name: group.created_by_name,
         created_at: new Date(group.created_at).toLocaleDateString(),
-        member_count: members?.length || 0,
-        topic_count: topics?.length || 0,
-        resource_count: resources?.length || 0,
-        is_joined: members?.some(m => m.user_id === user?.id) || false,
-        members: members?.map(m => ({
-          user_id: m.user_id,
-          user_name: m.profiles?.name || 'Unknown',
-          joined_at: new Date(m.joined_at).toLocaleDateString(),
-          role: m.role
-        })) || [],
-        topics: topics?.map(t => ({
-          id: t.id,
-          title: t.title,
-          content: t.content,
-          author_id: t.author_id,
-          author_name: t.profiles?.name || 'Unknown',
-          created_at: new Date(t.created_at).toLocaleString(),
-          tags: t.tags || [],
-          replies: t.discussion_replies?.map((r: any) => ({
-            id: r.id,
-            content: r.content,
-            author_id: r.author_id,
-            author_name: r.profiles?.name || 'Unknown',
-            created_at: new Date(r.created_at).toLocaleString()
-          })) || []
-        })) || [],
-        resources: resources?.map(r => ({
-          id: r.id,
-          title: r.title,
-          type: r.type,
-          url: r.url,
-          uploaded_by: r.uploaded_by,
-          uploaded_by_name: r.profiles?.name || 'Unknown',
-          uploaded_at: new Date(r.uploaded_at).toLocaleDateString(),
-          description: r.description
-        })) || []
+        member_count: membersWithNames.length,
+        topic_count: topicsWithReplies.length,
+        resource_count: resourcesWithNames.length,
+        is_joined: membersWithNames.some(m => m.user_id === user.id),
+        members: membersWithNames,
+        topics: topicsWithReplies,
+        resources: resourcesWithNames
       };
 
       setSelectedGroup(transformedGroup);
@@ -347,6 +424,7 @@ export default function CommunityPage() {
   };
 
   const createStudyGroup = async () => {
+    if (!user) return;
     if (!newGroup.name || !newGroup.description || !newGroup.course) {
       showNotification('Please fill in all fields', 'error');
       return;
@@ -361,8 +439,8 @@ export default function CommunityPage() {
           name: newGroup.name,
           description: newGroup.description,
           course: newGroup.course,
-          created_by: user?.id,
-          created_by_name: user?.name
+          created_by: user.id,
+          created_by_name: user.name
         })
         .select()
         .single();
@@ -374,7 +452,7 @@ export default function CommunityPage() {
         .from('study_group_members')
         .insert({
           group_id: data.id,
-          user_id: user?.id,
+          user_id: user.id,
           role: 'admin'
         });
 
@@ -391,6 +469,8 @@ export default function CommunityPage() {
   };
 
   const joinGroup = async (groupId: string) => {
+    if (!user) return;
+
     try {
       setLoading(prev => ({ ...prev, action: true }));
 
@@ -398,7 +478,7 @@ export default function CommunityPage() {
         .from('study_group_members')
         .insert({
           group_id: groupId,
-          user_id: user?.id,
+          user_id: user.id,
           role: 'member'
         });
 
@@ -420,6 +500,7 @@ export default function CommunityPage() {
   };
 
   const leaveGroup = async (groupId: string) => {
+    if (!user) return;
     if (!confirm('Are you sure you want to leave this group?')) return;
 
     try {
@@ -429,7 +510,7 @@ export default function CommunityPage() {
         .from('study_group_members')
         .delete()
         .eq('group_id', groupId)
-        .eq('user_id', user?.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
@@ -449,7 +530,11 @@ export default function CommunityPage() {
 
   // ==================== DISCUSSIONS ====================
   const createDiscussion = async () => {
-    if (!newDiscussion.title || !newDiscussion.content || !selectedGroup) return;
+    if (!user || !selectedGroup) return;
+    if (!newDiscussion.title || !newDiscussion.content) {
+      showNotification('Please add title and content', 'error');
+      return;
+    }
 
     try {
       setLoading(prev => ({ ...prev, action: true }));
@@ -460,7 +545,7 @@ export default function CommunityPage() {
           group_id: selectedGroup.id,
           title: newDiscussion.title,
           content: newDiscussion.content,
-          author_id: user?.id,
+          author_id: user.id,
           tags: newDiscussion.tags.split(',').map(t => t.trim()).filter(t => t)
         });
 
@@ -479,7 +564,8 @@ export default function CommunityPage() {
   };
 
   const addReply = async (topicId: string) => {
-    if (!replyText.trim() || !selectedGroup) return;
+    if (!user || !selectedGroup) return;
+    if (!replyText.trim()) return;
 
     try {
       const { error } = await supabase
@@ -487,13 +573,15 @@ export default function CommunityPage() {
         .insert({
           topic_id: topicId,
           content: replyText,
-          author_id: user?.id
+          author_id: user.id
         });
 
       if (error) throw error;
 
       setReplyText('');
+      setReplyTopicId(null);
       loadGroupDetails(selectedGroup.id);
+      showNotification('Reply added!');
     } catch (error) {
       console.error('Error adding reply:', error);
       showNotification('Failed to add reply', 'error');
@@ -502,7 +590,11 @@ export default function CommunityPage() {
 
   // ==================== RESOURCES ====================
   const addResource = async () => {
-    if (!newResource.title || !newResource.url || !selectedGroup) return;
+    if (!user || !selectedGroup) return;
+    if (!newResource.title || !newResource.url) {
+      showNotification('Please add title and URL', 'error');
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -513,7 +605,7 @@ export default function CommunityPage() {
           type: newResource.type,
           url: newResource.url,
           description: newResource.description,
-          uploaded_by: user?.id
+          uploaded_by: user.id
         });
 
       if (error) throw error;
@@ -548,14 +640,14 @@ export default function CommunityPage() {
 
         const registeredIds = new Set(registrations?.map(r => r.event_id) || []);
 
-        const eventsWithStatus = data.map(event => ({
+        const eventsWithStatus = (data || []).map(event => ({
           ...event,
           is_registered: registeredIds.has(event.id)
         }));
 
         setEvents(eventsWithStatus);
       } else {
-        setEvents(data);
+        setEvents(data || []);
       }
     } catch (error) {
       console.error('Error loading events:', error);
@@ -565,12 +657,17 @@ export default function CommunityPage() {
   };
 
   const registerForEvent = async (eventId: string) => {
+    if (!user) {
+      showNotification('Please login to register', 'error');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('event_registrations')
         .insert({
           event_id: eventId,
-          user_id: user?.id
+          user_id: user.id
         });
 
       if (error) throw error;
@@ -643,7 +740,7 @@ export default function CommunityPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Community</h1>
-          <p className="text-gray-600 mt-2">Welcome back, {user?.name}!</p>
+          <p className="text-gray-600 mt-2">{user ? `Welcome back, ${user.name}!` : 'Please login to participate'}</p>
         </div>
 
         {/* Feature Cards */}
@@ -705,13 +802,15 @@ export default function CommunityPage() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">Study Groups</h2>
-              <button
-                onClick={() => setShowCreateGroup(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <Plus size={18} />
-                Create Group
-              </button>
+              {user && (
+                <button
+                  onClick={() => setShowCreateGroup(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <Plus size={18} />
+                  Create Group
+                </button>
+              )}
             </div>
 
             {/* Search */}
@@ -773,12 +872,17 @@ export default function CommunityPage() {
                         ) : (
                           <button
                             onClick={() => {
-                              setSelectedGroup({
+                              if (!user) {
+                                showNotification('Please login to join groups', 'error');
+                                return;
+                              }
+                              const tempGroup: GroupDetail = {
                                 ...group,
                                 members: [],
                                 topics: [],
                                 resources: []
-                              } as GroupDetail);
+                              };
+                              setSelectedGroup(tempGroup);
                               setShowJoinModal(true);
                             }}
                             className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center justify-center gap-2"
@@ -802,6 +906,23 @@ export default function CommunityPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {!loading.groups && filteredGroups.length === 0 && (
+              <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+                <Users size={48} className="mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No study groups found</h3>
+                <p className="text-gray-600 mb-4">Try adjusting your search or create a new group</p>
+                {user && (
+                  <button
+                    onClick={() => setShowCreateGroup(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <Plus size={18} />
+                    Create Your First Group
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -907,14 +1028,18 @@ export default function CommunityPage() {
                           <div className="flex gap-2 mt-4">
                             <input
                               type="text"
-                              value={replyText}
-                              onChange={(e) => setReplyText(e.target.value)}
+                              value={replyTopicId === topic.id ? replyText : ''}
+                              onChange={(e) => {
+                                setReplyTopicId(topic.id);
+                                setReplyText(e.target.value);
+                              }}
+                              onFocus={() => setReplyTopicId(topic.id)}
                               placeholder="Add a reply..."
                               className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                             <button
                               onClick={() => addReply(topic.id)}
-                              disabled={!replyText.trim()}
+                              disabled={replyTopicId !== topic.id || !replyText.trim()}
                               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                             >
                               <Send size={18} />
@@ -1040,14 +1165,16 @@ export default function CommunityPage() {
 
                   <button
                     onClick={() => registerForEvent(event.id)}
-                    disabled={event.is_registered}
+                    disabled={event.is_registered || !user}
                     className={`w-full px-4 py-2 rounded-lg transition-colors ${
                       event.is_registered
                         ? 'bg-green-100 text-green-600 cursor-default'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                        : user
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    {event.is_registered ? 'Registered' : 'Register Now'}
+                    {!user ? 'Login to Register' : event.is_registered ? 'Registered' : 'Register Now'}
                   </button>
                 </div>
               ))}
