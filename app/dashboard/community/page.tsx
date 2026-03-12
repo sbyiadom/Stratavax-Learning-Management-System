@@ -1,87 +1,202 @@
-// app/dashboard/community/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import {
-  Users, MessageCircle, Calendar, Plus, Rocket, Clock,
-  BookOpen, User, Reply, Sparkles, X, LogIn, Settings,
-  FileText, Video, Link as LinkIcon, Search, Send,
-  Loader2, Github, Download
+  // Core icons
+  Users, MessageCircle, Calendar, Plus, Search, Settings,
+  LogIn, LogOut, Download, Github, Loader2, X, Send,
+  
+  // Content icons
+  BookOpen, Video, FileText, Link as LinkIcon, Clock,
+  
+  // Status icons
+  CheckCircle, AlertCircle, Star, Award, TrendingUp,
+  
+  // Navigation icons
+  Home, Compass, BarChart, Award as Certificate, User,
+  
+  // Action icons
+  Edit, Trash2, Flag, Share2, Bookmark, Bell,
+  
+  // Brand icon
+  GraduationCap
 } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 
-// Types (simplified for build)
-type StudyGroup = {
+// ==================== PROFESSIONAL TYPES ====================
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role: 'learner' | 'instructor' | 'admin';
+  joinedAt: string;
+  lastActive: string;
+  stats: {
+    groupsJoined: number;
+    discussionsCreated: number;
+    resourcesShared: number;
+    eventsAttended: number;
+  };
+}
+
+interface StudyGroup {
   id: string;
   name: string;
   description: string;
   course: string;
-  created_by: string;
-  created_by_name: string;
-  created_at: string;
-  member_count: number;
-  topic_count: number;
-  resource_count: number;
-  is_joined: boolean;
-};
+  createdBy: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  createdAt: string;
+  stats: {
+    members: number;
+    discussions: number;
+    resources: number;
+    weeklyActive: number;
+  };
+  isJoined: boolean;
+  isFavorite: boolean;
+  tags: string[];
+  lastActivity: string;
+}
 
-type GroupDetail = StudyGroup & {
-  members: any[];
-  topics: any[];
-  resources: any[];
-};
-
-type Event = {
+interface DiscussionTopic {
   id: string;
   title: string;
-  description: string | null;
+  content: string;
+  author: {
+    id: string;
+    name: string;
+    avatar?: string;
+    role: string;
+  };
+  createdAt: string;
+  stats: {
+    replies: number;
+    views: number;
+    likes: number;
+    lastReply: string;
+  };
+  isPinned: boolean;
+  isResolved: boolean;
+  tags: string[];
+}
+
+interface Resource {
+  id: string;
+  title: string;
+  type: 'video' | 'document' | 'link' | 'presentation' | 'code';
+  url: string;
+  description: string;
+  author: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  createdAt: string;
+  stats: {
+    downloads: number;
+    likes: number;
+    views: number;
+  };
+  tags: string[];
+  thumbnail?: string;
+  size?: string;
+  duration?: string;
+}
+
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  type: 'webinar' | 'workshop' | 'hackathon' | 'meetup' | 'qna';
   date: string;
   time: string;
-  type: string;
-  attendees: number;
-  max_attendees: number | null;
-  is_registered?: boolean;
-};
+  duration: string;
+  location: 'online' | 'in-person';
+  link?: string;
+  host: {
+    id: string;
+    name: string;
+    avatar?: string;
+    title: string;
+  };
+  stats: {
+    attendees: number;
+    maxAttendees?: number;
+    waitlist: number;
+  };
+  isRegistered: boolean;
+  isSaved: boolean;
+  tags: string[];
+}
 
+// ==================== MAIN COMPONENT ====================
 export default function CommunityPage() {
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // State
-  const [user, setUser] = useState<any>(null);
+  // ==================== STATE MANAGEMENT ====================
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [studyGroups, setStudyGroups] = useState<StudyGroup[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<GroupDetail | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<any>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState({
-    user: true,
+    initial: true,
     groups: true,
     events: true,
     action: false
   });
-  const [activeView, setActiveView] = useState('discussions');
+  
+  // UI State
+  const [activeTab, setActiveTab] = useState<'discover' | 'my-groups' | 'saved'>('discover');
+  const [activeView, setActiveView] = useState<'grid' | 'list'>('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<'recent' | 'popular' | 'active'>('recent');
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Modals
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showDiscussionModal, setShowDiscussionModal] = useState(false);
   const [showResourceModal, setShowResourceModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  
+  // Forms
+  const [newGroup, setNewGroup] = useState({ name: '', description: '', course: '', tags: '' });
+  const [newDiscussion, setNewDiscussion] = useState({ title: '', content: '', tags: '' });
+  const [newResource, setNewResource] = useState({ title: '', type: 'link', url: '', description: '', tags: '' });
+  
+  // Notifications
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  
+  // Reply state
   const [replyText, setReplyText] = useState('');
   const [replyTopicId, setReplyTopicId] = useState<string | null>(null);
-  const [newGroup, setNewGroup] = useState({ name: '', description: '', course: '' });
-  const [newDiscussion, setNewDiscussion] = useState({ title: '', content: '', tags: '' });
-  const [newResource, setNewResource] = useState({ title: '', type: 'link', url: '', description: '' });
 
-  // Initial load
+  // ==================== AVAILABLE TAGS ====================
+  const availableTags = [
+    'Web Development', 'Data Science', 'UI/UX Design', 'Mobile Development',
+    'DevOps', 'Machine Learning', 'Cloud Computing', 'Cybersecurity',
+    'Blockchain', 'IoT', 'AR/VR', 'Game Development', 'Python', 'JavaScript',
+    'React', 'Node.js', 'TypeScript', 'GraphQL', 'AWS', 'Docker', 'Kubernetes'
+  ];
+
+  // ==================== INITIALIZATION ====================
   useEffect(() => {
     loadUser();
   }, []);
 
-  // ==================== USER ====================
+  // ==================== USER FUNCTIONS ====================
   const loadUser = async () => {
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
+      
       if (authUser) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -89,33 +204,54 @@ export default function CommunityPage() {
           .eq('id', authUser.id)
           .maybeSingle();
 
+        // Get user stats
+        const { count: groupsJoined } = await supabase
+          .from('study_group_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', authUser.id);
+
+        const { count: discussionsCreated } = await supabase
+          .from('discussion_topics')
+          .select('*', { count: 'exact', head: true })
+          .eq('author_id', authUser.id);
+
+        const { count: resourcesShared } = await supabase
+          .from('resources')
+          .select('*', { count: 'exact', head: true })
+          .eq('uploaded_by', authUser.id);
+
+        const { count: eventsAttended } = await supabase
+          .from('event_registrations')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', authUser.id);
+
         setUser({
           id: authUser.id,
-          name: profile?.name || authUser.email?.split('@')[0] || 'User',
+          name: profile?.name || authUser.email?.split('@')[0] || 'Learner',
           email: authUser.email || '',
-          role: profile?.role || 'learner'
+          role: profile?.role || 'learner',
+          joinedAt: profile?.created_at || new Date().toISOString(),
+          lastActive: new Date().toISOString(),
+          stats: {
+            groupsJoined: groupsJoined || 0,
+            discussionsCreated: discussionsCreated || 0,
+            resourcesShared: resourcesShared || 0,
+            eventsAttended: eventsAttended || 0
+          }
         });
 
-        // Load data after user is set
         await Promise.all([loadStudyGroups(), loadEvents()]);
-      } else {
-        setUser(null);
-        setLoading(prev => ({ ...prev, groups: false, events: false }));
       }
     } catch (error) {
       console.error('Error loading user:', error);
-      setUser(null);
     } finally {
-      setLoading(prev => ({ ...prev, user: false }));
+      setLoading(prev => ({ ...prev, initial: false }));
     }
   };
 
   // ==================== STUDY GROUPS ====================
   const loadStudyGroups = async () => {
-    if (!user) {
-      setLoading(prev => ({ ...prev, groups: false }));
-      return;
-    }
+    if (!user) return;
 
     try {
       setLoading(prev => ({ ...prev, groups: true }));
@@ -127,12 +263,25 @@ export default function CommunityPage() {
 
       if (error) throw error;
 
-      // If no groups, set empty array and stop loading
       if (!groups || groups.length === 0) {
         setStudyGroups([]);
-        setLoading(prev => ({ ...prev, groups: false }));
         return;
       }
+
+      // Get user's joined groups and favorites
+      const { data: userGroups } = await supabase
+        .from('study_group_members')
+        .select('group_id')
+        .eq('user_id', user.id);
+
+      const { data: favorites } = await supabase
+        .from('user_favorites')
+        .select('item_id')
+        .eq('user_id', user.id)
+        .eq('item_type', 'group');
+
+      const joinedIds = new Set(userGroups?.map(ug => ug.group_id) || []);
+      const favoriteIds = new Set(favorites?.map(f => f.item_id) || []);
 
       const groupsWithDetails = await Promise.all(groups.map(async (group: any) => {
         // Get member count
@@ -141,8 +290,8 @@ export default function CommunityPage() {
           .select('*', { count: 'exact', head: true })
           .eq('group_id', group.id);
 
-        // Get topic count
-        const { count: topicCount } = await supabase
+        // Get discussion count
+        const { count: discussionCount } = await supabase
           .from('discussion_topics')
           .select('*', { count: 'exact', head: true })
           .eq('group_id', group.id);
@@ -153,352 +302,72 @@ export default function CommunityPage() {
           .select('*', { count: 'exact', head: true })
           .eq('group_id', group.id);
 
-        // Check if current user is a member
-        const { data: memberData } = await supabase
+        // Get weekly active count (last 7 days)
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        
+        const { count: weeklyActive } = await supabase
           .from('study_group_members')
-          .select('*')
+          .select('*', { count: 'exact', head: true })
           .eq('group_id', group.id)
-          .eq('user_id', user.id)
+          .gte('joined_at', weekAgo.toISOString());
+
+        // Get last activity
+        const { data: lastDiscussion } = await supabase
+          .from('discussion_topics')
+          .select('created_at')
+          .eq('group_id', group.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
+
+        const { data: lastResource } = await supabase
+          .from('resources')
+          .select('uploaded_at')
+          .eq('group_id', group.id)
+          .order('uploaded_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const lastActivity = lastDiscussion?.created_at || lastResource?.uploaded_at || group.created_at;
 
         return {
           id: group.id,
           name: group.name,
           description: group.description,
           course: group.course,
-          created_by: group.created_by,
-          created_by_name: group.created_by_name,
-          created_at: new Date(group.created_at).toLocaleDateString(),
-          member_count: memberCount || 0,
-          topic_count: topicCount || 0,
-          resource_count: resourceCount || 0,
-          is_joined: !!memberData
+          createdBy: {
+            id: group.created_by,
+            name: group.created_by_name
+          },
+          createdAt: new Date(group.created_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          }),
+          stats: {
+            members: memberCount || 0,
+            discussions: discussionCount || 0,
+            resources: resourceCount || 0,
+            weeklyActive: weeklyActive || 0
+          },
+          isJoined: joinedIds.has(group.id),
+          isFavorite: favoriteIds.has(group.id),
+          tags: group.tags || [group.course],
+          lastActivity: new Date(lastActivity).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })
         };
       }));
 
       setStudyGroups(groupsWithDetails);
     } catch (error) {
       console.error('Error loading study groups:', error);
-      setStudyGroups([]);
       showNotification('Failed to load study groups', 'error');
     } finally {
       setLoading(prev => ({ ...prev, groups: false }));
-    }
-  };
-
-  const loadGroupDetails = async (groupId: string) => {
-    if (!user) return;
-
-    try {
-      setLoading(prev => ({ ...prev, action: true }));
-
-      // Get group details
-      const { data: group, error: groupError } = await supabase
-        .from('study_groups')
-        .select('*')
-        .eq('id', groupId)
-        .single();
-
-      if (groupError || !group) {
-        throw new Error('Group not found');
-      }
-
-      // Get members
-      const { data: members } = await supabase
-        .from('study_group_members')
-        .select('user_id, joined_at, role')
-        .eq('group_id', groupId);
-
-      const membersWithNames = await Promise.all((members || []).map(async (member: any) => {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('id', member.user_id)
-          .maybeSingle();
-
-        return {
-          user_id: member.user_id,
-          user_name: profile?.name || 'Unknown',
-          joined_at: new Date(member.joined_at).toLocaleDateString(),
-          role: member.role
-        };
-      }));
-
-      // Get discussions
-      const { data: topics } = await supabase
-        .from('discussion_topics')
-        .select('*')
-        .eq('group_id', groupId)
-        .order('created_at', { ascending: false });
-
-      const topicsWithReplies = await Promise.all((topics || []).map(async (topic: any) => {
-        const { data: topicAuthor } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('id', topic.author_id)
-          .maybeSingle();
-
-        const { data: replies } = await supabase
-          .from('discussion_replies')
-          .select('*')
-          .eq('topic_id', topic.id)
-          .order('created_at', { ascending: true });
-
-        const repliesWithNames = await Promise.all((replies || []).map(async (reply: any) => {
-          const { data: replyAuthor } = await supabase
-            .from('profiles')
-            .select('name')
-            .eq('id', reply.author_id)
-            .maybeSingle();
-
-          return {
-            id: reply.id,
-            content: reply.content,
-            author_id: reply.author_id,
-            author_name: replyAuthor?.name || 'Unknown',
-            created_at: new Date(reply.created_at).toLocaleString()
-          };
-        }));
-
-        return {
-          id: topic.id,
-          title: topic.title,
-          content: topic.content,
-          author_id: topic.author_id,
-          author_name: topicAuthor?.name || 'Unknown',
-          created_at: new Date(topic.created_at).toLocaleString(),
-          tags: topic.tags || [],
-          replies: repliesWithNames
-        };
-      }));
-
-      // Get resources
-      const { data: resources } = await supabase
-        .from('resources')
-        .select('*')
-        .eq('group_id', groupId)
-        .order('uploaded_at', { ascending: false });
-
-      const resourcesWithNames = await Promise.all((resources || []).map(async (resource: any) => {
-        const { data: uploader } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('id', resource.uploaded_by)
-          .maybeSingle();
-
-        return {
-          id: resource.id,
-          title: resource.title,
-          type: resource.type,
-          url: resource.url,
-          uploaded_by: resource.uploaded_by,
-          uploaded_by_name: uploader?.name || 'Unknown',
-          uploaded_at: new Date(resource.uploaded_at).toLocaleDateString(),
-          description: resource.description
-        };
-      }));
-
-      setSelectedGroup({
-        id: group.id,
-        name: group.name,
-        description: group.description,
-        course: group.course,
-        created_by: group.created_by,
-        created_by_name: group.created_by_name,
-        created_at: new Date(group.created_at).toLocaleDateString(),
-        member_count: membersWithNames.length,
-        topic_count: topicsWithReplies.length,
-        resource_count: resourcesWithNames.length,
-        is_joined: membersWithNames.some(m => m.user_id === user.id),
-        members: membersWithNames,
-        topics: topicsWithReplies,
-        resources: resourcesWithNames
-      });
-    } catch (error) {
-      console.error('Error loading group details:', error);
-      showNotification('Failed to load group details', 'error');
-    } finally {
-      setLoading(prev => ({ ...prev, action: false }));
-    }
-  };
-
-  const createStudyGroup = async () => {
-    if (!user || !newGroup.name || !newGroup.description || !newGroup.course) {
-      showNotification('Please fill in all fields', 'error');
-      return;
-    }
-
-    try {
-      setLoading(prev => ({ ...prev, action: true }));
-
-      const { data, error } = await supabase
-        .from('study_groups')
-        .insert({
-          name: newGroup.name,
-          description: newGroup.description,
-          course: newGroup.course,
-          created_by: user.id,
-          created_by_name: user.name
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        await supabase.from('study_group_members').insert({
-          group_id: data.id,
-          user_id: user.id,
-          role: 'admin'
-        });
-
-        showNotification('Study group created successfully!');
-        setShowCreateGroup(false);
-        setNewGroup({ name: '', description: '', course: '' });
-        await loadStudyGroups();
-      }
-    } catch (error) {
-      console.error('Error creating study group:', error);
-      showNotification('Failed to create study group', 'error');
-    } finally {
-      setLoading(prev => ({ ...prev, action: false }));
-    }
-  };
-
-  const joinGroup = async (groupId: string) => {
-    if (!user) return;
-
-    try {
-      setLoading(prev => ({ ...prev, action: true }));
-
-      const { error } = await supabase.from('study_group_members').insert({
-        group_id: groupId,
-        user_id: user.id,
-        role: 'member'
-      });
-
-      if (error) throw error;
-
-      showNotification('You joined the group!');
-      setShowJoinModal(false);
-      await loadStudyGroups();
-
-      if (selectedGroup?.id === groupId) {
-        await loadGroupDetails(groupId);
-      }
-    } catch (error) {
-      console.error('Error joining group:', error);
-      showNotification('Failed to join group', 'error');
-    } finally {
-      setLoading(prev => ({ ...prev, action: false }));
-    }
-  };
-
-  const leaveGroup = async (groupId: string) => {
-    if (!user || !confirm('Are you sure you want to leave this group?')) return;
-
-    try {
-      setLoading(prev => ({ ...prev, action: true }));
-
-      const { error } = await supabase
-        .from('study_group_members')
-        .delete()
-        .eq('group_id', groupId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      showNotification('You left the group');
-      await loadStudyGroups();
-      setSelectedGroup(null);
-    } catch (error) {
-      console.error('Error leaving group:', error);
-      showNotification('Failed to leave group', 'error');
-    } finally {
-      setLoading(prev => ({ ...prev, action: false }));
-    }
-  };
-
-  // ==================== DISCUSSIONS ====================
-  const createDiscussion = async () => {
-    if (!user || !selectedGroup || !newDiscussion.title || !newDiscussion.content) {
-      showNotification('Please add title and content', 'error');
-      return;
-    }
-
-    try {
-      setLoading(prev => ({ ...prev, action: true }));
-
-      const { error } = await supabase.from('discussion_topics').insert({
-        group_id: selectedGroup.id,
-        title: newDiscussion.title,
-        content: newDiscussion.content,
-        author_id: user.id,
-        tags: newDiscussion.tags.split(',').map(t => t.trim()).filter(t => t)
-      });
-
-      if (error) throw error;
-
-      showNotification('Discussion posted!');
-      setShowDiscussionModal(false);
-      setNewDiscussion({ title: '', content: '', tags: '' });
-      await loadGroupDetails(selectedGroup.id);
-    } catch (error) {
-      console.error('Error creating discussion:', error);
-      showNotification('Failed to create discussion', 'error');
-    } finally {
-      setLoading(prev => ({ ...prev, action: false }));
-    }
-  };
-
-  const addReply = async (topicId: string) => {
-    if (!user || !selectedGroup || !replyText.trim()) return;
-
-    try {
-      const { error } = await supabase.from('discussion_replies').insert({
-        topic_id: topicId,
-        content: replyText,
-        author_id: user.id
-      });
-
-      if (error) throw error;
-
-      setReplyText('');
-      setReplyTopicId(null);
-      await loadGroupDetails(selectedGroup.id);
-      showNotification('Reply added!');
-    } catch (error) {
-      console.error('Error adding reply:', error);
-      showNotification('Failed to add reply', 'error');
-    }
-  };
-
-  // ==================== RESOURCES ====================
-  const addResource = async () => {
-    if (!user || !selectedGroup || !newResource.title || !newResource.url) {
-      showNotification('Please add title and URL', 'error');
-      return;
-    }
-
-    try {
-      const { error } = await supabase.from('resources').insert({
-        group_id: selectedGroup.id,
-        title: newResource.title,
-        type: newResource.type,
-        url: newResource.url,
-        description: newResource.description,
-        uploaded_by: user.id
-      });
-
-      if (error) throw error;
-
-      showNotification('Resource added!');
-      setShowResourceModal(false);
-      setNewResource({ title: '', type: 'link', url: '', description: '' });
-      await loadGroupDetails(selectedGroup.id);
-    } catch (error) {
-      console.error('Error adding resource:', error);
-      showNotification('Failed to add resource', 'error');
     }
   };
 
@@ -515,10 +384,8 @@ export default function CommunityPage() {
 
       if (error) throw error;
 
-      // If no events, set empty array and stop loading
       if (!data || data.length === 0) {
         setEvents([]);
-        setLoading(prev => ({ ...prev, events: false }));
         return;
       }
 
@@ -528,11 +395,41 @@ export default function CommunityPage() {
           .select('event_id')
           .eq('user_id', user.id);
 
+        const { data: saved } = await supabase
+          .from('user_favorites')
+          .select('item_id')
+          .eq('user_id', user.id)
+          .eq('item_type', 'event');
+
         const registeredIds = new Set(registrations?.map(r => r.event_id) || []);
-        setEvents(data.map(event => ({
-          ...event,
-          is_registered: registeredIds.has(event.id)
-        })));
+        const savedIds = new Set(saved?.map(s => s.item_id) || []);
+
+        const eventsWithStatus = data.map(event => ({
+          id: event.id,
+          title: event.title,
+          description: event.description,
+          type: event.type,
+          date: event.date,
+          time: event.time,
+          duration: event.duration || '1 hour',
+          location: event.location || 'online',
+          link: event.link,
+          host: {
+            id: event.host_id,
+            name: event.host_name,
+            title: event.host_title
+          },
+          stats: {
+            attendees: event.attendees || 0,
+            maxAttendees: event.max_attendees,
+            waitlist: event.waitlist || 0
+          },
+          isRegistered: registeredIds.has(event.id),
+          isSaved: savedIds.has(event.id),
+          tags: event.tags || []
+        }));
+
+        setEvents(eventsWithStatus);
       } else {
         setEvents(data);
       }
@@ -544,143 +441,390 @@ export default function CommunityPage() {
     }
   };
 
-  const registerForEvent = async (eventId: string) => {
-    if (!user) {
-      showNotification('Please login to register', 'error');
-      return;
-    }
+  // ==================== FILTERS AND SORT ====================
+  const filteredGroups = studyGroups
+    .filter(group => {
+      // Filter by tab
+      if (activeTab === 'my-groups' && !group.isJoined) return false;
+      if (activeTab === 'saved' && !group.isFavorite) return false;
+      
+      // Filter by search
+      if (searchQuery && !group.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !group.description.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      
+      // Filter by tags
+      if (selectedTags.length > 0 && !selectedTags.some(tag => group.tags.includes(tag))) {
+        return false;
+      }
+      
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'recent') {
+        return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
+      } else if (sortBy === 'popular') {
+        return b.stats.members - a.stats.members;
+      } else {
+        return b.stats.weeklyActive - a.stats.weeklyActive;
+      }
+    });
 
-    try {
-      const { error } = await supabase.from('event_registrations').insert({
-        event_id: eventId,
-        user_id: user.id
-      });
-
-      if (error) throw error;
-
-      await supabase.rpc('increment_event_attendees', { event_id: eventId });
-      showNotification('Registered for event!');
-      await loadEvents();
-    } catch (error) {
-      console.error('Error registering for event:', error);
-      showNotification('Failed to register for event', 'error');
-    }
-  };
-
-  // ==================== UTILITIES ====================
-  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+  // ==================== NOTIFICATION ====================
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
 
+  // ==================== EXPORT FUNCTION ====================
   const handleExport = () => {
-    if (studyGroups.length === 0) {
-      showNotification('No data to export', 'error');
-      return;
-    }
+    const data = studyGroups.map(g => ({
+      'Group Name': g.name,
+      'Course': g.course,
+      'Members': g.stats.members,
+      'Discussions': g.stats.discussions,
+      'Resources': g.stats.resources,
+      'Weekly Active': g.stats.weeklyActive,
+      'Created By': g.createdBy.name,
+      'Created At': g.createdAt,
+      'Last Activity': g.lastActivity
+    }));
 
     const csv = [
-      ['Group Name', 'Course', 'Members', 'Discussions', 'Resources', 'Created By', 'Created At'],
-      ...studyGroups.map(g => [g.name, g.course, g.member_count, g.topic_count, g.resource_count, g.created_by_name, g.created_at])
-    ].map(row => row.join(',')).join('\n');
+      Object.keys(data[0]).join(','),
+      ...data.map(row => Object.values(row).join(','))
+    ].join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'study-groups.csv';
+    a.download = `stratavax-groups-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
   };
 
-  const filteredGroups = studyGroups.filter(g =>
-    g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    g.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    g.course.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // ==================== RENDER ====================
-  if (loading.user) {
+  // ==================== LOADING STATE ====================
+  if (loading.initial) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 size={40} className="animate-spin text-blue-600" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-20 h-20 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+            <GraduationCap className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-primary" size={32} />
+          </div>
+          <p className="mt-4 text-slate-600 font-medium">Loading Stratavax Community...</p>
+        </div>
       </div>
     );
   }
 
+  // ==================== RENDER ====================
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Professional Header */}
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo and Brand */}
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <div className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+                  <GraduationCap className="text-white" size={24} />
+                </div>
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                  Stratavax
+                </h1>
+                <p className="text-xs text-slate-500">Learning Management System</p>
+              </div>
+            </div>
+
+            {/* User Menu */}
+            {user && (
+              <div className="flex items-center space-x-4">
+                {/* Stats Badge */}
+                <div className="hidden md:flex items-center space-x-3">
+                  <div className="flex items-center space-x-1 px-3 py-1 bg-blue-50 rounded-full">
+                    <Users size={14} className="text-primary" />
+                    <span className="text-xs font-medium text-primary">{user.stats.groupsJoined}</span>
+                  </div>
+                  <div className="flex items-center space-x-1 px-3 py-1 bg-purple-50 rounded-full">
+                    <MessageCircle size={14} className="text-secondary" />
+                    <span className="text-xs font-medium text-secondary">{user.stats.discussionsCreated}</span>
+                  </div>
+                  <div className="flex items-center space-x-1 px-3 py-1 bg-emerald-50 rounded-full">
+                    <Award size={14} className="text-success" />
+                    <span className="text-xs font-medium text-success">{user.stats.eventsAttended}</span>
+                  </div>
+                </div>
+
+                {/* User Profile */}
+                <div className="flex items-center space-x-3">
+                  <div className="text-right hidden md:block">
+                    <p className="text-sm font-semibold text-slate-800">{user.name}</p>
+                    <p className="text-xs text-slate-500 capitalize">{user.role}</p>
+                  </div>
+                  <div className="relative">
+                    <div className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white font-bold text-lg">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Community</h1>
-          <p className="text-gray-600 mt-2">
-            {user ? `Welcome back, ${user.name}!` : 'Please login to participate'}
+          <h1 className="text-3xl font-bold text-slate-900">Community Hub</h1>
+          <p className="text-slate-600 mt-2">
+            {user ? `Welcome back, ${user.name}!` : 'Connect with peers, join study groups, and grow together'}
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-4 mb-8">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            <Download size={18} /> Export Excel
-          </button>
-          <button
-            onClick={() => window.open('https://github.com/settings/connections/applications', '_blank')}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
-          >
-            <Github size={18} /> Connect GitHub
-          </button>
+        {/* Stats Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-600">Study Groups</p>
+                <p className="text-2xl font-bold text-slate-900">{studyGroups.length}</p>
+                <p className="text-xs text-green-600 mt-1">↑ 12% this week</p>
+              </div>
+              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Users className="text-primary" size={24} />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-600">Active Discussions</p>
+                <p className="text-2xl font-bold text-slate-900">156</p>
+                <p className="text-xs text-green-600 mt-1">↑ 8% this week</p>
+              </div>
+              <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
+                <MessageCircle className="text-secondary" size={24} />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-600">Resources Shared</p>
+                <p className="text-2xl font-bold text-slate-900">342</p>
+                <p className="text-xs text-green-600 mt-1">↑ 24% this week</p>
+              </div>
+              <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                <FileText className="text-emerald-600" size={24} />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-600">Upcoming Events</p>
+                <p className="text-2xl font-bold text-slate-900">{events.length}</p>
+                <p className="text-xs text-orange-600 mt-1">3 this week</p>
+              </div>
+              <div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center">
+                <Calendar className="text-orange-600" size={24} />
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Main Content: Study Groups List or Group Detail */}
-        {!selectedGroup ? (
-          <div className="space-y-6">
-            {/* Header with Create Button */}
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Study Groups</h2>
+        {/* Action Bar */}
+        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-8">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 transition-all"
+              >
+                <Download size={18} />
+                Export Data
+              </button>
+              <button
+                onClick={() => window.open('https://github.com/settings/connections/applications', '_blank')}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all"
+              >
+                <Github size={18} />
+                Connect GitHub
+              </button>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setActiveView('grid')}
+                className={`p-2 rounded-lg transition-all ${activeView === 'grid' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setActiveView('list')}
+                className={`p-2 rounded-lg transition-all ${activeView === 'list' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Sidebar Filters */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sticky top-24">
+              <h3 className="font-semibold text-slate-900 mb-4">Filters</h3>
+              
+              {/* Tabs */}
+              <div className="space-y-2 mb-6">
+                <button
+                  onClick={() => setActiveTab('discover')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-all ${
+                    activeTab === 'discover' ? 'bg-primary text-white' : 'hover:bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  <Users size={18} className="inline mr-2" />
+                  Discover
+                </button>
+                <button
+                  onClick={() => setActiveTab('my-groups')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-all ${
+                    activeTab === 'my-groups' ? 'bg-primary text-white' : 'hover:bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  <BookOpen size={18} className="inline mr-2" />
+                  My Groups ({studyGroups.filter(g => g.isJoined).length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('saved')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-all ${
+                    activeTab === 'saved' ? 'bg-primary text-white' : 'hover:bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  <Star size={18} className="inline mr-2" />
+                  Saved ({studyGroups.filter(g => g.isFavorite).length})
+                </button>
+              </div>
+
+              {/* Sort Options */}
+              <div className="mb-6">
+                <label className="text-sm font-medium text-slate-700 mb-2 block">Sort by</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
+                  <option value="recent">Most Recent</option>
+                  <option value="popular">Most Popular</option>
+                  <option value="active">Most Active</option>
+                </select>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">Topics</label>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {availableTags.slice(0, 10).map(tag => (
+                    <label key={tag} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedTags.includes(tag)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedTags([...selectedTags, tag]);
+                          } else {
+                            setSelectedTags(selectedTags.filter(t => t !== tag));
+                          }
+                        }}
+                        className="rounded border-slate-300 text-primary focus:ring-primary/20"
+                      />
+                      <span className="text-sm text-slate-600">{tag}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Create Group Button */}
               {user && (
                 <button
                   onClick={() => setShowCreateGroup(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="w-full mt-6 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/20 transition-all font-medium"
                 >
-                  <Plus size={18} /> Create Group
+                  <Plus size={18} />
+                  Create New Group
                 </button>
               )}
             </div>
+          </div>
 
+          {/* Main Content Area */}
+          <div className="lg:col-span-3">
             {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Search groups..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
-              />
+            <div className="mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search groups by name, description, or topics..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Groups Grid with Loading/Empty States */}
+            {/* Groups Grid/List */}
             {loading.groups ? (
               <div className="text-center py-12">
-                <Loader2 size={40} className="animate-spin mx-auto text-blue-600 mb-4" />
-                <p className="text-gray-600">Loading study groups...</p>
+                <Loader2 size={40} className="animate-spin mx-auto text-primary mb-4" />
+                <p className="text-slate-600">Loading study groups...</p>
               </div>
             ) : (
               <>
                 {filteredGroups.length === 0 ? (
-                  <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-                    <Users size={48} className="mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Study Groups Yet</h3>
-                    <p className="text-gray-600 mb-4">
-                      {searchTerm ? 'No groups match your search.' : 'Be the first to create a study group!'}
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
+                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Users className="text-slate-400" size={32} />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No Groups Found</h3>
+                    <p className="text-slate-600 mb-6">
+                      {searchQuery || selectedTags.length > 0
+                        ? 'Try adjusting your filters'
+                        : activeTab === 'my-groups'
+                        ? "You haven't joined any groups yet"
+                        : activeTab === 'saved'
+                        ? "You haven't saved any groups yet"
+                        : 'Be the first to create a study group!'}
                     </p>
-                    {user && !searchTerm && (
+                    {user && !searchQuery && selectedTags.length === 0 && activeTab === 'discover' && (
                       <button
                         onClick={() => setShowCreateGroup(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all font-medium"
                       >
                         <Plus size={18} />
                         Create Your First Group
@@ -688,536 +832,465 @@ export default function CommunityPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className={`grid ${activeView === 'grid' ? 'grid-cols-1 md:grid-cols-2 gap-6' : 'grid-cols-1 gap-4'}`}>
                     {filteredGroups.map((group) => (
                       <div
                         key={group.id}
-                        className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all"
+                        className={`bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all ${
+                          activeView === 'list' ? 'flex' : ''
+                        }`}
                       >
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <h3 className="text-lg font-semibold">{group.name}</h3>
-                            <p className="text-sm text-blue-600">{group.course}</p>
+                        {activeView === 'grid' ? (
+                          // Grid View
+                          <div className="p-6">
+                            <div className="flex justify-between items-start mb-4">
+                              <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="text-lg font-semibold text-slate-900">{group.name}</h3>
+                                  {group.isJoined && (
+                                    <span className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full flex items-center gap-1">
+                                      <CheckCircle size={12} />
+                                      Joined
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-primary font-medium">{group.course}</p>
+                              </div>
+                              <button
+                                onClick={() => {/* Toggle favorite */}}
+                                className={`p-2 rounded-lg transition-all ${
+                                  group.isFavorite ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-500'
+                                }`}
+                              >
+                                <Star size={18} fill={group.isFavorite ? 'currentColor' : 'none'} />
+                              </button>
+                            </div>
+
+                            <p className="text-slate-600 text-sm mb-4 line-clamp-2">{group.description}</p>
+
+                            {/* Tags */}
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              {group.tags.slice(0, 3).map(tag => (
+                                <span
+                                  key={tag}
+                                  className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {group.tags.length > 3 && (
+                                <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full">
+                                  +{group.tags.length - 3}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Stats */}
+                            <div className="grid grid-cols-3 gap-4 mb-4">
+                              <div className="text-center">
+                                <p className="text-sm font-semibold text-slate-900">{group.stats.members}</p>
+                                <p className="text-xs text-slate-500">Members</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-sm font-semibold text-slate-900">{group.stats.discussions}</p>
+                                <p className="text-xs text-slate-500">Discussions</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-sm font-semibold text-slate-900">{group.stats.resources}</p>
+                                <p className="text-xs text-slate-500">Resources</p>
+                              </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                              <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <Clock size={14} />
+                                <span>Active {group.lastActivity}</span>
+                              </div>
+                              <div className="flex gap-2">
+                                {group.isJoined ? (
+                                  <button
+                                    onClick={() => {/* View group */}}
+                                    className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary-dark transition-all"
+                                  >
+                                    View Group
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedGroup(group);
+                                      setShowJoinModal(true);
+                                    }}
+                                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-all flex items-center gap-2"
+                                  >
+                                    <LogIn size={16} />
+                                    Join
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
-                            {group.member_count} members
-                          </span>
-                        </div>
-
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{group.description}</p>
-
-                        <div className="flex justify-between text-sm text-gray-500 mb-4">
-                          <span>By {group.created_by_name}</span>
-                          <span>{group.created_at}</span>
-                        </div>
-
-                        <div className="flex gap-2">
-                          {group.is_joined ? (
-                            <>
-                              <button
-                                onClick={() => loadGroupDetails(group.id)}
-                                className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-                              >
-                                View
-                              </button>
-                              <button
-                                onClick={() => leaveGroup(group.id)}
-                                className="px-3 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50"
-                              >
-                                Leave
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                if (!user) {
-                                  showNotification('Please login to join', 'error');
-                                  return;
-                                }
-                                // Set a minimal group object for the join modal
-                                setSelectedGroup({
-                                  ...group,
-                                  members: [],
-                                  topics: [],
-                                  resources: []
-                                } as GroupDetail);
-                                setShowJoinModal(true);
-                              }}
-                              className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 flex items-center justify-center gap-2"
-                            >
-                              <LogIn size={16} /> Join
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="border-t mt-4 pt-4 grid grid-cols-2 gap-4 text-sm text-gray-600">
-                          <span className="flex items-center gap-2">
-                            <MessageCircle size={16} /> {group.topic_count}
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <FileText size={16} /> {group.resource_count}
-                          </span>
-                        </div>
+                        ) : (
+                          // List View
+                          <div className="flex-1 p-6">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="text-lg font-semibold text-slate-900">{group.name}</h3>
+                                  {group.isJoined && (
+                                    <span className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full">
+                                      Joined
+                                    </span>
+                                  )}
+                                  <span className="text-sm text-primary">{group.course}</span>
+                                </div>
+                                <p className="text-slate-600 text-sm mb-3">{group.description}</p>
+                                <div className="flex items-center gap-4 text-sm text-slate-500">
+                                  <span className="flex items-center gap-1"><Users size={14} /> {group.stats.members}</span>
+                                  <span className="flex items-center gap-1"><MessageCircle size={14} /> {group.stats.discussions}</span>
+                                  <span className="flex items-center gap-1"><FileText size={14} /> {group.stats.resources}</span>
+                                  <span className="flex items-center gap-1"><Clock size={14} /> {group.lastActivity}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 ml-4">
+                                <button className="p-2 text-slate-400 hover:text-yellow-500">
+                                  <Star size={18} />
+                                </button>
+                                {group.isJoined ? (
+                                  <button className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-dark">
+                                    View
+                                  </button>
+                                ) : (
+                                  <button className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
+                                    Join
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
               </>
             )}
-          </div>
-        ) : (
-          /* Group Detail View */
-          <div className="space-y-6">
-            <button onClick={() => setSelectedGroup(null)} className="text-gray-600 hover:text-gray-900">
-              ← Back to Groups
-            </button>
 
-            <div className="bg-white rounded-xl p-6 border border-gray-200">
-              <h2 className="text-2xl font-bold mb-2">{selectedGroup.name}</h2>
-              <p className="text-gray-700 mb-4">{selectedGroup.description}</p>
-              <div className="flex gap-6 text-sm text-gray-600">
-                <span>📚 {selectedGroup.course}</span>
-                <span>👥 {selectedGroup.member_count} members</span>
-                <span>📅 {selectedGroup.created_at}</span>
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="border-b border-gray-200">
-              <nav className="flex gap-8">
-                <button
-                  onClick={() => setActiveView('discussions')}
-                  className={`pb-4 px-1 ${activeView === 'discussions' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
-                >
-                  Discussions ({selectedGroup.topic_count})
+            {/* Events Section */}
+            <div className="mt-12">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-slate-900">Upcoming Events</h2>
+                <button className="text-primary hover:text-primary-dark font-medium text-sm">
+                  View All →
                 </button>
-                <button
-                  onClick={() => setActiveView('resources')}
-                  className={`pb-4 px-1 ${activeView === 'resources' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
-                >
-                  Resources ({selectedGroup.resource_count})
-                </button>
-              </nav>
-            </div>
-
-            {/* Discussions Tab */}
-            {activeView === 'discussions' && (
-              <div className="space-y-6">
-                {selectedGroup.is_joined && (
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => setShowDiscussionModal(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      <Plus size={18} /> New Discussion
-                    </button>
-                  </div>
-                )}
-
-                {selectedGroup.topics.length === 0 ? (
-                  <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-                    <MessageCircle size={48} className="mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Discussions Yet</h3>
-                    <p className="text-gray-600">
-                      {selectedGroup.is_joined
-                        ? 'Start the first discussion!'
-                        : 'Join this group to view and participate in discussions.'}
-                    </p>
-                  </div>
-                ) : (
-                  selectedGroup.topics.map((topic: any) => (
-                    <div key={topic.id} className="bg-white rounded-lg border border-gray-200 p-6">
-                      <h4 className="text-lg font-semibold">{topic.title}</h4>
-                      <div className="flex items-center gap-3 text-sm text-gray-500 mt-2">
-                        <span>{topic.author_name}</span>
-                        <span>•</span>
-                        <span>{topic.created_at}</span>
-                      </div>
-                      <p className="text-gray-700 mt-4">{topic.content}</p>
-
-                      {topic.tags.length > 0 && (
-                        <div className="flex gap-2 mt-4">
-                          {topic.tags.map((tag: string) => (
-                            <span key={tag} className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Replies */}
-                      {topic.replies.map((reply: any) => (
-                        <div key={reply.id} className="bg-gray-50 rounded-lg p-4 ml-8 mt-4">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="font-medium text-sm">{reply.author_name}</span>
-                            <span className="text-xs text-gray-500">{reply.created_at}</span>
-                          </div>
-                          <p className="text-gray-700 text-sm">{reply.content}</p>
-                        </div>
-                      ))}
-
-                      {/* Reply Input */}
-                      {selectedGroup.is_joined && (
-                        <div className="flex gap-2 mt-4">
-                          <input
-                            type="text"
-                            value={replyTopicId === topic.id ? replyText : ''}
-                            onChange={(e) => {
-                              setReplyTopicId(topic.id);
-                              setReplyText(e.target.value);
-                            }}
-                            onFocus={() => setReplyTopicId(topic.id)}
-                            placeholder="Add a reply..."
-                            className="flex-1 p-2 border border-gray-300 rounded-lg"
-                          />
-                          <button
-                            onClick={() => addReply(topic.id)}
-                            disabled={replyTopicId !== topic.id || !replyText.trim()}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                          >
-                            <Send size={18} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
               </div>
-            )}
 
-            {/* Resources Tab */}
-            {activeView === 'resources' && (
-              <div className="space-y-6">
-                {selectedGroup.is_joined && (
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => setShowResourceModal(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                    >
-                      <Plus size={18} /> Add Resource
-                    </button>
-                  </div>
-                )}
-
-                {selectedGroup.resources.length === 0 ? (
-                  <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-                    <FileText size={48} className="mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Resources Yet</h3>
-                    <p className="text-gray-600">
-                      {selectedGroup.is_joined
-                        ? 'Share the first resource!'
-                        : 'Join this group to access and share resources.'}
-                    </p>
-                  </div>
-                ) : (
-                  selectedGroup.resources.map((resource: any) => (
-                    <div key={resource.id} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3">
-                          {resource.type === 'video' && <Video className="text-red-500" size={24} />}
-                          {resource.type === 'document' && <FileText className="text-blue-500" size={24} />}
-                          {resource.type === 'link' && <LinkIcon className="text-green-500" size={24} />}
-                          <div>
-                            <h4 className="font-semibold">{resource.title}</h4>
-                            {resource.description && (
-                              <p className="text-sm text-gray-600 mt-1">{resource.description}</p>
-                            )}
-                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                              <span>Added by {resource.uploaded_by_name}</span>
-                              <span>{resource.uploaded_at}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <a
-                          href={resource.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                        >
-                          View
-                        </a>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Events Section */}
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-6">Upcoming Events</h2>
-
-          {loading.events ? (
-            <div className="text-center py-8">
-              <Loader2 size={32} className="animate-spin mx-auto text-blue-600" />
-            </div>
-          ) : (
-            <>
-              {events.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-                  <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Upcoming Events</h3>
-                  <p className="text-gray-600">Check back later for webinars and workshops!</p>
+              {loading.events ? (
+                <div className="text-center py-8">
+                  <Loader2 size={32} className="animate-spin mx-auto text-primary" />
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {events.map((event) => (
-                    <div key={event.id} className="bg-white rounded-xl p-6 border border-gray-200">
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium mb-4 ${
-                          event.type === 'webinar'
-                            ? 'bg-blue-100 text-blue-600'
-                            : event.type === 'workshop'
-                            ? 'bg-green-100 text-green-600'
-                            : 'bg-purple-100 text-purple-600'
-                        }`}
-                      >
-                        {event.type.toUpperCase()}
-                      </span>
-                      <h3 className="text-lg font-semibold mb-2">{event.title}</h3>
-                      <p className="text-sm text-gray-600 mb-3">{event.description}</p>
-                      <p className="text-sm text-gray-600 mb-1">📅 {new Date(event.date).toLocaleDateString()}</p>
-                      <p className="text-sm text-gray-600 mb-4">⏰ {event.time}</p>
-                      <button
-                        onClick={() => registerForEvent(event.id)}
-                        disabled={event.is_registered || !user}
-                        className={`w-full px-4 py-2 rounded-lg ${
-                          event.is_registered
-                            ? 'bg-green-100 text-green-600 cursor-default'
-                            : user
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        {!user ? 'Login to Register' : event.is_registered ? 'Registered' : 'Register Now'}
-                      </button>
+                  {events.slice(0, 3).map((event) => (
+                    <div
+                      key={event.id}
+                      className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
+                    >
+                      {/* Event Type Banner */}
+                      <div className={`h-2 ${
+                        event.type === 'webinar' ? 'bg-primary' :
+                        event.type === 'workshop' ? 'bg-secondary' :
+                        event.type === 'hackathon' ? 'bg-purple-500' :
+                        event.type === 'meetup' ? 'bg-emerald-500' : 'bg-orange-500'
+                      }`}></div>
+                      
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mb-2 ${
+                              event.type === 'webinar' ? 'bg-blue-100 text-primary' :
+                              event.type === 'workshop' ? 'bg-purple-100 text-secondary' :
+                              event.type === 'hackathon' ? 'bg-purple-100 text-purple-600' :
+                              event.type === 'meetup' ? 'bg-emerald-100 text-emerald-600' :
+                              'bg-orange-100 text-orange-600'
+                            }`}>
+                              {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
+                            </span>
+                            <h3 className="text-lg font-semibold text-slate-900">{event.title}</h3>
+                          </div>
+                          <button className={`p-2 rounded-lg transition-all ${
+                            event.isSaved ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-500'
+                          }`}>
+                            <Bookmark size={18} fill={event.isSaved ? 'currentColor' : 'none'} />
+                          </button>
+                        </div>
+
+                        <p className="text-sm text-slate-600 mb-4 line-clamp-2">{event.description}</p>
+
+                        {/* Event Details */}
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <Calendar size={16} className="text-slate-400" />
+                            <span>{new Date(event.date).toLocaleDateString('en-US', {
+                              weekday: 'short',
+                              month: 'short',
+                              day: 'numeric'
+                            })}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <Clock size={16} className="text-slate-400" />
+                            <span>{event.time} ({event.duration})</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <Users size={16} className="text-slate-400" />
+                            <span>{event.stats.attendees} attending</span>
+                            {event.stats.maxAttendees && (
+                              <span className="text-xs text-slate-500">
+                                · {event.stats.maxAttendees - event.stats.attendees} spots left
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Host Info */}
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white text-xs font-bold">
+                            {event.host.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">{event.host.name}</p>
+                            <p className="text-xs text-slate-500">{event.host.title}</p>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {/* Register */}}
+                            disabled={event.isRegistered}
+                            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                              event.isRegistered
+                                ? 'bg-green-100 text-green-600 cursor-default'
+                                : 'bg-primary text-white hover:bg-primary-dark'
+                            }`}
+                          >
+                            {event.isRegistered ? 'Registered' : 'Register'}
+                          </button>
+                          {event.location === 'online' && event.link && (
+                            <a
+                              href={event.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"
+                            >
+                              Join
+                            </a>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
-            </>
-          )}
-        </div>
-
-        {/* Admin Panel (visible only to admin users) */}
-        {user?.role === 'admin' && (
-          <div className="mt-12 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
-              <Settings size={20} /> Admin Panel
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-left">
-                <FileText className="text-blue-600 mb-2" size={24} />
-                <h3 className="font-semibold">Manage Resources</h3>
-                <p className="text-sm text-gray-600 mt-1">Review and moderate resources</p>
-              </button>
-              <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 text-left">
-                <Users className="text-green-600 mb-2" size={24} />
-                <h3 className="font-semibold">Manage Groups</h3>
-                <p className="text-sm text-gray-600 mt-1">Monitor all study groups</p>
-              </button>
-              <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 text-left">
-                <Calendar className="text-purple-600 mb-2" size={24} />
-                <h3 className="font-semibold">Create Events</h3>
-                <p className="text-sm text-gray-600 mt-1">Schedule new events</p>
-              </button>
             </div>
+
+            {/* Admin Panel */}
+            {user?.role === 'admin' && (
+              <div className="mt-12 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-6">
+                  <Settings size={20} className="text-primary" />
+                  Admin Dashboard
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <button className="p-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-primary hover:bg-primary/5 transition-all text-left group">
+                    <FileText className="text-primary mb-3" size={24} />
+                    <h3 className="font-semibold text-slate-900 mb-1">Manage Resources</h3>
+                    <p className="text-sm text-slate-600">Review and moderate shared resources</p>
+                  </button>
+                  <button className="p-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-secondary hover:bg-secondary/5 transition-all text-left group">
+                    <Users className="text-secondary mb-3" size={24} />
+                    <h3 className="font-semibold text-slate-900 mb-1">Manage Groups</h3>
+                    <p className="text-sm text-slate-600">Monitor and moderate study groups</p>
+                  </button>
+                  <button className="p-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-emerald-500 hover:bg-emerald-500/5 transition-all text-left group">
+                    <Calendar className="text-emerald-600 mb-3" size={24} />
+                    <h3 className="font-semibold text-slate-900 mb-1">Create Events</h3>
+                    <p className="text-sm text-slate-600">Schedule webinars and workshops</p>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* ========== MODALS ========== */}
-
-        {/* Create Group Modal */}
-        {showCreateGroup && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 max-w-md w-full">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold">Create Study Group</h3>
-                <button onClick={() => setShowCreateGroup(false)}>
+      {/* Create Group Modal */}
+      {showCreateGroup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 p-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold text-slate-900">Create Study Group</h3>
+                <button onClick={() => setShowCreateGroup(false)} className="text-slate-400 hover:text-slate-600">
                   <X size={20} />
                 </button>
               </div>
-              <div className="space-y-4">
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Group Name</label>
                 <input
                   type="text"
-                  placeholder="Group Name"
                   value={newGroup.name}
                   onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
+                  className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  placeholder="e.g., Advanced JavaScript Study Group"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Course</label>
                 <select
                   value={newGroup.course}
                   onChange={(e) => setNewGroup({ ...newGroup, course: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
+                  className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 >
-                  <option value="">Select Course</option>
+                  <option value="">Select a course</option>
                   <option value="Web Development">Web Development</option>
                   <option value="Data Science">Data Science</option>
                   <option value="UI/UX Design">UI/UX Design</option>
+                  <option value="Mobile Development">Mobile Development</option>
+                  <option value="DevOps">DevOps</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
                 <textarea
-                  placeholder="Description"
                   value={newGroup.description}
                   onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
                   rows={4}
-                  className="w-full p-2 border rounded-lg"
+                  className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  placeholder="What will this group study? Goals? Prerequisites?"
                 />
               </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button onClick={() => setShowCreateGroup(false)} className="px-4 py-2 border rounded-lg">
-                  Cancel
-                </button>
-                <button
-                  onClick={createStudyGroup}
-                  disabled={loading.action}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {loading.action && <Loader2 size={16} className="animate-spin" />}
-                  Create
-                </button>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Tags (comma separated)</label>
+                <input
+                  type="text"
+                  value={newGroup.tags}
+                  onChange={(e) => setNewGroup({ ...newGroup, tags: e.target.value })}
+                  className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  placeholder="e.g., javascript, react, beginners"
+                />
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Join Group Modal */}
-        {showJoinModal && selectedGroup && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 max-w-md w-full">
-              <h3 className="text-xl font-bold mb-4">Join Group</h3>
-              <p className="mb-4">Are you sure you want to join {selectedGroup.name}?</p>
+            <div className="sticky bottom-0 bg-white border-t border-slate-200 p-6">
               <div className="flex justify-end gap-3">
-                <button onClick={() => setShowJoinModal(false)} className="px-4 py-2 border rounded-lg">
+                <button
+                  onClick={() => setShowCreateGroup(false)}
+                  className="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+                >
                   Cancel
                 </button>
                 <button
-                  onClick={() => joinGroup(selectedGroup.id)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  onClick={() => {/* Create group */}}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all flex items-center gap-2"
                 >
-                  Join
+                  <Plus size={18} />
+                  Create Group
                 </button>
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* New Discussion Modal */}
-        {showDiscussionModal && selectedGroup && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 max-w-md w-full">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold">New Discussion</h3>
-                <button onClick={() => setShowDiscussionModal(false)}>
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  placeholder="Title"
-                  value={newDiscussion.title}
-                  onChange={(e) => setNewDiscussion({ ...newDiscussion, title: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
-                />
-                <textarea
-                  placeholder="Content"
-                  value={newDiscussion.content}
-                  onChange={(e) => setNewDiscussion({ ...newDiscussion, content: e.target.value })}
-                  rows={4}
-                  className="w-full p-2 border rounded-lg"
-                />
-                <input
-                  type="text"
-                  placeholder="Tags (comma separated)"
-                  value={newDiscussion.tags}
-                  onChange={(e) => setNewDiscussion({ ...newDiscussion, tags: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
-                />
-              </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button onClick={() => setShowDiscussionModal(false)} className="px-4 py-2 border rounded-lg">
-                  Cancel
-                </button>
-                <button
-                  onClick={createDiscussion}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Post
-                </button>
+      {/* Join Group Modal */}
+      {showJoinModal && selectedGroup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-slate-900">Join Group</h3>
+              <button onClick={() => setShowJoinModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <h4 className="font-semibold text-lg mb-2">{selectedGroup.name}</h4>
+              <p className="text-slate-600 mb-4">{selectedGroup.description}</p>
+
+              <div className="bg-primary/5 border border-primary/10 rounded-lg p-4">
+                <p className="text-sm text-primary font-medium mb-2">By joining, you'll get:</p>
+                <ul className="text-sm text-slate-600 space-y-2">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle size={16} className="text-green-600" />
+                    Access to all discussions
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle size={16} className="text-green-600" />
+                    Share and access resources
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle size={16} className="text-green-600" />
+                    Connect with {selectedGroup.stats?.members} members
+                  </li>
+                </ul>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Add Resource Modal */}
-        {showResourceModal && selectedGroup && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 max-w-md w-full">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold">Add Resource</h3>
-                <button onClick={() => setShowResourceModal(false)}>
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  placeholder="Title"
-                  value={newResource.title}
-                  onChange={(e) => setNewResource({ ...newResource, title: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
-                />
-                <select
-                  value={newResource.type}
-                  onChange={(e) => setNewResource({ ...newResource, type: e.target.value as any })}
-                  className="w-full p-2 border rounded-lg"
-                >
-                  <option value="link">Link</option>
-                  <option value="video">Video</option>
-                  <option value="document">Document</option>
-                </select>
-                <input
-                  type="url"
-                  placeholder="URL"
-                  value={newResource.url}
-                  onChange={(e) => setNewResource({ ...newResource, url: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
-                />
-                <textarea
-                  placeholder="Description"
-                  value={newResource.description}
-                  onChange={(e) => setNewResource({ ...newResource, description: e.target.value })}
-                  rows={3}
-                  className="w-full p-2 border rounded-lg"
-                />
-              </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button onClick={() => setShowResourceModal(false)} className="px-4 py-2 border rounded-lg">
-                  Cancel
-                </button>
-                <button onClick={addResource} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                  Add
-                </button>
-              </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowJoinModal(false)}
+                className="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {/* Join group */}}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all flex items-center gap-2"
+              >
+                <LogIn size={18} />
+                Join Group
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Notification */}
-        {notification && (
-          <div
-            className={`fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 text-white ${
-              notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-            }`}
-          >
-            {notification.message}
-          </div>
-        )}
-      </div>
+      {/* Notification */}
+      {notification && (
+        <div
+          className={`fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg z-50 flex items-center gap-3 animate-slideIn ${
+            notification.type === 'success' ? 'bg-green-600' :
+            notification.type === 'error' ? 'bg-red-600' : 'bg-primary'
+          } text-white`}
+        >
+          {notification.type === 'success' && <CheckCircle size={20} />}
+          {notification.type === 'error' && <AlertCircle size={20} />}
+          {notification.type === 'info' && <Bell size={20} />}
+          <p>{notification.message}</p>
+        </div>
+      )}
 
       <style jsx>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        .animate-slideIn {
+          animation: slideIn 0.3s ease;
+        }
         .line-clamp-2 {
           display: -webkit-box;
           -webkit-line-clamp: 2;
