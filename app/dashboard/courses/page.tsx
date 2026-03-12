@@ -144,17 +144,20 @@ const durationRanges = [
   { value: '20+', label: '20+ hours', min: 20, max: null },
 ]
 
-// Icon mapping for Lucide components
-const iconMap: Record<string, any> = {
-  'Layers': Layers,
-  'Briefcase': Briefcase,
-  'LineChart': LineChart,
-  'Cpu': Cpu,
-  'Zap': Zap,
-  'TrendingUp': TrendingUp,
-  'Star': Star,
-  'Code': Code,
-  'Globe': Globe,
+// Helper function to get icon component
+const getIcon = (iconName: string) => {
+  const icons: Record<string, any> = {
+    'Layers': Layers,
+    'Briefcase': Briefcase,
+    'LineChart': LineChart,
+    'Cpu': Cpu,
+    'Zap': Zap,
+    'TrendingUp': TrendingUp,
+    'Star': Star,
+    'Code': Code,
+    'Globe': Globe,
+  }
+  return icons[iconName] || Layers
 }
 
 interface PageProps {
@@ -288,7 +291,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
           <p className="text-slate-600 mb-6">There was an error loading the course catalog. Please try again.</p>
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
           >
             <ArrowLeft size={18} />
             Back to Dashboard
@@ -347,7 +350,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
               </Link>
               <div className="flex items-center space-x-3">
                 <div className="relative">
-                  <div className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
                     <GraduationCap className="text-white" size={24} />
                   </div>
                 </div>
@@ -364,9 +367,9 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
             <div className="flex items-center space-x-4">
               <div className="hidden md:block text-right">
                 <p className="text-sm font-medium text-slate-900">Welcome back,</p>
-                <p className="text-sm text-primary font-semibold">{profile?.name || user.email?.split('@')[0]}</p>
+                <p className="text-sm text-blue-600 font-semibold">{profile?.name || user.email?.split('@')[0]}</p>
               </div>
-              <div className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white font-bold text-lg">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
                 {(profile?.name || user.email?.charAt(0) || 'U').charAt(0).toUpperCase()}
               </div>
             </div>
@@ -377,7 +380,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb Navigation */}
         <nav className="flex items-center gap-2 text-sm text-slate-500 mb-6">
-          <Link href="/dashboard" className="hover:text-primary transition-colors">
+          <Link href="/dashboard" className="hover:text-blue-600 transition-colors">
             Dashboard
           </Link>
           <ChevronRight size={14} />
@@ -385,8 +388,12 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
         </nav>
 
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-8 mb-8 text-white relative overflow-hidden">
-          <div className="absolute inset-0 bg-grid-white/10 [mask-image:radial-gradient(ellipse_at_center,white,transparent)]"></div>
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 mb-8 text-white relative overflow-hidden">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+            backgroundSize: '20px 20px'
+          }}></div>
           <div className="relative">
             <h1 className="text-3xl font-bold mb-2">Explore Your Learning Journey</h1>
             <p className="text-white/90 mb-6 max-w-2xl">
@@ -416,13 +423,13 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sticky top-24">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                  <SlidersHorizontal size={18} className="text-primary" />
+                  <SlidersHorizontal size={18} className="text-blue-600" />
                   Filters
                 </h2>
                 {(searchParams.category || searchParams.difficulty || searchParams.duration || searchParams.search) && (
                   <Link
                     href="/dashboard/courses"
-                    className="text-sm text-primary hover:text-primary-dark flex items-center gap-1"
+                    className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
                   >
                     <X size={14} />
                     Clear all
@@ -439,7 +446,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       ? totalCourses 
                       : categoryCounts[category.id as keyof typeof categoryCounts] || 0
                     const isActive = currentCategory === category.id
-                    const Icon = iconMap[category.icon] || Layers
+                    const Icon = getIcon(category.icon)
 
                     return (
                       <Link
@@ -523,7 +530,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       })}`}
                       className={`flex items-center justify-between p-3 rounded-xl transition-all ${
                         searchParams.duration === range.value
-                          ? 'bg-primary text-white shadow-md'
+                          ? 'bg-blue-600 text-white shadow-md'
                           : 'hover:bg-slate-100'
                       }`}
                     >
@@ -543,7 +550,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
               {/* Learning Paths */}
               <div className="pt-6 border-t border-slate-200">
                 <h3 className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-2">
-                  <Target size={16} className="text-primary" />
+                  <Target size={16} className="text-blue-600" />
                   Recommended for You
                 </h3>
                 <div className="space-y-3">
@@ -590,7 +597,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       name="search"
                       defaultValue={searchParams.search}
                       placeholder="Search courses by title, description, or topic..."
-                      className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                      className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 bg-white"
                     />
                     {searchParams.search && (
                       <Link
@@ -616,7 +623,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       url.searchParams.set('sort', e.target.value)
                       window.location.href = url.toString()
                     }}
-                    className="px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white text-sm"
+                    className="px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/20 bg-white text-sm"
                   >
                     {sortOptions.map(option => (
                       <option key={option.value} value={option.value}>
@@ -633,8 +640,8 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       })}`}
                       className={`p-2 transition-colors ${
                         viewMode === 'grid' 
-                          ? 'bg-primary text-white' 
-                          : 'text-slate-400 hover:text-primary hover:bg-slate-50'
+                          ? 'bg-blue-600 text-white' 
+                          : 'text-slate-400 hover:text-blue-600 hover:bg-slate-50'
                       }`}
                     >
                       <Grid size={20} />
@@ -646,8 +653,8 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       })}`}
                       className={`p-2 transition-colors ${
                         viewMode === 'list' 
-                          ? 'bg-primary text-white' 
-                          : 'text-slate-400 hover:text-primary hover:bg-slate-50'
+                          ? 'bg-blue-600 text-white' 
+                          : 'text-slate-400 hover:text-blue-600 hover:bg-slate-50'
                       }`}
                     >
                       <List size={20} />
@@ -719,6 +726,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                   const isEnrolled = enrolledCourses.has(course.id)
                   const progress = enrolledCourses.get(course.id)
                   const isSaved = savedCourseIds.has(course.id)
+                  const category = categories.find(c => c.id === course.category)
                   
                   return (
                     <Link
@@ -728,12 +736,12 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                     >
                       {/* Course Image with Overlay */}
                       <div className={`relative h-48 bg-gradient-to-br ${
-                        categories.find(c => c.id === course.category)?.color || 'from-slate-500 to-slate-600'
+                        category?.color || 'from-slate-500 to-slate-600'
                       }`}>
                         {/* Course Icon */}
                         <div className="absolute inset-0 flex items-center justify-center">
                           <span className="text-6xl opacity-20 transform group-hover:scale-110 transition-transform duration-300">
-                            {categories.find(c => c.id === course.category)?.icon || '📚'}
+                            {category?.icon || '📚'}
                           </span>
                         </div>
 
@@ -772,7 +780,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       {/* Course Info */}
                       <div className="p-5">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
+                          <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
                             {course.category?.split(' ')[0] || 'Course'}
                           </span>
                           {course.rating && (
@@ -783,7 +791,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                           )}
                         </div>
 
-                        <h3 className="font-semibold text-slate-900 mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                        <h3 className="font-semibold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors line-clamp-2">
                           {course.title}
                         </h3>
 
@@ -793,7 +801,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
 
                         {/* Instructor */}
                         <div className="flex items-center gap-2 mb-4">
-                          <div className="w-6 h-6 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white text-xs">
+                          <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white text-xs">
                             {course.instructor_name?.charAt(0) || 'I'}
                           </div>
                           <span className="text-xs text-slate-600">{course.instructor_name || 'Expert Instructor'}</span>
@@ -815,7 +823,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                               {course.enrollments?.length || 0}
                             </span>
                           </div>
-                          <span className="text-primary text-sm font-medium group-hover:translate-x-1 transition-transform">
+                          <span className="text-blue-600 text-sm font-medium group-hover:translate-x-1 transition-transform">
                             {isEnrolled ? 'Continue →' : 'Start →'}
                           </span>
                         </div>
@@ -831,6 +839,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                   const isEnrolled = enrolledCourses.has(course.id)
                   const progress = enrolledCourses.get(course.id)
                   const isSaved = savedCourseIds.has(course.id)
+                  const category = categories.find(c => c.id === course.category)
                   
                   return (
                     <Link
@@ -840,11 +849,11 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                     >
                       {/* Course Image */}
                       <div className={`w-48 bg-gradient-to-br ${
-                        categories.find(c => c.id === course.category)?.color || 'from-slate-500 to-slate-600'
+                        category?.color || 'from-slate-500 to-slate-600'
                       } relative`}>
                         <div className="absolute inset-0 flex items-center justify-center">
                           <span className="text-4xl opacity-20">
-                            {categories.find(c => c.id === course.category)?.icon || '📚'}
+                            {category?.icon || '📚'}
                           </span>
                         </div>
                         {course.is_featured && (
@@ -860,7 +869,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
+                              <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
                                 {course.category?.split(' ')[0] || 'Course'}
                               </span>
                               <span className={`text-xs px-2 py-1 rounded-full ${
@@ -875,7 +884,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                                 </span>
                               )}
                             </div>
-                            <h3 className="text-lg font-semibold text-slate-900 group-hover:text-primary transition-colors">
+                            <h3 className="text-lg font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
                               {course.title}
                             </h3>
                           </div>
@@ -890,7 +899,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
 
                         {/* Instructor */}
                         <div className="flex items-center gap-2 mb-4">
-                          <div className="w-6 h-6 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white text-xs">
+                          <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white text-xs">
                             {course.instructor_name?.charAt(0) || 'I'}
                           </div>
                           <span className="text-sm text-slate-600">{course.instructor_name || 'Expert Instructor'}</span>
@@ -918,7 +927,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                               </span>
                             )}
                           </div>
-                          <span className="text-primary font-medium group-hover:translate-x-1 transition-transform">
+                          <span className="text-blue-600 font-medium group-hover:translate-x-1 transition-transform">
                             {isEnrolled ? 'Continue Learning →' : 'View Course →'}
                           </span>
                         </div>
@@ -941,7 +950,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                 </p>
                 <Link
                   href="/dashboard/courses"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary-dark transition-all"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all"
                 >
                   <X size={18} />
                   Clear All Filters
@@ -976,7 +985,7 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                       })}`}
                       className={`w-10 h-10 rounded-lg flex items-center justify-center font-medium transition-colors ${
                         page === p
-                          ? 'bg-primary text-white'
+                          ? 'bg-blue-600 text-white'
                           : 'text-slate-600 hover:bg-slate-100'
                       }`}
                     >
@@ -1006,12 +1015,13 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
         {/* Recommended Section */}
         <div className="mt-12">
           <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-            <Sparkles className="text-primary" size={24} />
+            <Sparkles className="text-blue-600" size={24} />
             Recommended for You
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {courses?.slice(0, 3).map((course) => {
               const isEnrolled = enrolledCourses.has(course.id)
+              const category = categories.find(c => c.id === course.category)
               
               return (
                 <Link
@@ -1020,14 +1030,14 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
                   className="group bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-lg transition-all overflow-hidden"
                 >
                   <div className={`h-32 bg-gradient-to-r ${
-                    categories.find(c => c.id === course.category)?.color || 'from-slate-500 to-slate-600'
+                    category?.color || 'from-slate-500 to-slate-600'
                   } relative`}>
                     <div className="absolute inset-0 flex items-center justify-center opacity-20">
-                      <span className="text-3xl">{categories.find(c => c.id === course.category)?.icon || '📚'}</span>
+                      <span className="text-3xl">{category?.icon || '📚'}</span>
                     </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-semibold text-slate-900 mb-1 group-hover:text-primary transition-colors line-clamp-1">
+                    <h3 className="font-semibold text-slate-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-1">
                       {course.title}
                     </h3>
                     <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -1043,26 +1053,6 @@ export default async function DashboardCoursesPage({ searchParams }: PageProps) 
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        .bg-grid-white {
-          background-image: linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px);
-          background-size: 20px 20px;
-        }
-        .line-clamp-1 {
-          display: -webkit-box;
-          -webkit-line-clamp: 1;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-      `}</style>
     </div>
   )
 }
