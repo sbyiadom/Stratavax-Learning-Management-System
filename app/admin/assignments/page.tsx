@@ -5,10 +5,44 @@ import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { FileText, CheckCircle, Clock, AlertCircle, Users, Filter } from 'lucide-react'
 
+type UserProfile = {
+  full_name: string
+  email: string
+  department: string | null
+}
+
+type Assignment = {
+  title: string
+  course_id: string
+  points: number
+  passing_score: number
+}
+
+type Submission = {
+  id: string
+  user_id: string
+  assignment_id: string
+  status: string
+  grade: number | null
+  feedback: string | null
+  submitted_at: string
+  graded_at: string | null
+  user_profiles: UserProfile
+  assignments: Assignment
+}
+
+type Stats = {
+  total: number
+  pending: number
+  graded: number
+  passed: number
+  failed: number
+}
+
 export default function AdminAssignmentsPage() {
-  const [submissions, setSubmissions] = useState([])
+  const [submissions, setSubmissions] = useState<Submission[]>([])
   const [filter, setFilter] = useState('all')
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<Stats>({
     total: 0,
     pending: 0,
     graded: 0,
@@ -33,7 +67,7 @@ export default function AdminAssignmentsPage() {
       .order('submitted_at', { ascending: false })
 
     if (data) {
-      setSubmissions(data)
+      setSubmissions(data as Submission[])
       
       // Calculate stats
       setStats({
@@ -51,6 +85,16 @@ export default function AdminAssignmentsPage() {
     if (filter === 'graded') return ['passed', 'failed'].includes(s.status)
     return true
   })
+
+  const getStatusColor = (status: string) => {
+    switch(status) {
+      case 'submitted': return 'bg-yellow-100 text-yellow-700'
+      case 'passed': return 'bg-green-100 text-green-700'
+      case 'failed': return 'bg-red-100 text-red-700'
+      case 'graded': return 'bg-blue-100 text-blue-700'
+      default: return 'bg-gray-100 text-gray-700'
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -120,7 +164,7 @@ export default function AdminAssignmentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filteredSubmissions.map((sub: any) => (
+              {filteredSubmissions.map((sub) => (
                 <tr key={sub.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <p className="font-medium">{sub.user_profiles?.full_name}</p>
@@ -134,19 +178,14 @@ export default function AdminAssignmentsPage() {
                     {new Date(sub.submitted_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      sub.status === 'submitted' ? 'bg-yellow-100 text-yellow-700' :
-                      sub.status === 'passed' ? 'bg-green-100 text-green-700' :
-                      sub.status === 'failed' ? 'bg-red-100 text-red-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {sub.status}
+                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(sub.status)}`}>
+                      {sub.status.replace('_', ' ')}
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     {sub.grade ? (
                       <span className={`font-medium ${
-                        sub.grade >= sub.assignments?.passing_score ? 'text-green-600' : 'text-red-600'
+                        sub.grade >= (sub.assignments?.passing_score || 70) ? 'text-green-600' : 'text-red-600'
                       }`}>
                         {sub.grade}%
                       </span>
@@ -166,6 +205,13 @@ export default function AdminAssignmentsPage() {
               ))}
             </tbody>
           </table>
+
+          {filteredSubmissions.length === 0 && (
+            <div className="text-center py-12">
+              <FileText size={48} className="mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-500">No submissions found</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
