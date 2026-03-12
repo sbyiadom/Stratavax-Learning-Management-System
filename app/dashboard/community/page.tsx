@@ -25,7 +25,7 @@ import {
   Github,
   Download
 } from 'lucide-react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 
 // ==================== TYPES ====================
 interface User {
@@ -107,7 +107,11 @@ interface Event {
 
 // ==================== MAIN COMPONENT ====================
 export default function CommunityPage() {
-  const supabase = createClientComponentClient();
+  // Initialize Supabase client
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   
   // ==================== STATE ====================
   const [user, setUser] = useState<User | null>(null);
@@ -555,6 +559,8 @@ export default function CommunityPage() {
       }
     } catch (error) {
       console.error('Error loading events:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, events: false }));
     }
   };
 
@@ -995,52 +1001,58 @@ export default function CommunityPage() {
         <div className="mt-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Upcoming Events</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map(event => (
-              <div key={event.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium
-                    ${event.type === 'webinar' ? 'bg-blue-100 text-blue-600' : ''}
-                    ${event.type === 'workshop' ? 'bg-green-100 text-green-600' : ''}
-                    ${event.type === 'qna' ? 'bg-purple-100 text-purple-600' : ''}
-                  `}>
-                    {event.type.toUpperCase()}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    {event.attendees} {event.max_attendees ? `/ ${event.max_attendees}` : ''} attending
-                  </span>
-                </div>
-                
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
-                {event.description && (
-                  <p className="text-sm text-gray-600 mb-3">{event.description}</p>
-                )}
-                
-                <div className="space-y-2 text-sm text-gray-600 mb-4">
-                  <p className="flex items-center gap-2">
-                    <Calendar size={16} />
-                    {new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <Clock size={16} />
-                    {event.time}
-                  </p>
-                </div>
+          {loading.events ? (
+            <div className="text-center py-8">
+              <Loader2 size={32} className="animate-spin mx-auto text-blue-600" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {events.map(event => (
+                <div key={event.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium
+                      ${event.type === 'webinar' ? 'bg-blue-100 text-blue-600' : ''}
+                      ${event.type === 'workshop' ? 'bg-green-100 text-green-600' : ''}
+                      ${event.type === 'qna' ? 'bg-purple-100 text-purple-600' : ''}
+                    `}>
+                      {event.type.toUpperCase()}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      {event.attendees} {event.max_attendees ? `/ ${event.max_attendees}` : ''} attending
+                    </span>
+                  </div>
+                  
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
+                  {event.description && (
+                    <p className="text-sm text-gray-600 mb-3">{event.description}</p>
+                  )}
+                  
+                  <div className="space-y-2 text-sm text-gray-600 mb-4">
+                    <p className="flex items-center gap-2">
+                      <Calendar size={16} />
+                      {new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <Clock size={16} />
+                      {event.time}
+                    </p>
+                  </div>
 
-                <button
-                  onClick={() => registerForEvent(event.id)}
-                  disabled={event.is_registered}
-                  className={`w-full px-4 py-2 rounded-lg transition-colors ${
-                    event.is_registered
-                      ? 'bg-green-100 text-green-600 cursor-default'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  {event.is_registered ? 'Registered' : 'Register Now'}
-                </button>
-              </div>
-            ))}
-          </div>
+                  <button
+                    onClick={() => registerForEvent(event.id)}
+                    disabled={event.is_registered}
+                    className={`w-full px-4 py-2 rounded-lg transition-colors ${
+                      event.is_registered
+                        ? 'bg-green-100 text-green-600 cursor-default'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {event.is_registered ? 'Registered' : 'Register Now'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Admin Panel */}
