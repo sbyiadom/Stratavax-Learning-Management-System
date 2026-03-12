@@ -290,4 +290,114 @@ export default function ManagerStudentDetailPage({ params }: { params: { id: str
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Enrolled</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Progress</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {enrollments.map((enrollment) => (
+                  <tr key={enrollment.course_id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-gray-900">{enrollment.course_title}</p>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {new Date(enrollment.enrolled_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-blue-600">{enrollment.progress_percentage}%</span>
+                        <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div 
+                            className="h-1.5 bg-blue-600 rounded-full"
+                            style={{ width: `${enrollment.progress_percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {enrollment.completed_at ? (
+                        <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">Completed</span>
+                      ) : enrollment.progress_percentage > 0 ? (
+                        <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">In Progress</span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">Not Started</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <Link
+                        href={`/dashboard/learn/${enrollment.course_slug}`}
+                        className="text-blue-600 hover:text-blue-700 text-sm"
+                      >
+                        View Course
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Assignments Tab */}
+        {activeTab === 'assignments' && (
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assignment</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {assignments.map((assignment) => (
+                  <tr key={assignment.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-gray-900">{assignment.title}</p>
+                      <p className="text-xs text-gray-500">{assignment.module_title}</p>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{assignment.course_title}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {assignment.submitted_at ? new Date(assignment.submitted_at).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        assignment.status === 'passed' ? 'bg-green-100 text-green-700' :
+                        assignment.status === 'failed' ? 'bg-red-100 text-red-700' :
+                        assignment.status === 'submitted' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {assignment.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {assignment.grade ? (
+                        <span className={`font-medium ${
+                          assignment.grade >= 70 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {assignment.grade}%
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {assignment.feedback && (
+                        <span className="text-sm text-gray-500 cursor-help" title={assignment.feedback}>
+                          ℹ️ Feedback
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
