@@ -14,22 +14,18 @@ import {
   Reply,
   Sparkles,
   X,
-  Check,
   LogIn,
-  Trash2,
-  Edit,
   Settings,
   FileText,
   Video,
   Link as LinkIcon,
-  Download,
   Search,
-  Filter,
-  MoreVertical,
   Send,
-  Paperclip,
-  Loader2
+  Loader2,
+  Github,
+  Download
 } from 'lucide-react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 // ==================== TYPES ====================
 interface User {
@@ -45,22 +41,25 @@ interface StudyGroup {
   name: string;
   description: string;
   course: string;
-  createdBy: string;
-  createdByName: string;
-  createdAt: string;
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
+  member_count: number;
+  topic_count: number;
+  resource_count: number;
+  is_joined: boolean;
+}
+
+interface GroupDetail extends StudyGroup {
   members: GroupMember[];
   topics: DiscussionTopic[];
   resources: Resource[];
-  isJoined?: boolean;
-  memberCount?: number;
-  topicCount?: number;
-  resourceCount?: number;
 }
 
 interface GroupMember {
-  userId: string;
-  userName: string;
-  joinedAt: string;
+  user_id: string;
+  user_name: string;
+  joined_at: string;
   role: 'admin' | 'member';
 }
 
@@ -68,30 +67,29 @@ interface DiscussionTopic {
   id: string;
   title: string;
   content: string;
-  authorId: string;
-  authorName: string;
-  createdAt: string;
+  author_id: string;
+  author_name: string;
+  created_at: string;
   replies: Reply[];
   tags: string[];
-  replyCount?: number;
 }
 
 interface Reply {
   id: string;
   content: string;
-  authorId: string;
-  authorName: string;
-  createdAt: string;
+  author_id: string;
+  author_name: string;
+  created_at: string;
 }
 
 interface Resource {
   id: string;
   title: string;
-  type: 'video' | 'document' | 'link' | 'file';
+  type: 'video' | 'document' | 'link';
   url: string;
-  uploadedBy: string;
-  uploadedByName: string;
-  uploadedAt: string;
+  uploaded_by: string;
+  uploaded_by_name: string;
+  uploaded_at: string;
   description?: string;
 }
 
@@ -102,37 +100,33 @@ interface Event {
   time: string;
   type: 'webinar' | 'workshop' | 'qna';
   attendees: number;
-  maxAttendees?: number;
+  max_attendees?: number;
   description?: string;
+  is_registered?: boolean;
 }
 
 // ==================== MAIN COMPONENT ====================
 export default function CommunityPage() {
+  const supabase = createClientComponentClient();
+  
   // ==================== STATE ====================
-  const [currentUser, setCurrentUser] = useState<User>({
-    id: 'user1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    role: 'learner'
-  });
-
-  // Data states
+  const [user, setUser] = useState<User | null>(null);
   const [studyGroups, setStudyGroups] = useState<StudyGroup[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<GroupDetail | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState({
+    user: true,
     groups: true,
     events: true,
     action: false
   });
-
+  
   // UI State
-  const [activeView, setActiveView] = useState<'groups' | 'discussions' | 'resources'>('groups');
-  const [selectedGroup, setSelectedGroup] = useState<StudyGroup | null>(null);
+  const [activeView, setActiveView] = useState<'discussions' | 'resources'>('discussions');
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showDiscussionModal, setShowDiscussionModal] = useState(false);
   const [showResourceModal, setShowResourceModal] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState<DiscussionTopic | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error'} | null>(null);
   const [replyText, setReplyText] = useState('');
@@ -157,77 +151,197 @@ export default function CommunityPage() {
     description: ''
   });
 
-  // ==================== API CALLS ====================
-  
-  // Fetch all data on component mount
+  // ==================== INITIALIZATION ====================
   useEffect(() => {
-    fetchStudyGroups();
-    fetchEvents();
-    fetchCurrentUser();
+    loadUser();
   }, []);
 
-  const fetchCurrentUser = async () => {
+  const loadUser = async () => {
     try {
-      // Get current user from your auth system
-      const response = await fetch('/api/auth/me');
-      if (response.ok) {
-        const user = await response.json();
-        setCurrentUser(user);
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (authUser) {
+        // Get user profile from database
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+
+        setUser({
+          id: authUser.id,
+          name: profile?.name || authUser.email?.split('@')[0] || 'User',
+          email: authUser.email || '',
+          role: profile?.role || 'learner'
+        });
+
+        // Load data after user is loaded
+        loadStudyGroups();
+        loadEvents();
       }
     } catch (error) {
-      console.error('Failed to fetch user:', error);
+      console.error('Error loading user:', error);
+      showNotification('Failed to load user', 'error');
+    } finally {
+      setLoading(prev => ({ ...prev, user: false }));
     }
   };
 
-  const fetchStudyGroups = async () => {
+  // ==================== STUDY GROUPS ====================
+  const loadStudyGroups = async () => {
     try {
       setLoading(prev => ({ ...prev, groups: true }));
-      const response = await fetch('/api/study-groups');
-      if (!response.ok) throw new Error('Failed to fetch');
       
-      const groups = await response.json();
-      
-      // Check which groups the user has joined
-      const userGroupsResponse = await fetch('/api/user/groups');
-      const userGroups = await userGroupsResponse.json();
-      const userGroupIds = new Set(userGroups.map((g: any) => g.id));
-      
-      const groupsWithJoinStatus = groups.map((group: StudyGroup) => ({
-        ...group,
-        isJoined: userGroupIds.has(group.id)
+      // Get all study groups
+      const { data: groups, error } = await supabase
+        .from('study_groups')
+        .select(`
+          *,
+          profiles:created_by (name),
+          study_group_members (count),
+          discussion_topics (count),
+          resources (count)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Get user's joined groups
+      const { data: userGroups } = await supabase
+        .from('study_group_members')
+        .select('group_id')
+        .eq('user_id', user?.id);
+
+      const joinedGroupIds = new Set(userGroups?.map(ug => ug.group_id) || []);
+
+      // Transform data
+      const transformedGroups: StudyGroup[] = groups.map((group: any) => ({
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        course: group.course,
+        created_by: group.created_by,
+        created_by_name: group.profiles?.name || 'Unknown',
+        created_at: new Date(group.created_at).toLocaleDateString(),
+        member_count: group.study_group_members?.[0]?.count || 0,
+        topic_count: group.discussion_topics?.[0]?.count || 0,
+        resource_count: group.resources?.[0]?.count || 0,
+        is_joined: joinedGroupIds.has(group.id)
       }));
-      
-      setStudyGroups(groupsWithJoinStatus);
+
+      setStudyGroups(transformedGroups);
     } catch (error) {
-      console.error('Failed to fetch study groups:', error);
+      console.error('Error loading study groups:', error);
       showNotification('Failed to load study groups', 'error');
-      
-      // Fallback to sample data if API fails
-      setStudyGroups(getSampleGroups());
     } finally {
       setLoading(prev => ({ ...prev, groups: false }));
     }
   };
 
-  const fetchEvents = async () => {
+  const loadGroupDetails = async (groupId: string) => {
     try {
-      setLoading(prev => ({ ...prev, events: true }));
-      const response = await fetch('/api/events');
-      if (!response.ok) throw new Error('Failed to fetch');
-      
-      const data = await response.json();
-      setEvents(data);
+      setLoading(prev => ({ ...prev, action: true }));
+
+      // Get group details
+      const { data: group, error: groupError } = await supabase
+        .from('study_groups')
+        .select('*')
+        .eq('id', groupId)
+        .single();
+
+      if (groupError) throw groupError;
+
+      // Get members
+      const { data: members } = await supabase
+        .from('study_group_members')
+        .select(`
+          user_id,
+          joined_at,
+          role,
+          profiles:user_id (name)
+        `)
+        .eq('group_id', groupId);
+
+      // Get discussions with replies
+      const { data: topics } = await supabase
+        .from('discussion_topics')
+        .select(`
+          *,
+          profiles:author_id (name),
+          discussion_replies (
+            *,
+            profiles:author_id (name)
+          )
+        `)
+        .eq('group_id', groupId)
+        .order('created_at', { ascending: false });
+
+      // Get resources
+      const { data: resources } = await supabase
+        .from('resources')
+        .select(`
+          *,
+          profiles:uploaded_by (name)
+        `)
+        .eq('group_id', groupId)
+        .order('uploaded_at', { ascending: false });
+
+      // Transform data
+      const transformedGroup: GroupDetail = {
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        course: group.course,
+        created_by: group.created_by,
+        created_by_name: group.created_by_name,
+        created_at: new Date(group.created_at).toLocaleDateString(),
+        member_count: members?.length || 0,
+        topic_count: topics?.length || 0,
+        resource_count: resources?.length || 0,
+        is_joined: members?.some(m => m.user_id === user?.id) || false,
+        members: members?.map(m => ({
+          user_id: m.user_id,
+          user_name: m.profiles?.name || 'Unknown',
+          joined_at: new Date(m.joined_at).toLocaleDateString(),
+          role: m.role
+        })) || [],
+        topics: topics?.map(t => ({
+          id: t.id,
+          title: t.title,
+          content: t.content,
+          author_id: t.author_id,
+          author_name: t.profiles?.name || 'Unknown',
+          created_at: new Date(t.created_at).toLocaleString(),
+          tags: t.tags || [],
+          replies: t.discussion_replies?.map((r: any) => ({
+            id: r.id,
+            content: r.content,
+            author_id: r.author_id,
+            author_name: r.profiles?.name || 'Unknown',
+            created_at: new Date(r.created_at).toLocaleString()
+          })) || []
+        })) || [],
+        resources: resources?.map(r => ({
+          id: r.id,
+          title: r.title,
+          type: r.type,
+          url: r.url,
+          uploaded_by: r.uploaded_by,
+          uploaded_by_name: r.profiles?.name || 'Unknown',
+          uploaded_at: new Date(r.uploaded_at).toLocaleDateString(),
+          description: r.description
+        })) || []
+      };
+
+      setSelectedGroup(transformedGroup);
     } catch (error) {
-      console.error('Failed to fetch events:', error);
-      // Fallback to sample data
-      setEvents(getSampleEvents());
+      console.error('Error loading group details:', error);
+      showNotification('Failed to load group details', 'error');
     } finally {
-      setLoading(prev => ({ ...prev, events: false }));
+      setLoading(prev => ({ ...prev, action: false }));
     }
   };
 
-  // ==================== STUDY GROUP FUNCTIONS ====================
-  
   const createStudyGroup = async () => {
     if (!newGroup.name || !newGroup.description || !newGroup.course) {
       showNotification('Please fill in all fields', 'error');
@@ -236,33 +350,37 @@ export default function CommunityPage() {
 
     try {
       setLoading(prev => ({ ...prev, action: true }));
-      
-      const response = await fetch('/api/study-groups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+
+      const { data, error } = await supabase
+        .from('study_groups')
+        .insert({
           name: newGroup.name,
           description: newGroup.description,
           course: newGroup.course,
-          createdBy: currentUser.id
+          created_by: user?.id,
+          created_by_name: user?.name
         })
-      });
+        .select()
+        .single();
 
-      if (!response.ok) throw new Error('Failed to create group');
+      if (error) throw error;
 
-      const group = await response.json();
-      
-      // Add the new group to state with join status
-      setStudyGroups([{ ...group, isJoined: true }, ...studyGroups]);
-      
-      // Reset form and close modal
+      // Add creator as admin member
+      await supabase
+        .from('study_group_members')
+        .insert({
+          group_id: data.id,
+          user_id: user?.id,
+          role: 'admin'
+        });
+
+      showNotification('Study group created successfully!');
       setShowCreateGroup(false);
       setNewGroup({ name: '', description: '', course: '' });
-      showNotification(`✅ Study group "${group.name}" created successfully!`);
-      
+      loadStudyGroups();
     } catch (error) {
-      console.error('Failed to create group:', error);
-      showNotification('Failed to create group', 'error');
+      console.error('Error creating study group:', error);
+      showNotification('Failed to create study group', 'error');
     } finally {
       setLoading(prev => ({ ...prev, action: false }));
     }
@@ -271,58 +389,26 @@ export default function CommunityPage() {
   const joinGroup = async (groupId: string) => {
     try {
       setLoading(prev => ({ ...prev, action: true }));
-      
-      const response = await fetch(`/api/study-groups/${groupId}/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id })
-      });
 
-      if (!response.ok) throw new Error('Failed to join group');
+      const { error } = await supabase
+        .from('study_group_members')
+        .insert({
+          group_id: groupId,
+          user_id: user?.id,
+          role: 'member'
+        });
 
-      // Update local state
-      setStudyGroups(studyGroups.map(group => {
-        if (group.id === groupId) {
-          return {
-            ...group,
-            isJoined: true,
-            members: [
-              ...(group.members || []),
-              {
-                userId: currentUser.id,
-                userName: currentUser.name,
-                joinedAt: new Date().toISOString(),
-                role: 'member'
-              }
-            ],
-            memberCount: (group.memberCount || group.members?.length || 0) + 1
-          };
-        }
-        return group;
-      }));
+      if (error) throw error;
 
-      // If viewing this group, update selected group
-      if (selectedGroup?.id === groupId) {
-        setSelectedGroup(prev => prev ? {
-          ...prev,
-          isJoined: true,
-          members: [
-            ...(prev.members || []),
-            {
-              userId: currentUser.id,
-              userName: currentUser.name,
-              joinedAt: new Date().toISOString(),
-              role: 'member'
-            }
-          ]
-        } : null);
-      }
-
+      showNotification('You joined the group!');
       setShowJoinModal(false);
-      showNotification(`✅ You joined the study group!`);
+      loadStudyGroups();
       
+      if (selectedGroup?.id === groupId) {
+        loadGroupDetails(groupId);
+      }
     } catch (error) {
-      console.error('Failed to join group:', error);
+      console.error('Error joining group:', error);
       showNotification('Failed to join group', 'error');
     } finally {
       setLoading(prev => ({ ...prev, action: false }));
@@ -334,347 +420,200 @@ export default function CommunityPage() {
 
     try {
       setLoading(prev => ({ ...prev, action: true }));
+
+      const { error } = await supabase
+        .from('study_group_members')
+        .delete()
+        .eq('group_id', groupId)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      showNotification('You left the group');
+      loadStudyGroups();
       
-      const response = await fetch(`/api/study-groups/${groupId}/leave`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id })
-      });
-
-      if (!response.ok) throw new Error('Failed to leave group');
-
-      // Update local state
-      setStudyGroups(studyGroups.map(group => {
-        if (group.id === groupId) {
-          return {
-            ...group,
-            isJoined: false,
-            members: (group.members || []).filter(m => m.userId !== currentUser.id),
-            memberCount: Math.max(0, (group.memberCount || group.members?.length || 0) - 1)
-          };
-        }
-        return group;
-      }));
-
       if (selectedGroup?.id === groupId) {
         setSelectedGroup(null);
       }
-
-      showNotification('You left the group');
-      
     } catch (error) {
-      console.error('Failed to leave group:', error);
+      console.error('Error leaving group:', error);
       showNotification('Failed to leave group', 'error');
     } finally {
       setLoading(prev => ({ ...prev, action: false }));
     }
   };
 
-  // ==================== DISCUSSION FUNCTIONS ====================
-  
+  // ==================== DISCUSSIONS ====================
   const createDiscussion = async () => {
-    if (!newDiscussion.title || !newDiscussion.content) {
-      showNotification('Please add title and content', 'error');
-      return;
-    }
-
-    if (!selectedGroup) return;
+    if (!newDiscussion.title || !newDiscussion.content || !selectedGroup) return;
 
     try {
       setLoading(prev => ({ ...prev, action: true }));
-      
-      const response = await fetch(`/api/study-groups/${selectedGroup.id}/discussions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+
+      const { error } = await supabase
+        .from('discussion_topics')
+        .insert({
+          group_id: selectedGroup.id,
           title: newDiscussion.title,
           content: newDiscussion.content,
-          tags: newDiscussion.tags.split(',').map(t => t.trim()).filter(t => t),
-          authorId: currentUser.id
-        })
-      });
+          author_id: user?.id,
+          tags: newDiscussion.tags.split(',').map(t => t.trim()).filter(t => t)
+        });
 
-      if (!response.ok) throw new Error('Failed to create discussion');
+      if (error) throw error;
 
-      const topic = await response.json();
-
-      // Update local state
-      setStudyGroups(studyGroups.map(group => {
-        if (group.id === selectedGroup.id) {
-          return {
-            ...group,
-            topics: [topic, ...(group.topics || [])],
-            topicCount: (group.topicCount || group.topics?.length || 0) + 1
-          };
-        }
-        return group;
-      }));
-
-      // Update selected group
-      setSelectedGroup(prev => prev ? {
-        ...prev,
-        topics: [topic, ...(prev.topics || [])]
-      } : null);
-
+      showNotification('Discussion posted!');
       setShowDiscussionModal(false);
       setNewDiscussion({ title: '', content: '', tags: '' });
-      showNotification('✅ Discussion posted!');
-      
+      loadGroupDetails(selectedGroup.id);
     } catch (error) {
-      console.error('Failed to create discussion:', error);
+      console.error('Error creating discussion:', error);
       showNotification('Failed to create discussion', 'error');
     } finally {
       setLoading(prev => ({ ...prev, action: false }));
     }
   };
 
-  const addReply = async (groupId: string, topicId: string) => {
-    if (!replyText.trim()) return;
+  const addReply = async (topicId: string) => {
+    if (!replyText.trim() || !selectedGroup) return;
 
     try {
-      const response = await fetch(`/api/study-groups/${groupId}/discussions/${topicId}/replies`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { error } = await supabase
+        .from('discussion_replies')
+        .insert({
+          topic_id: topicId,
           content: replyText,
-          authorId: currentUser.id
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to add reply');
-
-      const reply = await response.json();
-
-      // Update local state
-      setStudyGroups(studyGroups.map(group => {
-        if (group.id === groupId) {
-          return {
-            ...group,
-            topics: group.topics.map(topic => {
-              if (topic.id === topicId) {
-                return {
-                  ...topic,
-                  replies: [...(topic.replies || []), reply],
-                  replyCount: (topic.replyCount || topic.replies?.length || 0) + 1
-                };
-              }
-              return topic;
-            })
-          };
-        }
-        return group;
-      }));
-
-      // Update selected group if viewing
-      if (selectedGroup?.id === groupId) {
-        setSelectedGroup(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            topics: prev.topics.map(topic => {
-              if (topic.id === topicId) {
-                return {
-                  ...topic,
-                  replies: [...(topic.replies || []), reply]
-                };
-              }
-              return topic;
-            })
-          };
+          author_id: user?.id
         });
-      }
+
+      if (error) throw error;
 
       setReplyText('');
-      showNotification('💬 Reply added');
-      
+      loadGroupDetails(selectedGroup.id);
     } catch (error) {
-      console.error('Failed to add reply:', error);
+      console.error('Error adding reply:', error);
       showNotification('Failed to add reply', 'error');
     }
   };
 
-  // ==================== RESOURCE FUNCTIONS ====================
-  
+  // ==================== RESOURCES ====================
   const addResource = async () => {
-    if (!newResource.title || !newResource.url) {
-      showNotification('Please add title and URL', 'error');
-      return;
-    }
-
-    if (!selectedGroup) return;
+    if (!newResource.title || !newResource.url || !selectedGroup) return;
 
     try {
-      const response = await fetch(`/api/study-groups/${selectedGroup.id}/resources`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { error } = await supabase
+        .from('resources')
+        .insert({
+          group_id: selectedGroup.id,
           title: newResource.title,
           type: newResource.type,
           url: newResource.url,
           description: newResource.description,
-          uploadedBy: currentUser.id
-        })
-      });
+          uploaded_by: user?.id
+        });
 
-      if (!response.ok) throw new Error('Failed to add resource');
+      if (error) throw error;
 
-      const resource = await response.json();
-
-      // Update local state
-      setStudyGroups(studyGroups.map(group => {
-        if (group.id === selectedGroup.id) {
-          return {
-            ...group,
-            resources: [...(group.resources || []), resource],
-            resourceCount: (group.resourceCount || group.resources?.length || 0) + 1
-          };
-        }
-        return group;
-      }));
-
-      // Update selected group
-      setSelectedGroup(prev => prev ? {
-        ...prev,
-        resources: [...(prev.resources || []), resource]
-      } : null);
-
+      showNotification('Resource added!');
       setShowResourceModal(false);
       setNewResource({ title: '', type: 'link', url: '', description: '' });
-      showNotification('📚 Resource added!');
-      
+      loadGroupDetails(selectedGroup.id);
     } catch (error) {
-      console.error('Failed to add resource:', error);
+      console.error('Error adding resource:', error);
       showNotification('Failed to add resource', 'error');
     }
   };
 
-  // ==================== HELPER FUNCTIONS ====================
-  
+  // ==================== EVENTS ====================
+  const loadEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .gte('date', new Date().toISOString().split('T')[0])
+        .order('date', { ascending: true });
+
+      if (error) throw error;
+
+      // Check which events user is registered for
+      if (user) {
+        const { data: registrations } = await supabase
+          .from('event_registrations')
+          .select('event_id')
+          .eq('user_id', user.id);
+
+        const registeredIds = new Set(registrations?.map(r => r.event_id) || []);
+
+        const eventsWithStatus = data.map(event => ({
+          ...event,
+          is_registered: registeredIds.has(event.id)
+        }));
+
+        setEvents(eventsWithStatus);
+      } else {
+        setEvents(data);
+      }
+    } catch (error) {
+      console.error('Error loading events:', error);
+    }
+  };
+
+  const registerForEvent = async (eventId: string) => {
+    try {
+      const { error } = await supabase
+        .from('event_registrations')
+        .insert({
+          event_id: eventId,
+          user_id: user?.id
+        });
+
+      if (error) throw error;
+
+      // Update event attendees count
+      await supabase.rpc('increment_event_attendees', { event_id: eventId });
+
+      showNotification('Registered for event!');
+      loadEvents();
+    } catch (error) {
+      console.error('Error registering for event:', error);
+      showNotification('Failed to register for event', 'error');
+    }
+  };
+
+  // ==================== UTILITIES ====================
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Sample data for fallback
-  const getSampleGroups = (): StudyGroup[] => [
-    {
-      id: '1',
-      name: 'JavaScript Masters',
-      description: 'Deep dive into advanced JavaScript concepts, closures, prototypes, and async patterns',
-      course: 'Web Development',
-      createdBy: 'alice',
-      createdByName: 'Alice Johnson',
-      createdAt: '2024-03-15',
-      members: [
-        { userId: 'alice', userName: 'Alice Johnson', joinedAt: '2024-03-15', role: 'admin' },
-        { userId: 'user1', userName: 'John Doe', joinedAt: '2024-03-16', role: 'member' }
-      ],
-      topics: [
-        {
-          id: 't1',
-          title: 'Understanding Closures',
-          content: 'Can someone explain practical use cases for closures?',
-          authorId: 'bob',
-          authorName: 'Bob Smith',
-          createdAt: '2024-03-20',
-          replies: [
-            {
-              id: 'r1',
-              content: 'Closures are great for data privacy and creating factory functions...',
-              authorId: 'alice',
-              authorName: 'Alice Johnson',
-              createdAt: '2024-03-20'
-            }
-          ],
-          tags: ['javascript', 'beginner']
-        }
-      ],
-      resources: [
-        {
-          id: 'r1',
-          title: 'JavaScript Closures Explained',
-          type: 'video',
-          url: '#',
-          uploadedBy: 'alice',
-          uploadedByName: 'Alice Johnson',
-          uploadedAt: '2024-03-15',
-          description: 'Comprehensive video tutorial on closures'
-        }
-      ],
-      isJoined: true,
-      memberCount: 2,
-      topicCount: 1,
-      resourceCount: 1
-    },
-    {
-      id: '2',
-      name: 'Data Science Study Group',
-      description: 'Machine learning, Python, and data analysis discussions',
-      course: 'Data Science',
-      createdBy: 'bob',
-      createdByName: 'Bob Smith',
-      createdAt: '2024-03-10',
-      members: [
-        { userId: 'bob', userName: 'Bob Smith', joinedAt: '2024-03-10', role: 'admin' }
-      ],
-      topics: [],
-      resources: [],
-      isJoined: false,
-      memberCount: 1,
-      topicCount: 0,
-      resourceCount: 0
-    },
-    {
-      id: '3',
-      name: 'UI/UX Design Critics',
-      description: 'Get feedback on your designs and learn from peers',
-      course: 'UI/UX Design',
-      createdBy: 'carol',
-      createdByName: 'Carol White',
-      createdAt: '2024-03-12',
-      members: [
-        { userId: 'carol', userName: 'Carol White', joinedAt: '2024-03-12', role: 'admin' }
-      ],
-      topics: [],
-      resources: [],
-      isJoined: false,
-      memberCount: 1,
-      topicCount: 0,
-      resourceCount: 0
-    }
-  ];
+  const handleExport = () => {
+    const data = studyGroups.map(g => ({
+      'Group Name': g.name,
+      Course: g.course,
+      Members: g.member_count,
+      Discussions: g.topic_count,
+      Resources: g.resource_count,
+      'Created By': g.created_by_name,
+      'Created At': g.created_at
+    }));
 
-  const getSampleEvents = (): Event[] => [
-    {
-      id: 'e1',
-      title: 'JavaScript Masterclass',
-      date: '2024-03-25',
-      time: '14:00 - 16:00',
-      type: 'webinar',
-      attendees: 24,
-      maxAttendees: 50,
-      description: 'Advanced JavaScript concepts and best practices'
-    },
-    {
-      id: 'e2',
-      title: 'Q&A with Industry Experts',
-      date: '2024-03-28',
-      time: '13:00 - 14:30',
-      type: 'qna',
-      attendees: 15,
-      description: 'Get your questions answered by senior developers'
-    },
-    {
-      id: 'e3',
-      title: 'Python for Data Science',
-      date: '2024-04-02',
-      time: '15:00 - 17:00',
-      type: 'workshop',
-      attendees: 32,
-      maxAttendees: 40,
-      description: 'Hands-on workshop with pandas and numpy'
-    }
-  ];
+    const csv = [
+      Object.keys(data[0]).join(','),
+      ...data.map(row => Object.values(row).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'study-groups.csv';
+    a.click();
+  };
+
+  const handleGitHubConnect = () => {
+    window.open('https://github.com/settings/connections/applications', '_blank');
+    showNotification('Redirecting to GitHub...');
+  };
 
   // ==================== FILTERED GROUPS ====================
   const filteredGroups = studyGroups.filter(group =>
@@ -683,430 +622,456 @@ export default function CommunityPage() {
     group.course.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // ==================== RENDER FUNCTIONS ====================
-  
-  const renderGroupsList = () => (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Study Groups</h2>
-        <button
-          onClick={() => setShowCreateGroup(true)}
-          disabled={loading.action}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading.action ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-          Create Group
-        </button>
-      </div>
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-        <input
-          type="text"
-          placeholder="Search groups..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      {/* Loading State */}
-      {loading.groups ? (
-        <div className="text-center py-12">
-          <Loader2 size={40} className="animate-spin mx-auto text-blue-600 mb-4" />
-          <p className="text-gray-600">Loading study groups...</p>
-        </div>
-      ) : (
-        /* Groups Grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredGroups.map(group => (
-            <div key={group.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all">
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{group.name}</h3>
-                    <p className="text-sm text-blue-600 mt-1">{group.course}</p>
-                  </div>
-                  <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
-                    {group.memberCount || group.members?.length || 0} members
-                  </span>
-                </div>
-                
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2">{group.description}</p>
-                
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                  <span>Created by {group.createdByName || group.createdBy}</span>
-                  <span>{group.createdAt}</span>
-                </div>
-
-                <div className="flex gap-2">
-                  {group.isJoined ? (
-                    <>
-                      <button
-                        onClick={() => setSelectedGroup(group)}
-                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                      >
-                        View Group
-                      </button>
-                      <button
-                        onClick={() => leaveGroup(group.id)}
-                        disabled={loading.action}
-                        className="px-3 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm disabled:opacity-50"
-                      >
-                        Leave
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setSelectedGroup(group);
-                        setShowJoinModal(true);
-                      }}
-                      disabled={loading.action}
-                      className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      <LogIn size={16} />
-                      Join Group
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Stats */}
-              <div className="border-t border-gray-200 bg-gray-50 px-6 py-3 grid grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <MessageCircle size={16} />
-                  <span>{group.topicCount || group.topics?.length || 0} discussions</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <FileText size={16} />
-                  <span>{group.resourceCount || group.resources?.length || 0} resources</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!loading.groups && filteredGroups.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <Users size={48} className="mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No study groups found</h3>
-          <p className="text-gray-600 mb-4">Try adjusting your search or create a new group</p>
-          <button
-            onClick={() => setShowCreateGroup(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Plus size={18} />
-            Create Your First Group
-          </button>
-        </div>
-      )}
-    </div>
-  );
-
-  const renderGroupDetail = () => {
-    if (!selectedGroup) return null;
-
-    return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <button
-            onClick={() => setSelectedGroup(null)}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            ← Back to Groups
-          </button>
-          <h2 className="text-2xl font-bold text-gray-900">{selectedGroup.name}</h2>
-          {selectedGroup.isJoined && (
-            <span className="bg-green-100 text-green-600 text-xs px-2 py-1 rounded-full">
-              Joined
-            </span>
-          )}
-        </div>
-
-        {/* Group Info */}
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-gray-700 mb-4">{selectedGroup.description}</p>
-          <div className="flex gap-6 text-sm text-gray-600">
-            <span>📚 {selectedGroup.course}</span>
-            <span>👥 {selectedGroup.memberCount || selectedGroup.members?.length || 0} members</span>
-            <span>📅 Created {selectedGroup.createdAt}</span>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="flex gap-8">
-            <button
-              onClick={() => setActiveView('discussions')}
-              className={`pb-4 px-1 ${activeView === 'discussions' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
-            >
-              Discussions ({selectedGroup.topicCount || selectedGroup.topics?.length || 0})
-            </button>
-            <button
-              onClick={() => setActiveView('resources')}
-              className={`pb-4 px-1 ${activeView === 'resources' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
-            >
-              Resources ({selectedGroup.resourceCount || selectedGroup.resources?.length || 0})
-            </button>
-          </nav>
-        </div>
-
-        {/* Discussions View */}
-        {activeView === 'discussions' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold">All Discussions</h3>
-              {selectedGroup.isJoined && (
-                <button
-                  onClick={() => setShowDiscussionModal(true)}
-                  disabled={loading.action}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {loading.action ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                  New Discussion
-                </button>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              {(selectedGroup.topics || []).map(topic => (
-                <div key={topic.id} className="bg-white rounded-lg border border-gray-200 p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h4 className="text-lg font-semibold text-gray-900">{topic.title}</h4>
-                      <div className="flex items-center gap-3 text-sm text-gray-500 mt-2">
-                        <span className="flex items-center gap-1"><User size={14} /> {topic.authorName}</span>
-                        <span className="flex items-center gap-1"><Clock size={14} /> {new Date(topic.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <p className="text-gray-700 mb-4">{topic.content}</p>
-
-                  {/* Tags */}
-                  {topic.tags && topic.tags.length > 0 && (
-                    <div className="flex gap-2 mb-4">
-                      {topic.tags.map(tag => (
-                        <span key={tag} className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Replies */}
-                  <div className="mt-6 space-y-4">
-                    {(topic.replies || []).map(reply => (
-                      <div key={reply.id} className="bg-gray-50 rounded-lg p-4 ml-8">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="font-medium text-sm">{reply.authorName}</span>
-                          <span className="text-xs text-gray-500">{new Date(reply.createdAt).toLocaleString()}</span>
-                        </div>
-                        <p className="text-gray-700 text-sm">{reply.content}</p>
-                      </div>
-                    ))}
-
-                    {/* Add Reply - only if joined */}
-                    {selectedGroup.isJoined && (
-                      <div className="flex gap-2 mt-4">
-                        <input
-                          type="text"
-                          value={replyText}
-                          onChange={(e) => setReplyText(e.target.value)}
-                          placeholder="Add a reply..."
-                          className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <button
-                          onClick={() => addReply(selectedGroup.id, topic.id)}
-                          disabled={!replyText.trim() || loading.action}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          <Send size={18} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-
-              {(selectedGroup.topics || []).length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  {selectedGroup.isJoined 
-                    ? 'No discussions yet. Start a new discussion!'
-                    : 'Join this group to view and participate in discussions.'}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Resources View */}
-        {activeView === 'resources' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold">Resources</h3>
-              {selectedGroup.isJoined && (
-                <button
-                  onClick={() => setShowResourceModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  <Plus size={18} />
-                  Add Resource
-                </button>
-              )}
-            </div>
-
-            <div className="grid gap-4">
-              {(selectedGroup.resources || []).map(resource => (
-                <div key={resource.id} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-all">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      {resource.type === 'video' && <Video className="text-red-500" size={24} />}
-                      {resource.type === 'document' && <FileText className="text-blue-500" size={24} />}
-                      {resource.type === 'link' && <LinkIcon className="text-green-500" size={24} />}
-                      
-                      <div>
-                        <h4 className="font-semibold text-gray-900">{resource.title}</h4>
-                        {resource.description && (
-                          <p className="text-sm text-gray-600 mt-1">{resource.description}</p>
-                        )}
-                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                          <span>Added by {resource.uploadedByName || resource.uploadedBy}</span>
-                          <span>{resource.uploadedAt}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <a
-                      href={resource.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                    >
-                      View
-                    </a>
-                  </div>
-                </div>
-              ))}
-
-              {(selectedGroup.resources || []).length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  {selectedGroup.isJoined
-                    ? 'No resources yet. Share a resource!'
-                    : 'Join this group to access and share resources.'}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderAdminPanel = () => {
-    if (currentUser.role !== 'admin') return null;
-
-    return (
-      <div className="mt-12 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-6">
-          <Settings size={20} className="text-gray-600" />
-          Admin Panel
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left">
-            <FileText className="text-blue-600 mb-2" size={24} />
-            <h3 className="font-semibold">Manage Resources</h3>
-            <p className="text-sm text-gray-600 mt-1">Add/edit learning materials</p>
-          </button>
-
-          <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all text-left">
-            <Users className="text-green-600 mb-2" size={24} />
-            <h3 className="font-semibold">Manage Groups</h3>
-            <p className="text-sm text-gray-600 mt-1">Monitor and moderate groups</p>
-          </button>
-
-          <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all text-left">
-            <Calendar className="text-purple-600 mb-2" size={24} />
-            <h3 className="font-semibold">Create Events</h3>
-            <p className="text-sm text-gray-600 mt-1">Schedule webinars & workshops</p>
-          </button>
-        </div>
-      </div>
-    );
-  };
-
   // ==================== RENDER ====================
+  if (loading.user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 size={40} className="animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Community</h1>
-          <p className="text-gray-600 mt-2">Connect with peers, join study groups, and learn together</p>
+          <p className="text-gray-600 mt-2">Welcome back, {user?.name}!</p>
         </div>
 
-        {/* Main Content */}
-        {selectedGroup ? renderGroupDetail() : renderGroupsList()}
+        {/* Feature Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mb-4">
+              <Users className="text-white" size={24} />
+            </div>
+            <h2 className="text-xl font-semibold mb-2">Study Groups</h2>
+            <p className="text-gray-600 mb-4">Join groups to learn with peers</p>
+            <div className="text-sm text-blue-600">
+              {studyGroups.length} Active Groups
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-teal-600 rounded-lg flex items-center justify-center mb-4">
+              <MessageCircle className="text-white" size={24} />
+            </div>
+            <h2 className="text-xl font-semibold mb-2">Discussions</h2>
+            <p className="text-gray-600 mb-4">Ask questions and share knowledge</p>
+            <div className="text-sm text-green-600">
+              Join the conversation
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center mb-4">
+              <Calendar className="text-white" size={24} />
+            </div>
+            <h2 className="text-xl font-semibold mb-2">Events</h2>
+            <p className="text-gray-600 mb-4">Webinars, workshops & live sessions</p>
+            <div className="text-sm text-orange-600">
+              {events.length} Upcoming Events
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-4 mb-8">
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            <Download size={18} />
+            Export Excel
+          </button>
+          <button
+            onClick={handleGitHubConnect}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+          >
+            <Github size={18} />
+            Connect GitHub
+          </button>
+        </div>
+
+        {/* Main Content - Study Groups */}
+        {!selectedGroup ? (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">Study Groups</h2>
+              <button
+                onClick={() => setShowCreateGroup(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Plus size={18} />
+                Create Group
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search groups by name, course, or description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Groups Grid */}
+            {loading.groups ? (
+              <div className="text-center py-12">
+                <Loader2 size={40} className="animate-spin mx-auto text-blue-600 mb-4" />
+                <p className="text-gray-600">Loading study groups...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredGroups.map(group => (
+                  <div key={group.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all">
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">{group.name}</h3>
+                          <p className="text-sm text-blue-600 mt-1">{group.course}</p>
+                        </div>
+                        <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
+                          {group.member_count} members
+                        </span>
+                      </div>
+                      
+                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">{group.description}</p>
+                      
+                      <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                        <span>Created by {group.created_by_name}</span>
+                        <span>{group.created_at}</span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        {group.is_joined ? (
+                          <>
+                            <button
+                              onClick={() => loadGroupDetails(group.id)}
+                              className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                            >
+                              View Group
+                            </button>
+                            <button
+                              onClick={() => leaveGroup(group.id)}
+                              className="px-3 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm"
+                            >
+                              Leave
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSelectedGroup({
+                                ...group,
+                                members: [],
+                                topics: [],
+                                resources: []
+                              } as GroupDetail);
+                              setShowJoinModal(true);
+                            }}
+                            className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center justify-center gap-2"
+                          >
+                            <LogIn size={16} />
+                            Join Group
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-200 bg-gray-50 px-6 py-3 grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <MessageCircle size={16} />
+                        <span>{group.topic_count} discussions</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <FileText size={16} />
+                        <span>{group.resource_count} resources</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Group Detail View */
+          <div className="space-y-6">
+            {/* Back button and header */}
+            <div className="flex items-center gap-4 mb-6">
+              <button
+                onClick={() => setSelectedGroup(null)}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                ← Back to Groups
+              </button>
+              <h2 className="text-2xl font-bold text-gray-900">{selectedGroup.name}</h2>
+              {selectedGroup.is_joined && (
+                <span className="bg-green-100 text-green-600 text-xs px-2 py-1 rounded-full">
+                  Joined
+                </span>
+              )}
+            </div>
+
+            {/* Group Info */}
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <p className="text-gray-700 mb-4">{selectedGroup.description}</p>
+              <div className="flex gap-6 text-sm text-gray-600">
+                <span>📚 {selectedGroup.course}</span>
+                <span>👥 {selectedGroup.member_count} members</span>
+                <span>📅 Created {selectedGroup.created_at}</span>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="border-b border-gray-200">
+              <nav className="flex gap-8">
+                <button
+                  onClick={() => setActiveView('discussions')}
+                  className={`pb-4 px-1 ${activeView === 'discussions' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+                >
+                  Discussions ({selectedGroup.topic_count})
+                </button>
+                <button
+                  onClick={() => setActiveView('resources')}
+                  className={`pb-4 px-1 ${activeView === 'resources' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+                >
+                  Resources ({selectedGroup.resource_count})
+                </button>
+              </nav>
+            </div>
+
+            {/* Discussions View */}
+            {activeView === 'discussions' && (
+              <div className="space-y-6">
+                {selectedGroup.is_joined && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setShowDiscussionModal(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      <Plus size={18} />
+                      New Discussion
+                    </button>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {selectedGroup.topics.map(topic => (
+                    <div key={topic.id} className="bg-white rounded-lg border border-gray-200 p-6">
+                      <div className="mb-4">
+                        <h4 className="text-lg font-semibold text-gray-900">{topic.title}</h4>
+                        <div className="flex items-center gap-3 text-sm text-gray-500 mt-2">
+                          <span>{topic.author_name}</span>
+                          <span>•</span>
+                          <span>{topic.created_at}</span>
+                        </div>
+                      </div>
+                      
+                      <p className="text-gray-700 mb-4">{topic.content}</p>
+
+                      {topic.tags.length > 0 && (
+                        <div className="flex gap-2 mb-4">
+                          {topic.tags.map(tag => (
+                            <span key={tag} className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Replies */}
+                      <div className="mt-6 space-y-4">
+                        {topic.replies.map(reply => (
+                          <div key={reply.id} className="bg-gray-50 rounded-lg p-4 ml-8">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-medium text-sm">{reply.author_name}</span>
+                              <span className="text-xs text-gray-500">{reply.created_at}</span>
+                            </div>
+                            <p className="text-gray-700 text-sm">{reply.content}</p>
+                          </div>
+                        ))}
+
+                        {selectedGroup.is_joined && (
+                          <div className="flex gap-2 mt-4">
+                            <input
+                              type="text"
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              placeholder="Add a reply..."
+                              className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button
+                              onClick={() => addReply(topic.id)}
+                              disabled={!replyText.trim()}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              <Send size={18} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {selectedGroup.topics.length === 0 && (
+                    <div className="text-center py-12 text-gray-500">
+                      {selectedGroup.is_joined
+                        ? 'No discussions yet. Start a new discussion!'
+                        : 'Join this group to view and participate in discussions.'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Resources View */}
+            {activeView === 'resources' && (
+              <div className="space-y-6">
+                {selectedGroup.is_joined && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setShowResourceModal(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      <Plus size={18} />
+                      Add Resource
+                    </button>
+                  </div>
+                )}
+
+                <div className="grid gap-4">
+                  {selectedGroup.resources.map(resource => (
+                    <div key={resource.id} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-all">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3">
+                          {resource.type === 'video' && <Video className="text-red-500" size={24} />}
+                          {resource.type === 'document' && <FileText className="text-blue-500" size={24} />}
+                          {resource.type === 'link' && <LinkIcon className="text-green-500" size={24} />}
+                          
+                          <div>
+                            <h4 className="font-semibold text-gray-900">{resource.title}</h4>
+                            {resource.description && (
+                              <p className="text-sm text-gray-600 mt-1">{resource.description}</p>
+                            )}
+                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                              <span>Added by {resource.uploaded_by_name}</span>
+                              <span>{resource.uploaded_at}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <a
+                          href={resource.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                        >
+                          View
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+
+                  {selectedGroup.resources.length === 0 && (
+                    <div className="text-center py-12 text-gray-500">
+                      {selectedGroup.is_joined
+                        ? 'No resources yet. Share a resource!'
+                        : 'Join this group to access and share resources.'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Events Section */}
         <div className="mt-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Upcoming Events</h2>
           
-          {loading.events ? (
-            <div className="text-center py-8">
-              <Loader2 size={32} className="animate-spin mx-auto text-blue-600" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {events.map(event => (
-                <div key={event.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium
-                      ${event.type === 'webinar' ? 'bg-blue-100 text-blue-600' : ''}
-                      ${event.type === 'workshop' ? 'bg-green-100 text-green-600' : ''}
-                      ${event.type === 'qna' ? 'bg-purple-100 text-purple-600' : ''}
-                    `}>
-                      {event.type.toUpperCase()}
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {event.attendees} {event.maxAttendees ? `/ ${event.maxAttendees}` : ''} attending
-                    </span>
-                  </div>
-                  
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
-                  {event.description && (
-                    <p className="text-sm text-gray-600 mb-3">{event.description}</p>
-                  )}
-                  
-                  <div className="space-y-2 text-sm text-gray-600 mb-4">
-                    <p className="flex items-center gap-2">
-                      <Calendar size={16} />
-                      {new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <Clock size={16} />
-                      {event.time}
-                    </p>
-                  </div>
-
-                  <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                    Register Now
-                  </button>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {events.map(event => (
+              <div key={event.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium
+                    ${event.type === 'webinar' ? 'bg-blue-100 text-blue-600' : ''}
+                    ${event.type === 'workshop' ? 'bg-green-100 text-green-600' : ''}
+                    ${event.type === 'qna' ? 'bg-purple-100 text-purple-600' : ''}
+                  `}>
+                    {event.type.toUpperCase()}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    {event.attendees} {event.max_attendees ? `/ ${event.max_attendees}` : ''} attending
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
+                
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
+                {event.description && (
+                  <p className="text-sm text-gray-600 mb-3">{event.description}</p>
+                )}
+                
+                <div className="space-y-2 text-sm text-gray-600 mb-4">
+                  <p className="flex items-center gap-2">
+                    <Calendar size={16} />
+                    {new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <Clock size={16} />
+                    {event.time}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => registerForEvent(event.id)}
+                  disabled={event.is_registered}
+                  className={`w-full px-4 py-2 rounded-lg transition-colors ${
+                    event.is_registered
+                      ? 'bg-green-100 text-green-600 cursor-default'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {event.is_registered ? 'Registered' : 'Register Now'}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Admin Panel */}
-        {renderAdminPanel()}
+        {user?.role === 'admin' && (
+          <div className="mt-12 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-6">
+              <Settings size={20} />
+              Admin Panel
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left">
+                <FileText className="text-blue-600 mb-2" size={24} />
+                <h3 className="font-semibold">Manage Resources</h3>
+                <p className="text-sm text-gray-600 mt-1">Review and moderate resources</p>
+              </button>
+
+              <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all text-left">
+                <Users className="text-green-600 mb-2" size={24} />
+                <h3 className="font-semibold">Manage Groups</h3>
+                <p className="text-sm text-gray-600 mt-1">Monitor all study groups</p>
+              </button>
+
+              <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all text-left">
+                <Calendar className="text-purple-600 mb-2" size={24} />
+                <h3 className="font-semibold">Create Events</h3>
+                <p className="text-sm text-gray-600 mt-1">Schedule new events</p>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Create Group Modal */}
         {showCreateGroup && (
@@ -1200,7 +1165,7 @@ export default function CommunityPage() {
                   <ul className="text-sm text-blue-700 mt-2 space-y-1">
                     <li>• Participate in discussions</li>
                     <li>• Share resources</li>
-                    <li>• Connect with {selectedGroup.memberCount || selectedGroup.members?.length || 0} members</li>
+                    <li>• Connect with {selectedGroup.member_count} members</li>
                   </ul>
                 </div>
               </div>
