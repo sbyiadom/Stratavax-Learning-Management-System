@@ -33,7 +33,7 @@ type Assignment = {
   course_id: string
   points: number
   passing_score: number
-  course?: {
+  courses?: {
     title: string
   }
 }
