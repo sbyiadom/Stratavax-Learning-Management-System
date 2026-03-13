@@ -1,9 +1,33 @@
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import { 
-  Users, BookOpen, FileText, Settings, BarChart, 
-  Calendar, MessageSquare, Award, ArrowRight, GraduationCap,
-  TrendingUp, UserPlus, Clock, CheckCircle, AlertCircle
+  Users, 
+  BookOpen, 
+  FileText, 
+  Settings, 
+  BarChart, 
+  Calendar, 
+  MessageSquare, 
+  Award, 
+  ArrowRight, 
+  GraduationCap,
+  TrendingUp, 
+  UserPlus, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle,
+  Activity,
+  Briefcase,
+  DollarSign,
+  Target,
+  Zap,
+  Globe,
+  Star,
+  Bell,
+  Download,
+  Filter,
+  MoreHorizontal,
+  User
 } from 'lucide-react'
 
 export default async function AdminDashboardPage() {
