@@ -4,7 +4,18 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, User, Mail, Lock, ArrowRight, GraduationCap } from 'lucide-react'
+import { 
+  GraduationCap, 
+  Sparkles, 
+  User, 
+  Mail, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  ArrowRight,
+  CheckCircle,
+  AlertCircle
+} from 'lucide-react'
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState('')
@@ -39,13 +50,12 @@ export default function RegisterPage() {
     }
 
     try {
-      // Sign up the user
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            full_name: fullName, // Store full name in user metadata
+            full_name: fullName,
           },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         }
@@ -54,7 +64,6 @@ export default function RegisterPage() {
       if (signUpError) throw signUpError
 
       if (data.user) {
-        // Show success message
         alert('Registration successful! Please check your email to confirm your account.')
         router.push('/login')
       }
@@ -67,9 +76,9 @@ export default function RegisterPage() {
 
   return (
     <div 
-      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-fixed p-4"
+      className="min-h-screen bg-cover bg-center bg-fixed flex items-center justify-center p-4"
       style={{
-        backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), url('/images/register-bg.jpg')`
+        backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.92)), url('/images/register-bg.jpg')`
       }}
     >
       <div className="max-w-md w-full">
@@ -97,7 +106,8 @@ export default function RegisterPage() {
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+              <AlertCircle size={16} className="text-red-600" />
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
@@ -116,7 +126,7 @@ export default function RegisterPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/90"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/90"
                   placeholder="Enter your full name"
                 />
               </div>
@@ -134,7 +144,7 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/90"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/90"
                   placeholder="you@example.com"
                 />
               </div>
@@ -152,7 +162,7 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/90"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/90"
                   placeholder="••••••••"
                 />
                 <button
@@ -163,7 +173,10 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters</p>
+              <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                <CheckCircle size={12} className="text-green-500" />
+                Must be at least 6 characters
+              </p>
             </div>
 
             {/* Confirm Password Field */}
@@ -178,7 +191,7 @@ export default function RegisterPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/90"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/90"
                   placeholder="••••••••"
                 />
                 <button
@@ -195,14 +208,14 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2.5 rounded-lg font-medium hover:shadow-lg hover:shadow-blue-600/25 transition-all disabled:opacity-50 flex items-center justify-center"
+              className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg hover:shadow-blue-600/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2 font-medium"
             >
               {loading ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
               ) : (
                 <>
                   Create Account
-                  <ArrowRight size={18} className="ml-2" />
+                  <ArrowRight size={18} />
                 </>
               )}
             </button>
