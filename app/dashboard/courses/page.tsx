@@ -6,7 +6,7 @@ import {
   Star, TrendingUp, Award, GraduationCap,
   Sparkles, Target, CheckCircle, X,
   ArrowLeft, Home, Compass, BarChart, FileText,
-  Users as UsersIcon, Certificate, Settings
+  Settings
 } from 'lucide-react'
 
 // Approved course slugs
@@ -109,7 +109,6 @@ export default async function DashboardCoursesPage({
   if (viewMode === 'my') {
     if (enrolledCourseIds.size === 0) {
       // If no enrolled courses, return empty array
-      const { data: courses } = await query
       return (
         <CoursesPageContent 
           courses={[]}
