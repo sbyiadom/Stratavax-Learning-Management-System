@@ -34,9 +34,15 @@ async function getCategories(supabase: any) {
   
   if (!data) return []
   
-  // Get unique categories
-  const uniqueCategories = [...new Set(data.map(item => item.category).filter(Boolean))]
-  return uniqueCategories
+  // Fix: Use reduce instead of Set spread to avoid TypeScript iteration issue
+  const categories: string[] = []
+  data.forEach(item => {
+    if (item.category && !categories.includes(item.category)) {
+      categories.push(item.category)
+    }
+  })
+  
+  return categories
 }
 
 // Difficulty badges
@@ -125,18 +131,12 @@ export default async function CoursesPage({ searchParams }: PageProps) {
             <h2 className="text-xl font-bold text-slate-900 mb-2">Something went wrong!</h2>
             <p className="text-slate-600 mb-6">We encountered an error while loading this page. Please try again.</p>
             <div className="flex gap-3 justify-center">
-              <form>
-                <button
-                  type="submit"
-                  formAction={async () => {
-                    'use server'
-                    // This will refresh the page
-                  }}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-                >
-                  Try again
-                </button>
-              </form>
+              <Link
+                href="/dashboard/courses"
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+              >
+                Try again
+              </Link>
               <Link
                 href="/dashboard"
                 className="px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-all"
@@ -483,18 +483,12 @@ export default async function CoursesPage({ searchParams }: PageProps) {
           <h2 className="text-xl font-bold text-slate-900 mb-2">Something went wrong!</h2>
           <p className="text-slate-600 mb-6">We encountered an error while loading this page. Please try again.</p>
           <div className="flex gap-3 justify-center">
-            <form>
-              <button
-                type="submit"
-                formAction={async () => {
-                  'use server'
-                  // This will refresh the page
-                }}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-              >
-                Try again
-              </button>
-            </form>
+            <Link
+              href="/dashboard/courses"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+            >
+              Try again
+            </Link>
             <Link
               href="/dashboard"
               className="px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-all"
