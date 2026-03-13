@@ -6,7 +6,7 @@ import {
   Star, TrendingUp, Award, GraduationCap,
   Sparkles, Target, CheckCircle, X,
   ArrowLeft, Home, Compass, BarChart, FileText,
-  Settings
+  Settings, ArrowRight
 } from 'lucide-react'
 
 // Approved course slugs
@@ -181,7 +181,7 @@ export default async function DashboardCoursesPage({
 }
 
 // Separate component for the main content
-async function CoursesPageContent({ 
+function CoursesPageContent({ 
   courses, 
   enrolledCourseIds,
   searchParams,
