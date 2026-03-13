@@ -14,7 +14,11 @@ import {
   ArrowLeft,
   Briefcase,
   Mail,
-  User
+  User,
+  GraduationCap,
+  Sparkles,
+  BookOpen,
+  Clock
 } from 'lucide-react'
 
 type Supervisor = {
@@ -27,6 +31,8 @@ type Supervisor = {
   is_active: boolean
   created_at: string
   student_count?: number
+  last_active?: string
+  courses_count?: number
 }
 
 type Student = {
@@ -37,6 +43,8 @@ type Student = {
   department: string
   role: string
   has_supervisor: boolean
+  enrollment_count?: number
+  last_active?: string
 }
 
 export default function AdminSupervisorsPage() {
@@ -47,6 +55,7 @@ export default function AdminSupervisorsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
+  const [activeTab, setActiveTab] = useState<'assigned' | 'unassigned'>('unassigned')
   
   const supabase = createClient()
   const router = useRouter()
@@ -75,9 +84,17 @@ export default function AdminSupervisorsPage() {
             .eq('supervisor_id', sup.id)
             .eq('is_active', true)
 
+          // Get courses count (if you have this relationship)
+          const { count: coursesCount } = await supabase
+            .from('courses')
+            .select('*', { count: 'exact', head: true })
+            .eq('instructor_id', sup.user_id)
+
           return {
             ...sup,
-            student_count: count || 0
+            student_count: count || 0,
+            courses_count: coursesCount || 0,
+            last_active: sup.last_active || sup.updated_at
           }
         })
       )
@@ -100,10 +117,21 @@ export default function AdminSupervisorsPage() {
 
       const assignedStudentIds = new Set(assignments?.map(a => a.student_id) || [])
 
-      const studentsWithStatus = studentsData.map(student => ({
-        ...student,
-        has_supervisor: assignedStudentIds.has(student.id)
-      }))
+      // Get enrollment counts for each student
+      const studentsWithStatus = await Promise.all(
+        studentsData.map(async (student) => {
+          const { count } = await supabase
+            .from('enrollments')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', student.user_id)
+
+          return {
+            ...student,
+            has_supervisor: assignedStudentIds.has(student.id),
+            enrollment_count: count || 0
+          }
+        })
+      )
 
       setStudents(studentsWithStatus)
     }
@@ -117,7 +145,8 @@ export default function AdminSupervisorsPage() {
     const assignments = selectedStudents.map(studentId => ({
       supervisor_id: selectedSupervisor.id,
       student_id: studentId,
-      is_active: true
+      is_active: true,
+      assigned_at: new Date().toISOString()
     }))
 
     const { error } = await supabase
@@ -132,19 +161,41 @@ export default function AdminSupervisorsPage() {
   }
 
   const handleRemoveAssignment = async (studentId: string) => {
+    if (!confirm('Are you sure you want to remove this student assignment?')) return
+
     const { error } = await supabase
       .from('supervisor_assignments')
-      .update({ is_active: false })
+      .update({ is_active: false, ended_at: new Date().toISOString() })
       .eq('supervisor_id', selectedSupervisor?.id)
       .eq('student_id', studentId)
+      .eq('is_active', true)
 
     if (!error) {
       loadData()
     }
   }
 
+  // Get assigned students for selected supervisor
+  const getAssignedStudents = async (supervisorId: string) => {
+    const { data: assignments } = await supabase
+      .from('supervisor_assignments')
+      .select('student_id')
+      .eq('supervisor_id', supervisorId)
+      .eq('is_active', true)
+
+    if (!assignments) return []
+
+    const studentIds = assignments.map(a => a.student_id)
+    const { data: assignedStudents } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .in('id', studentIds)
+
+    return assignedStudents || []
+  }
+
   const filteredStudents = students.filter(student => 
-    !student.has_supervisor &&
+    (activeTab === 'unassigned' ? !student.has_supervisor : student.has_supervisor) &&
     (student.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
      student.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
      (student.department && student.department.toLowerCase().includes(searchQuery.toLowerCase())))
@@ -152,48 +203,129 @@ export default function AdminSupervisorsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div 
+        className="min-h-screen bg-cover bg-center bg-fixed flex items-center justify-center"
+        style={{
+          backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95)), url('/images/admin-bg.jpg')`
+        }}
+      >
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
+    <div 
+      className="min-h-screen bg-cover bg-center bg-fixed"
+      style={{
+        backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95)), url('/images/admin-bg.jpg')`
+      }}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header with Stratavax Branding */}
+        <div className="flex items-center gap-4 mb-6">
           <Link
             href="/admin"
-            className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ArrowLeft size={20} className="mr-2" />
-            Back to Admin
+            <ArrowLeft size={20} className="text-gray-600" />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Supervisor Management</h1>
-          <p className="text-gray-600">Assign students to supervisors for progress monitoring</p>
+          <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+            <GraduationCap className="text-white" size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Supervisor Management</h1>
+            <p className="text-sm text-gray-600">Assign students to supervisors for progress monitoring</p>
+          </div>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Users className="text-blue-600" size={24} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{supervisors.length}</p>
+                <p className="text-sm text-gray-600">Total Supervisors</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <User className="text-green-600" size={24} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {supervisors.filter(s => s.is_active).length}
+                </p>
+                <p className="text-sm text-gray-600">Active Supervisors</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <BookOpen className="text-purple-600" size={24} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {students.filter(s => s.has_supervisor).length}
+                </p>
+                <p className="text-sm text-gray-600">Assigned Students</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <Clock className="text-yellow-600" size={24} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {students.filter(s => !s.has_supervisor).length}
+                </p>
+                <p className="text-sm text-gray-600">Unassigned Students</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Supervisors Grid */}
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Supervisors</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {supervisors.map((supervisor) => (
             <div
               key={supervisor.id}
-              className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition cursor-pointer"
+              className={`bg-white rounded-xl shadow-sm border p-4 hover:shadow-md transition-all cursor-pointer ${
+                selectedSupervisor?.id === supervisor.id ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
+              }`}
               onClick={() => setSelectedSupervisor(supervisor)}
             >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
-                  {supervisor.full_name[0]}
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                  {supervisor.full_name?.[0] || 'S'}
                 </div>
-                <div>
-                  <h3 className="font-medium text-gray-900">{supervisor.full_name}</h3>
-                  <p className="text-sm text-gray-500">{supervisor.department}</p>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900">{supervisor.full_name}</h3>
+                  <p className="text-sm text-gray-500">{supervisor.department || 'General'}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      supervisor.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {supervisor.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {supervisor.student_count} students
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Students: {supervisor.student_count}</span>
-                <span className="text-blue-600">View Details →</span>
+                <ChevronRight size={18} className="text-gray-400" />
               </div>
             </div>
           ))}
@@ -201,17 +333,32 @@ export default function AdminSupervisorsPage() {
 
         {/* Selected Supervisor Details */}
         {selectedSupervisor && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex justify-between items-start mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">{selectedSupervisor.full_name}</h2>
-                <p className="text-gray-600">{selectedSupervisor.email}</p>
-                <p className="text-sm text-gray-500 mt-1">Department: {selectedSupervisor.department}</p>
-                <p className="text-sm text-gray-500">Employee ID: {selectedSupervisor.employee_id}</p>
+              <div className="flex items-start gap-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+                  {selectedSupervisor.full_name?.[0] || 'S'}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">{selectedSupervisor.full_name}</h2>
+                  <p className="text-gray-600 flex items-center gap-1 mt-1">
+                    <Mail size={14} /> {selectedSupervisor.email}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    <span className="inline-flex items-center gap-1 mr-4">
+                      <Briefcase size={14} />
+                      {selectedSupervisor.department || 'No department'}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Users size={14} />
+                      {selectedSupervisor.student_count} assigned students
+                    </span>
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setShowAssignModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg hover:shadow-blue-600/25 transition-all flex items-center gap-2"
               >
                 <UserPlus size={18} />
                 Assign Students
@@ -220,29 +367,33 @@ export default function AdminSupervisorsPage() {
 
             {/* Current Assignments */}
             <h3 className="font-semibold text-gray-900 mb-3">Assigned Students</h3>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-96 overflow-y-auto">
               {students
-                .filter(s => {
-                  // This would need to be replaced with actual assignments query
-                  return false // Placeholder - you'll need to fetch actual assignments
-                })
+                .filter(s => s.has_supervisor)
+                .slice(0, 5)
                 .map((student) => (
-                  <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                     <div className="flex items-center gap-3">
-                      <User size={18} className="text-gray-400" />
+                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {student.full_name?.[0] || 'S'}
+                      </div>
                       <div>
-                        <p className="font-medium">{student.full_name}</p>
-                        <p className="text-sm text-gray-500">{student.email}</p>
+                        <p className="font-medium text-gray-900">{student.full_name}</p>
+                        <p className="text-xs text-gray-500">{student.email}</p>
                       </div>
                     </div>
                     <button
                       onClick={() => handleRemoveAssignment(student.id)}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Remove assignment"
                     >
                       <XCircle size={18} />
                     </button>
                   </div>
                 ))}
+              {students.filter(s => s.has_supervisor).length === 0 && (
+                <p className="text-center text-gray-500 py-4">No students assigned yet</p>
+              )}
             </div>
           </div>
         )}
@@ -253,68 +404,127 @@ export default function AdminSupervisorsPage() {
             <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
               <div className="p-6 border-b sticky top-0 bg-white">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold">
-                    Assign Students to {selectedSupervisor.full_name}
-                  </h3>
-                  <button onClick={() => setShowAssignModal(false)}>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Assign Students to {selectedSupervisor.full_name}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Select students to assign to this supervisor
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setShowAssignModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
                     <span className="text-2xl">&times;</span>
                   </button>
                 </div>
               </div>
 
               <div className="p-6">
+                {/* Tabs */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => setActiveTab('unassigned')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeTab === 'unassigned'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Unassigned Students ({students.filter(s => !s.has_supervisor).length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('assigned')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeTab === 'assigned'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    All Students ({students.length})
+                  </button>
+                </div>
+
                 {/* Search */}
                 <div className="mb-4 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                   <input
                     type="text"
-                    placeholder="Search students..."
+                    placeholder="Search students by name, email, or department..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
 
                 {/* Student List */}
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {filteredStudents.map((student) => (
-                    <label
-                      key={student.id}
-                      className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedStudents.includes(student.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedStudents([...selectedStudents, student.id])
-                          } else {
-                            setSelectedStudents(selectedStudents.filter(id => id !== student.id))
-                          }
-                        }}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <div>
-                        <p className="font-medium">{student.full_name}</p>
-                        <p className="text-sm text-gray-500">{student.email}</p>
-                      </div>
-                    </label>
-                  ))}
+                  {filteredStudents.length > 0 ? (
+                    filteredStudents.map((student) => (
+                      <label
+                        key={student.id}
+                        className={`flex items-center gap-3 p-3 border rounded-lg transition-colors cursor-pointer ${
+                          student.has_supervisor && activeTab !== 'assigned'
+                            ? 'border-gray-200 bg-gray-50 opacity-60'
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedStudents.includes(student.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStudents([...selectedStudents, student.id])
+                            } else {
+                              setSelectedStudents(selectedStudents.filter(id => id !== student.id))
+                            }
+                          }}
+                          disabled={student.has_supervisor && activeTab !== 'assigned'}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div className="flex-1 flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">{student.full_name}</p>
+                            <p className="text-sm text-gray-500">{student.email}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-gray-400">{student.department || 'No department'}</span>
+                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                {student.enrollment_count || 0} courses
+                              </span>
+                            </div>
+                          </div>
+                          {student.has_supervisor && (
+                            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">
+                              Already assigned
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-center text-gray-500 py-8">No students found</p>
+                  )}
                 </div>
 
                 {/* Actions */}
-                <div className="flex justify-end gap-3 mt-6">
+                <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
                   <button
-                    onClick={() => setShowAssignModal(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    onClick={() => {
+                      setShowAssignModal(false)
+                      setSelectedStudents([])
+                      setSearchQuery('')
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleAssignStudents}
                     disabled={selectedStudents.length === 0}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg hover:shadow-blue-600/25 transition-all disabled:opacity-50 flex items-center gap-2"
                   >
+                    <UserPlus size={18} />
                     Assign Selected ({selectedStudents.length})
                   </button>
                 </div>
