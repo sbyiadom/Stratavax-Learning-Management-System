@@ -123,9 +123,9 @@ async function enrollInCourse(formData: FormData) {
       code: error.code
     })
     
-    // You could return an error message to show to the user
-    // For now, we'll just log it and not redirect
-    return { error: error.message }
+    // Instead of returning an error, we can throw or handle differently
+    // For now, we'll just log and not redirect
+    return
   }
 
   console.log('Enrollment successful!', data)
