@@ -120,8 +120,7 @@ async function enrollInCourse(formData: FormData) {
       message: error.message,
       details: error.details,
       hint: error.hint,
-      code: error.code,
-      status: error.status
+      code: error.code
     })
     
     // You could return an error message to show to the user
