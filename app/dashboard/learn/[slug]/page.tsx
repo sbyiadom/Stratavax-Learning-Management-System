@@ -65,29 +65,72 @@ type LessonProgress = {
   quiz_score: number | null
 }
 
-// Server action for enrollment - defined at top level
+// Server action for enrollment - defined at top level with enhanced error handling
 async function enrollInCourse(formData: FormData) {
   'use server'
 
   const courseId = formData.get('courseId') as string
   const slug = formData.get('slug') as string
 
+  console.log('=== ENROLLMENT ATTEMPT ===')
+  console.log('Course ID:', courseId)
+  console.log('Slug:', slug)
+
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+  console.log('User:', user?.id, userError)
 
   if (!user) {
+    console.log('No user found, redirecting to login')
     redirect('/login')
   }
 
-  const { error } = await supabase
+  // First, check if already enrolled
+  const { data: existingEnrollment, error: checkError } = await supabase
+    .from('enrollments')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('course_id', courseId)
+    .maybeSingle()
+
+  console.log('Existing enrollment check:', existingEnrollment, checkError)
+
+  if (existingEnrollment) {
+    console.log('Already enrolled, redirecting to course')
+    redirect(`/dashboard/learn/${slug}`)
+  }
+
+  // Attempt to insert with all required fields
+  const { data, error } = await supabase
     .from('enrollments')
     .insert({
       user_id: user.id,
       course_id: courseId,
       status: 'active',
-      progress_percentage: 0
+      progress_percentage: 0,
+      enrolled_at: new Date().toISOString()
     })
+    .select()
 
+  console.log('Insert result:', { data, error })
+
+  if (error) {
+    console.error('FULL ENROLLMENT ERROR DETAILS:', {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      status: error.status
+    })
+    
+    // You could return an error message to show to the user
+    // For now, we'll just log it and not redirect
+    return { error: error.message }
+  }
+
+  console.log('Enrollment successful!', data)
+  
   if (!error) {
     redirect(`/dashboard/learn/${slug}`)
   }
@@ -172,6 +215,7 @@ export default async function CoursePage({
     }
 
     console.log('7. Checking enrollment for user:', user.id, 'course:', course.id)
+    console.log('Course ID for enrollment:', course.id)
 
     // Check if user is enrolled
     const { data: enrollment, error: enrollmentError } = await supabase
