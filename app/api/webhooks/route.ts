@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 async function handleUserCreated(data: any) {
   const supabase = await createClient()
   
-  // Create user profile in 'profiles' table - using 'as any' on the whole query
+  // Create user profile - matching your exact schema
   const { error } = await supabase
     .from('profiles')
     .insert({
@@ -59,16 +59,17 @@ async function handleUserCreated(data: any) {
 async function handlePaymentSucceeded(data: any) {
   const supabase = await createClient()
   
-  // Update enrollment based on payment - using type assertion on the update method
-  const updateQuery = supabase
+  // Check what columns your enrollments table has - run this query to see:
+  // SELECT column_name FROM information_schema.columns WHERE table_name = 'enrollments';
+  
+  // For now, let's assume 'status' exists (from your database.types.ts)
+  const { error } = await supabase
     .from('enrollments')
     .update({
-      payment_status: 'paid',
+      status: 'paid',
       updated_at: new Date().toISOString(),
-    } as any)
+    })
     .eq('id', data.enrollmentId)
-  
-  const { error } = await updateQuery
 
   if (error) {
     console.error('Error updating enrollment:', error)
