@@ -39,13 +39,16 @@ export async function POST(request: NextRequest) {
 async function handleUserCreated(data: any) {
   const supabase = await createClient()
   
-  // Create user profile
+  // Create user profile in 'profiles' table (not 'user_profiles')
   await supabase
-    .from('user_profiles')
+    .from('profiles')
     .insert({
       id: data.id,
       email: data.email,
+      first_name: data.first_name || '',
+      last_name: data.last_name || '',
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
 }
 
