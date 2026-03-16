@@ -40,7 +40,7 @@ async function handleUserCreated(data: any) {
   const supabase = await createClient()
   
   // Create user profile in 'profiles' table - using 'as any' on the whole query
-  const { error } = await (supabase
+  const { error } = await supabase
     .from('profiles')
     .insert({
       id: data.id,
@@ -49,7 +49,7 @@ async function handleUserCreated(data: any) {
       last_name: data.last_name || '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    }) as any)
+    } as any)
 
   if (error) {
     console.error('Error creating user profile:', error)
@@ -59,14 +59,14 @@ async function handleUserCreated(data: any) {
 async function handlePaymentSucceeded(data: any) {
   const supabase = await createClient()
   
-  // Update enrollment based on payment - using 'as any' on the whole query
-  const { error } = await (supabase
+  // Update enrollment based on payment - using 'as any' on the update object
+  const { error } = await supabase
     .from('enrollments')
     .update({
       payment_status: 'paid',
       updated_at: new Date().toISOString(),
-    })
-    .eq('id', data.enrollmentId) as any)
+    } as any)
+    .eq('id', data.enrollmentId)
 
   if (error) {
     console.error('Error updating enrollment:', error)
