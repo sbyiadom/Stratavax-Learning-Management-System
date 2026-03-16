@@ -79,16 +79,7 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
       .single() as any
 
     if (data) {
-      // Format the data to match our expected structure
-      const formattedData = {
-        ...data,
-        profiles: {
-          full_name: `${data.profiles?.first_name || ''} ${data.profiles?.last_name || ''}`.trim(),
-          email: data.profiles?.email,
-          department: data.profiles?.department
-        }
-      }
-      setSubmission(formattedData as Submission)
+      setSubmission(data as Submission)
       
       // Initialize grades from rubric
       const rubric = (data as any).assignments.grading_rubric
@@ -133,7 +124,10 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
 
   const assignment = submission.assignments
   const rubric = assignment.grading_rubric
-  const studentName = submission.profiles?.full_name || 'Student'
+  // Compute full name from first_name and last_name
+  const studentName = submission.profiles ? 
+    `${submission.profiles.first_name || ''} ${submission.profiles.last_name || ''}`.trim() : 
+    'Student'
   const studentEmail = submission.profiles?.email || ''
 
   return (
