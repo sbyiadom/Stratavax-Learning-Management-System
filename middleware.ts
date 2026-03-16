@@ -27,21 +27,19 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired - this is important!
+  // IMPORTANT: Use getUser() instead of getSession() for better auth
   const { data: { user } } = await supabase.auth.getUser()
   
   const pathname = request.nextUrl.pathname
 
-  // Public routes - accessible without authentication
+  // Public routes
   const publicRoutes = ['/', '/login', '/register', '/auth/callback']
   const isPublicRoute = publicRoutes.includes(pathname)
 
-  // Allow public routes
   if (isPublicRoute) {
     return supabaseResponse
   }
 
-  // Redirect to login if no user
   if (!user) {
     const redirectUrl = new URL('/login', request.url)
     return NextResponse.redirect(redirectUrl)
@@ -52,9 +50,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except static files
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
