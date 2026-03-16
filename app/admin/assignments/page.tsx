@@ -126,13 +126,16 @@ export default function AdminAssignmentsPage() {
       const passed = data.filter((s: any) => s.status === 'passed').length
       const failed = data.filter((s: any) => s.status === 'failed').length
       
-      // Calculate average score
+      // Calculate average score - fixed the reduce function with proper typing
       const scores = data
         .filter((s: any) => s.grade !== null)
         .map((s: any) => s.grade as number)
-      const averageScore = scores.length > 0 
-        ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) 
-        : 0
+      
+      let averageScore = 0
+      if (scores.length > 0) {
+        const sum = scores.reduce((acc: number, curr: number) => acc + curr, 0)
+        averageScore = Math.round(sum / scores.length)
+      }
 
       // Calculate completion rate
       const completionRate = data.length > 0
