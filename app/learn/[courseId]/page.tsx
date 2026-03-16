@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, Clock, BarChart, ChevronRight } from 'lucide-react'
+import { BookOpen, Clock, BarChart, ChevronRight, GraduationCap, Sparkles } from 'lucide-react'
 
 // Complete course catalog based on your structure
 const courseCategories = [
@@ -142,14 +142,16 @@ export default function DashboardPage() {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
-      setLoading(false)
       
-      // Load enrolled courses from localStorage or database
-      // For now, using localStorage as placeholder
-      const saved = localStorage.getItem(`enrolled_${user?.id}`)
-      if (saved) {
-        setEnrolledCourses(JSON.parse(saved))
+      if (user) {
+        // Load enrolled courses from localStorage
+        const saved = localStorage.getItem(`enrolled_${user.id}`)
+        if (saved) {
+          setEnrolledCourses(JSON.parse(saved))
+        }
       }
+      
+      setLoading(false)
     }
     
     getUser()
@@ -162,7 +164,7 @@ export default function DashboardPage() {
       if (user) {
         localStorage.setItem(`enrolled_${user.id}`, JSON.stringify(updated))
       }
-      router.push(`/learn/${courseId}`)
+      router.push(`/dashboard/learn/${courseId}`)
     }
   }
 
@@ -196,7 +198,12 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">Learning Platform</h1>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <GraduationCap className="text-white" size={18} />
+                </div>
+                <h1 className="text-xl font-bold text-gray-900">Stratavax</h1>
+              </div>
               <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">
                 Beta
               </span>
@@ -220,7 +227,7 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Banner */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg shadow-lg p-8 mb-8 text-white">
-          <h2 className="text-3xl font-bold mb-2">Welcome back, {user.email}!</h2>
+          <h2 className="text-3xl font-bold mb-2">Welcome back, {user.email?.split('@')[0] || 'Learner'}!</h2>
           <p className="text-blue-100 mb-4">
             You have access to {allCourses.length}+ free courses to develop your skills.
           </p>
@@ -267,7 +274,7 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     <button
-                      onClick={() => router.push(`/learn/${course.id}`)}
+                      onClick={() => router.push(`/dashboard/learn/${course.id}`)}
                       className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
                     >
                       Continue Learning
@@ -340,7 +347,7 @@ export default function DashboardPage() {
                   
                   {isEnrolled ? (
                     <button
-                      onClick={() => router.push(`/learn/${course.id}`)}
+                      onClick={() => router.push(`/dashboard/learn/${course.id}`)}
                       className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
                     >
                       Continue Learning
