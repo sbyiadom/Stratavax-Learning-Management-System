@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user) {
-      // Check if profile exists
+      // Check if profile exists in 'profiles' table
       const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id')
