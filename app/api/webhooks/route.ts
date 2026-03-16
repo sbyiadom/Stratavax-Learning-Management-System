@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 async function handleUserCreated(data: any) {
   const supabase = await createClient()
   
-  // Create user profile in 'profiles' table with proper type assertion
+  // Create user profile in 'profiles' table with type assertion
   await supabase
     .from('profiles')
     .insert({
@@ -49,18 +49,18 @@ async function handleUserCreated(data: any) {
       last_name: data.last_name || '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    } as any) // Add 'as any' to bypass TypeScript type checking
+    } as any)
 }
 
 async function handlePaymentSucceeded(data: any) {
   const supabase = await createClient()
   
-  // Update enrollment based on payment
+  // Update enrollment based on payment with type assertion
   await supabase
     .from('enrollments')
-    .update({ 
+    .update({
       payment_status: 'paid',
       updated_at: new Date().toISOString(),
-    } as any) // Add 'as any' here too if needed
+    } as any)
     .eq('id', data.enrollmentId)
 }
