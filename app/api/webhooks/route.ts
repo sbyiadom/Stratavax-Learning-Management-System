@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 async function handleUserCreated(data: any) {
   const supabase = await createClient()
   
-  // Create user profile - matching your exact profiles table schema
+  // Create user profile - with type assertion on the insert object
   const { error } = await supabase
     .from('profiles')
     .insert({
@@ -49,7 +49,7 @@ async function handleUserCreated(data: any) {
       last_name: data.last_name || '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    })
+    } as any)
 
   if (error) {
     console.error('Error creating user profile:', error)
@@ -59,33 +59,16 @@ async function handleUserCreated(data: any) {
 async function handlePaymentSucceeded(data: any) {
   const supabase = await createClient()
   
-  // Your enrollments table doesn't have a payment_status column
-  // If you need to track payments, you have two options:
-  
-  // Option 1: Update the enrollment status to indicate payment
-  // (Using the existing 'status' field)
+  // Update enrollment - with type assertion on the update object
   const { error } = await supabase
     .from('enrollments')
     .update({
-      status: 'paid', // Using the existing status field
+      status: 'paid',
       updated_at: new Date().toISOString(),
-    })
+    } as any)
     .eq('id', data.enrollmentId)
 
   if (error) {
     console.error('Error updating enrollment:', error)
   }
-  
-  // Option 2: Create a separate payments table (recommended for production)
-  // Run this SQL to create a payments table:
-  /*
-  CREATE TABLE payments (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    enrollment_id UUID REFERENCES enrollments(id) ON DELETE CASCADE,
-    amount DECIMAL(10,2),
-    status TEXT DEFAULT 'pending',
-    payment_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-  );
-  */
 }
