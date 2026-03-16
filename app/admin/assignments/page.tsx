@@ -47,7 +47,12 @@ type Submission = {
   feedback: string | null
   submitted_at: string
   graded_at: string | null
-  user_profiles: UserProfile
+  profiles: {
+    first_name: string
+    last_name: string
+    email: string
+    department: string | null
+  }
   assignments: Assignment
 }
 
@@ -88,7 +93,12 @@ export default function AdminAssignmentsPage() {
       .from('user_assignments')
       .select(`
         *,
-        user_profiles!inner(full_name, email, department),
+        profiles!inner(
+          first_name,
+          last_name,
+          email,
+          department
+        ),
         assignments!inner(
           title, 
           course_id, 
@@ -97,20 +107,29 @@ export default function AdminAssignmentsPage() {
           courses!inner(title)
         )
       `)
-      .order('submitted_at', { ascending: false })
+      .order('submitted_at', { ascending: false }) as any
 
     if (data) {
-      setSubmissions(data as Submission[])
+      // Format the data to include full_name
+      const formattedData = data.map((item: any) => ({
+        ...item,
+        profiles: {
+          ...item.profiles,
+          full_name: `${item.profiles?.first_name || ''} ${item.profiles?.last_name || ''}`.trim()
+        }
+      }))
       
-      const pending = data.filter(s => s.status === 'submitted').length
-      const graded = data.filter(s => ['passed', 'failed', 'graded'].includes(s.status)).length
-      const passed = data.filter(s => s.status === 'passed').length
-      const failed = data.filter(s => s.status === 'failed').length
+      setSubmissions(formattedData as Submission[])
+      
+      const pending = data.filter((s: any) => s.status === 'submitted').length
+      const graded = data.filter((s: any) => ['passed', 'failed', 'graded'].includes(s.status)).length
+      const passed = data.filter((s: any) => s.status === 'passed').length
+      const failed = data.filter((s: any) => s.status === 'failed').length
       
       // Calculate average score
       const scores = data
-        .filter(s => s.grade !== null)
-        .map(s => s.grade as number)
+        .filter((s: any) => s.grade !== null)
+        .map((s: any) => s.grade as number)
       const averageScore = scores.length > 0 
         ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) 
         : 0
@@ -142,11 +161,16 @@ export default function AdminAssignmentsPage() {
     // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
+      const fullName = s.profiles?.full_name?.toLowerCase() || ''
+      const email = s.profiles?.email?.toLowerCase() || ''
+      const assignmentTitle = s.assignments?.title?.toLowerCase() || ''
+      const courseTitle = s.assignments?.courses?.title?.toLowerCase() || ''
+      
       return (
-        s.user_profiles?.full_name?.toLowerCase().includes(query) ||
-        s.user_profiles?.email?.toLowerCase().includes(query) ||
-        s.assignments?.title?.toLowerCase().includes(query) ||
-        s.assignments?.courses?.title?.toLowerCase().includes(query)
+        fullName.includes(query) ||
+        email.includes(query) ||
+        assignmentTitle.includes(query) ||
+        courseTitle.includes(query)
       )
     }
     
@@ -373,87 +397,93 @@ export default function AdminAssignmentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredSubmissions.map((sub) => (
-                  <tr key={sub.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                          {sub.user_profiles?.full_name?.[0] || 'S'}
+                {filteredSubmissions.map((sub) => {
+                  const fullName = sub.profiles?.full_name || 'Unknown'
+                  const email = sub.profiles?.email || ''
+                  const initial = fullName?.[0] || 'S'
+                  
+                  return (
+                    <tr key={sub.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                            {initial}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{fullName}</p>
+                            <p className="text-xs text-gray-500">{email}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{sub.user_profiles?.full_name}</p>
-                          <p className="text-xs text-gray-500">{sub.user_profiles?.email}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-medium text-gray-900">{sub.assignments?.title}</p>
+                        <p className="text-xs text-gray-500">Points: {sub.assignments?.points}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
+                          <BookOpen size={12} className="mr-1" />
+                          {sub.assignments?.courses?.title || 'General'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm text-gray-600">
+                          {new Date(sub.submitted_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(sub.submitted_at).toLocaleTimeString()}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(sub.status)}`}>
+                          {getStatusIcon(sub.status)}
+                          {sub.status.replace('_', ' ').charAt(0).toUpperCase() + sub.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {sub.grade ? (
+                          <div>
+                            <span className={`text-sm font-bold ${
+                              sub.grade >= (sub.assignments?.passing_score || 70) 
+                                ? 'text-green-600' 
+                                : 'text-red-600'
+                            }`}>
+                              {sub.grade}%
+                            </span>
+                            <p className="text-xs text-gray-400">
+                              /{sub.assignments?.passing_score || 70}% to pass
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-400">Not graded</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/admin/assignments/grade/${sub.id}`}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            {sub.status === 'submitted' ? 'Grade' : 'Review'}
+                          </Link>
+                          <button
+                            onClick={() => {
+                              setSelectedSubmission(sub)
+                              setShowDetailsModal(true)
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="View Details"
+                          >
+                            <Eye size={16} />
+                          </button>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-medium text-gray-900">{sub.assignments?.title}</p>
-                      <p className="text-xs text-gray-500">Points: {sub.assignments?.points}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
-                        <BookOpen size={12} className="mr-1" />
-                        {sub.assignments?.courses?.title || 'General'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-gray-600">
-                        {new Date(sub.submitted_at).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {new Date(sub.submitted_at).toLocaleTimeString()}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(sub.status)}`}>
-                        {getStatusIcon(sub.status)}
-                        {sub.status.replace('_', ' ').charAt(0).toUpperCase() + sub.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {sub.grade ? (
-                        <div>
-                          <span className={`text-sm font-bold ${
-                            sub.grade >= (sub.assignments?.passing_score || 70) 
-                              ? 'text-green-600' 
-                              : 'text-red-600'
-                          }`}>
-                            {sub.grade}%
-                          </span>
-                          <p className="text-xs text-gray-400">
-                            /{sub.assignments?.passing_score || 70}% to pass
-                          </p>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-400">Not graded</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/admin/assignments/grade/${sub.id}`}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          {sub.status === 'submitted' ? 'Grade' : 'Review'}
-                        </Link>
-                        <button
-                          onClick={() => {
-                            setSelectedSubmission(sub)
-                            setShowDetailsModal(true)
-                          }}
-                          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="View Details"
-                        >
-                          <Eye size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -498,12 +528,12 @@ export default function AdminAssignmentsPage() {
                   <h4 className="text-sm font-medium text-gray-500 mb-3">Student Information</h4>
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                      {selectedSubmission.user_profiles?.full_name?.[0] || 'S'}
+                      {selectedSubmission.profiles?.full_name?.[0] || 'S'}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{selectedSubmission.user_profiles?.full_name}</p>
-                      <p className="text-sm text-gray-600">{selectedSubmission.user_profiles?.email}</p>
-                      <p className="text-xs text-gray-500 mt-1">{selectedSubmission.user_profiles?.department || 'No department'}</p>
+                      <p className="font-medium text-gray-900">{selectedSubmission.profiles?.full_name}</p>
+                      <p className="text-sm text-gray-600">{selectedSubmission.profiles?.email}</p>
+                      <p className="text-xs text-gray-500 mt-1">{selectedSubmission.profiles?.department || 'No department'}</p>
                     </div>
                   </div>
                 </div>
