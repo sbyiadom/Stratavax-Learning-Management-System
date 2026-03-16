@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from './database.types'
+import { type CookieOptions } from '@supabase/ssr'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW!
@@ -10,7 +11,7 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY_NEW!
 export const createClient = async () => {
   const cookieStore = await cookies()
   
-  return createServerClient(
+  return createServerClient<Database>(
     supabaseUrl,
     supabaseAnonKey,
     {
@@ -18,7 +19,11 @@ export const createClient = async () => {
         getAll() {
           return cookieStore.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: {
+          name: string
+          value: string
+          options?: CookieOptions
+        }[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
@@ -40,7 +45,7 @@ export const createAdminClient = () => {
     throw new Error('Missing Supabase service role key')
   }
   
-  return createServerClient(
+  return createServerClient<Database>(
     supabaseUrl,
     supabaseServiceRoleKey,
     {
