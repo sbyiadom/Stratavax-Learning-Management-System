@@ -22,12 +22,6 @@ import {
   BookOpen
 } from 'lucide-react'
 
-type UserProfile = {
-  full_name: string
-  email: string
-  department: string | null
-}
-
 type Assignment = {
   title: string
   course_id: string
@@ -110,23 +104,14 @@ export default function AdminAssignmentsPage() {
       .order('submitted_at', { ascending: false }) as any
 
     if (data) {
-      // Format the data to include full_name
-      const formattedData = data.map((item: any) => ({
-        ...item,
-        profiles: {
-          ...item.profiles,
-          full_name: `${item.profiles?.first_name || ''} ${item.profiles?.last_name || ''}`.trim()
-        }
-      }))
-      
-      setSubmissions(formattedData as Submission[])
+      setSubmissions(data as Submission[])
       
       const pending = data.filter((s: any) => s.status === 'submitted').length
       const graded = data.filter((s: any) => ['passed', 'failed', 'graded'].includes(s.status)).length
       const passed = data.filter((s: any) => s.status === 'passed').length
       const failed = data.filter((s: any) => s.status === 'failed').length
       
-      // Calculate average score - fixed the reduce function with proper typing
+      // Calculate average score
       const scores = data
         .filter((s: any) => s.grade !== null)
         .map((s: any) => s.grade as number)
@@ -154,6 +139,12 @@ export default function AdminAssignmentsPage() {
     }
   }
 
+  // Helper function to get student full name
+  const getStudentFullName = (profiles: { first_name: string; last_name: string } | undefined) => {
+    if (!profiles) return ''
+    return `${profiles.first_name || ''} ${profiles.last_name || ''}`.trim()
+  }
+
   const filteredSubmissions = submissions.filter(s => {
     // Apply status filter
     if (filter === 'pending' && s.status !== 'submitted') return false
@@ -164,7 +155,7 @@ export default function AdminAssignmentsPage() {
     // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
-      const fullName = s.profiles?.full_name?.toLowerCase() || ''
+      const fullName = getStudentFullName(s.profiles).toLowerCase()
       const email = s.profiles?.email?.toLowerCase() || ''
       const assignmentTitle = s.assignments?.title?.toLowerCase() || ''
       const courseTitle = s.assignments?.courses?.title?.toLowerCase() || ''
@@ -401,7 +392,9 @@ export default function AdminAssignmentsPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredSubmissions.map((sub) => {
-                  const fullName = sub.profiles?.full_name || 'Unknown'
+                  const fullName = sub.profiles ? 
+                    `${sub.profiles.first_name || ''} ${sub.profiles.last_name || ''}`.trim() : 
+                    'Unknown'
                   const email = sub.profiles?.email || ''
                   const initial = fullName?.[0] || 'S'
                   
@@ -531,10 +524,12 @@ export default function AdminAssignmentsPage() {
                   <h4 className="text-sm font-medium text-gray-500 mb-3">Student Information</h4>
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                      {selectedSubmission.profiles?.full_name?.[0] || 'S'}
+                      {selectedSubmission.profiles?.first_name?.[0] || 'S'}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{selectedSubmission.profiles?.full_name}</p>
+                      <p className="font-medium text-gray-900">
+                        {selectedSubmission.profiles?.first_name} {selectedSubmission.profiles?.last_name}
+                      </p>
                       <p className="text-sm text-gray-600">{selectedSubmission.profiles?.email}</p>
                       <p className="text-xs text-gray-500 mt-1">{selectedSubmission.profiles?.department || 'No department'}</p>
                     </div>
