@@ -36,42 +36,37 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    // Exchange the code for a session
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    await supabase.auth.exchangeCodeForSession(code)
     
-    if (!error) {
-      // Get the user after successful authentication
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (user) {
-        // IMPORTANT: Using 'profiles' table (NOT user_profiles)
-        const { data: existingProfile } = await supabase
-          .from('profiles')  // ← CORRECT table name
-          .select('id')
-          .eq('id', user.id)
-          .maybeSingle()
+    // Get the user after successful authentication
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (user) {
+      // Check if profile exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle()
 
-        // If no profile exists, create one
-        if (!existingProfile) {
-          // Parse name from user metadata
-          const fullName = user.user_metadata?.full_name || user.user_metadata?.name || ''
-          const nameParts = fullName.split(' ')
-          const firstName = nameParts[0] || ''
-          const lastName = nameParts.slice(1).join(' ') || ''
-          
-          // IMPORTANT: Insert into 'profiles' table with ALL required fields
-          await supabase
-            .from('profiles')  // ← CORRECT table name
-            .insert({
-              id: user.id,
-              email: user.email,
-              first_name: firstName,
-              last_name: lastName,
-              avatar_url: user.user_metadata?.avatar_url || null,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-        }
+      // If no profile exists, create one
+      if (!existingProfile) {
+        const fullName = user.user_metadata?.full_name || user.user_metadata?.name || ''
+        const nameParts = fullName.split(' ')
+        const firstName = nameParts[0] || ''
+        const lastName = nameParts.slice(1).join(' ') || ''
+        
+        await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email,
+            first_name: firstName,
+            last_name: lastName,
+            avatar_url: user.user_metadata?.avatar_url || null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
       }
     }
     
