@@ -44,9 +44,9 @@ export async function GET(request: NextRequest) {
       const { data: { user } } = await supabase.auth.getUser()
       
       if (user) {
-        // Check if profile exists in the 'profiles' table (your actual table)
+        // IMPORTANT: Using 'profiles' table (NOT user_profiles)
         const { data: existingProfile } = await supabase
-          .from('profiles')
+          .from('profiles')  // ← CORRECT table name
           .select('id')
           .eq('id', user.id)
           .maybeSingle()
@@ -59,9 +59,9 @@ export async function GET(request: NextRequest) {
           const firstName = nameParts[0] || ''
           const lastName = nameParts.slice(1).join(' ') || ''
           
-          // Create profile in the 'profiles' table
+          // IMPORTANT: Insert into 'profiles' table with ALL required fields
           await supabase
-            .from('profiles')
+            .from('profiles')  // ← CORRECT table name
             .insert({
               id: user.id,
               email: user.email,
