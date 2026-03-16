@@ -31,7 +31,12 @@ type Submission = {
   submitted_at: string
   grade: number | null
   feedback: string | null
-  user_profiles: UserProfile
+  profiles: {
+    first_name: string
+    last_name: string
+    email: string
+    department: string | null
+  }
   assignments: Assignment
 }
 
@@ -54,7 +59,12 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
       .from('user_assignments')
       .select(`
         *,
-        user_profiles!inner(full_name, email),
+        profiles!inner(
+          first_name,
+          last_name,
+          email,
+          department
+        ),
         assignments!inner(
           title, 
           description, 
@@ -66,10 +76,19 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
         )
       `)
       .eq('id', params.id)
-      .single()
+      .single() as any
 
     if (data) {
-      setSubmission(data as Submission)
+      // Format the data to match our expected structure
+      const formattedData = {
+        ...data,
+        profiles: {
+          full_name: `${data.profiles?.first_name || ''} ${data.profiles?.last_name || ''}`.trim(),
+          email: data.profiles?.email,
+          department: data.profiles?.department
+        }
+      }
+      setSubmission(formattedData as Submission)
       
       // Initialize grades from rubric
       const rubric = (data as any).assignments.grading_rubric
@@ -103,7 +122,7 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
         feedback,
         status: passed ? 'passed' : 'failed',
         graded_at: new Date().toISOString()
-      })
+      } as any)
       .eq('id', params.id)
 
     router.push('/admin/assignments')
@@ -114,6 +133,8 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
 
   const assignment = submission.assignments
   const rubric = assignment.grading_rubric
+  const studentName = submission.profiles?.full_name || 'Student'
+  const studentEmail = submission.profiles?.email || ''
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -139,8 +160,8 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
               <h2 className="text-lg font-semibold mb-4">Student Submission</h2>
               
               <div className="mb-4 p-4 bg-gray-50 rounded">
-                <p className="font-medium">{submission.user_profiles?.full_name}</p>
-                <p className="text-sm text-gray-600">{submission.user_profiles?.email}</p>
+                <p className="font-medium">{studentName}</p>
+                <p className="text-sm text-gray-600">{studentEmail}</p>
                 <p className="text-sm text-gray-500 mt-2">
                   Submitted: {new Date(submission.submitted_at).toLocaleString()}
                 </p>
