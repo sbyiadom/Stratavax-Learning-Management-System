@@ -46,10 +46,10 @@ export async function GET(request: NextRequest) {
       if (user) {
         // Check if profile exists in the 'profiles' table (your actual table)
         const { data: existingProfile } = await supabase
-          .from('profiles')  // Changed from 'user_profiles' to 'profiles'
+          .from('profiles')
           .select('id')
           .eq('id', user.id)
-          .maybeSingle() as any
+          .maybeSingle()
 
         // If no profile exists, create one
         if (!existingProfile) {
@@ -59,9 +59,9 @@ export async function GET(request: NextRequest) {
           const firstName = nameParts[0] || ''
           const lastName = nameParts.slice(1).join(' ') || ''
           
-          // Create profile in the 'profiles' table with all required fields
+          // Create profile in the 'profiles' table
           await supabase
-            .from('profiles')  // Changed from 'user_profiles' to 'profiles'
+            .from('profiles')
             .insert({
               id: user.id,
               email: user.email,
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
               avatar_url: user.user_metadata?.avatar_url || null,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
-            } as any)  // Add 'as any' to bypass TypeScript
+            })
         }
       }
     }
