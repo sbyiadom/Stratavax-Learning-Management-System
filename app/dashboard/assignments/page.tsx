@@ -19,6 +19,16 @@ import {
   ExternalLink
 } from 'lucide-react'
 
+// Define types based on your actual database schema
+type Course = {
+  title: string
+  slug: string
+}
+
+type Module = {
+  title: string
+}
+
 type Assignment = {
   id: string
   course_id: string
@@ -31,32 +41,36 @@ type Assignment = {
   due_days: number
   is_required: boolean
   created_at: string
-  courses?: {
-    title: string
-    slug: string
-  }
-  modules?: {
-    title: string
-  }
-  user_assignment?: {
-    status: string
-    submission_url: string
-    submission_text: string
-    grade: number
-    feedback: string
-    submitted_at: string
-    graded_at: string
-  }
+  courses?: Course | Course[] | null
+  modules?: Module | Module[] | null
+}
+
+type UserAssignment = {
+  id: string
+  user_id: string
+  assignment_id: string
+  status: string
+  submission_url: string | null
+  submission_text: string | null
+  grade: number | null
+  feedback: string | null
+  submitted_at: string | null
+  graded_at: string | null
+  created_at: string
+}
+
+type AssignmentWithProgress = Assignment & {
+  user_assignment?: UserAssignment | null
 }
 
 export default function AssignmentsPage() {
   const [user, setUser] = useState<any>(null)
-  const [assignments, setAssignments] = useState<Assignment[]>([])
-  const [filteredAssignments, setFilteredAssignments] = useState<Assignment[]>([])
+  const [assignments, setAssignments] = useState<AssignmentWithProgress[]>([])
+  const [filteredAssignments, setFilteredAssignments] = useState<AssignmentWithProgress[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null)
+  const [selectedAssignment, setSelectedAssignment] = useState<AssignmentWithProgress | null>(null)
   const [showSubmitModal, setShowSubmitModal] = useState(false)
   const [submissionText, setSubmissionText] = useState('')
   const [submissionFile, setSubmissionFile] = useState<File | null>(null)
@@ -80,39 +94,52 @@ export default function AssignmentsPage() {
       return
     }
 
-    // Get all assignments with course info
-    const { data: assignmentsData } = await supabase
-      .from('assignments')
-      .select(`
-        *,
-        courses (
-          title,
-          slug
-        ),
-        modules (
-          title
-        )
-      `)
-      .order('created_at', { ascending: false })
+    try {
+      // Get all assignments with course info
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from('assignments')
+        .select(`
+          *,
+          courses (
+            title,
+            slug
+          ),
+          modules (
+            title
+          )
+        `)
+        .order('created_at', { ascending: false }) as any
 
-    if (assignmentsData) {
-      // Get user's progress on these assignments
-      const { data: userAssignments } = await supabase
-        .from('user_assignments')
-        .select('*')
-        .eq('user_id', user.id)
+      if (assignmentsError) {
+        console.error('Error loading assignments:', assignmentsError)
+        return
+      }
 
-      // Merge assignment data with user progress
-      const assignmentsWithProgress = assignmentsData.map(assignment => ({
-        ...assignment,
-        user_assignment: userAssignments?.find(ua => ua.assignment_id === assignment.id)
-      }))
+      if (assignmentsData) {
+        // Get user's progress on these assignments
+        const { data: userAssignments, error: userAssignmentsError } = await supabase
+          .from('user_assignments')
+          .select('*')
+          .eq('user_id', user.id) as any
 
-      setAssignments(assignmentsWithProgress)
-      setFilteredAssignments(assignmentsWithProgress)
+        if (userAssignmentsError) {
+          console.error('Error loading user assignments:', userAssignmentsError)
+        }
+
+        // Merge assignment data with user progress
+        const assignmentsWithProgress = assignmentsData.map((assignment: any) => ({
+          ...assignment,
+          user_assignment: userAssignments?.find((ua: any) => ua.assignment_id === assignment.id) || null
+        }))
+
+        setAssignments(assignmentsWithProgress)
+        setFilteredAssignments(assignmentsWithProgress)
+      }
+    } catch (error) {
+      console.error('Error in loadAssignments:', error)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -131,10 +158,14 @@ export default function AssignmentsPage() {
 
     // Apply search
     if (searchQuery) {
-      filtered = filtered.filter(a => 
-        a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.courses?.title.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      filtered = filtered.filter(a => {
+        const courseTitle = a.courses && typeof a.courses === 'object' && 'title' in a.courses 
+          ? (a.courses as Course).title 
+          : ''
+        
+        return a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          courseTitle.toLowerCase().includes(searchQuery.toLowerCase())
+      })
     }
 
     setFilteredAssignments(filtered)
@@ -162,44 +193,61 @@ export default function AssignmentsPage() {
     
     // Upload file if provided
     if (submissionFile) {
-      const fileExt = submissionFile.name.split('.').pop()
-      const fileName = `${user.id}/${selectedAssignment.id}/${Date.now()}.${fileExt}`
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('assignments')
-        .upload(fileName, submissionFile)
+      try {
+        const fileExt = submissionFile.name.split('.').pop()
+        const fileName = `${user.id}/${selectedAssignment.id}/${Date.now()}.${fileExt}`
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('assignments')
+          .upload(fileName, submissionFile)
 
-      if (uploadError) {
-        alert('Error uploading file: ' + uploadError.message)
+        if (uploadError) {
+          alert('Error uploading file: ' + uploadError.message)
+          setSubmitting(false)
+          return
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('assignments')
+          .getPublicUrl(fileName)
+
+        submissionUrl = publicUrl
+      } catch (error) {
+        console.error('Upload error:', error)
+        alert('Error uploading file')
         setSubmitting(false)
         return
       }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('assignments')
-        .getPublicUrl(fileName)
-
-      submissionUrl = publicUrl
     }
 
-    // Save submission
-    const { error } = await supabase
-      .from('user_assignments')
-      .upsert({
-        user_id: user.id,
-        assignment_id: selectedAssignment.id,
-        status: 'submitted',
-        submission_text: submissionText,
-        submission_url: submissionUrl,
-        submitted_at: new Date().toISOString()
-      })
+    try {
+      // Save submission
+      const { error } = await supabase
+        .from('user_assignments')
+        .upsert({
+          user_id: user.id,
+          assignment_id: selectedAssignment.id,
+          status: 'submitted',
+          submission_text: submissionText,
+          submission_url: submissionUrl,
+          submitted_at: new Date().toISOString()
+        } as any)
 
-    if (!error) {
-      setShowSubmitModal(false)
-      loadAssignments()
+      if (!error) {
+        setShowSubmitModal(false)
+        setSubmissionText('')
+        setSubmissionFile(null)
+        loadAssignments()
+      } else {
+        console.error('Submission error:', error)
+        alert('Error submitting assignment')
+      }
+    } catch (error) {
+      console.error('Submission error:', error)
+      alert('Error submitting assignment')
+    } finally {
+      setSubmitting(false)
     }
-
-    setSubmitting(false)
   }
 
   const getDifficultyBadge = (difficulty: string) => {
@@ -209,6 +257,22 @@ export default function AssignmentsPage() {
       case 'advanced': return 'bg-red-100 text-red-700'
       default: return 'bg-gray-100 text-gray-700'
     }
+  }
+
+  const getCourseTitle = (courses: Course | Course[] | null | undefined): string => {
+    if (!courses) return ''
+    if (Array.isArray(courses)) {
+      return courses[0]?.title || ''
+    }
+    return courses.title || ''
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
   }
 
   return (
@@ -252,6 +316,7 @@ export default function AssignmentsPage() {
           {filteredAssignments.map((assignment) => {
             const status = assignment.user_assignment?.status || 'not_started'
             const statusColor = getStatusColor(status)
+            const courseTitle = getCourseTitle(assignment.courses)
             
             return (
               <div key={assignment.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition">
@@ -275,7 +340,7 @@ export default function AssignmentsPage() {
                     <div className="flex items-center gap-4 text-xs text-gray-500">
                       <span className="flex items-center gap-1">
                         <BookOpen size={14} />
-                        {assignment.courses?.title}
+                        {courseTitle}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock size={14} />
