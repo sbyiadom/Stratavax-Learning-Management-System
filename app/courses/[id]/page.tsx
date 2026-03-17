@@ -47,16 +47,6 @@ type Module = {
   lesson_count: number
 }
 
-type ModuleWithLessons = {
-  id: string
-  title: string
-  description: string | null
-  module_order: number
-  lessons: {
-    count: number
-  }[]
-}
-
 export default async function CourseDetailPage({
   params,
 }: {
@@ -67,13 +57,13 @@ export default async function CourseDetailPage({
   // Check if user is authenticated
   const { data: { user } } = await supabase.auth.getUser()
   
-  // Get course details by ID
+  // Get course details by ID - with explicit typing
   const { data: course, error: courseError } = await supabase
     .from('courses')
     .select('*')
     .eq('id', params.id)
     .eq('is_published', true)
-    .single()
+    .single<Course>()
 
   if (courseError || !course) {
     console.error('Course error:', courseError)
@@ -98,12 +88,7 @@ export default async function CourseDetailPage({
   // Get modules for this course
   const { data: modules, error: modulesError } = await supabase
     .from('modules')
-    .select(`
-      id,
-      title,
-      description,
-      module_order
-    `)
+    .select('id, title, description, module_order')
     .eq('course_id', course.id)
     .eq('is_published', true)
     .order('module_order', { ascending: true })
@@ -116,33 +101,26 @@ export default async function CourseDetailPage({
   let modulesWithCount: Module[] = []
   
   if (modules && modules.length > 0) {
-    // Fetch lesson counts for all modules
-    const moduleIds = modules.map(m => m.id)
-    
-    const { data: lessonCounts, error: countError } = await supabase
-      .from('lessons')
-      .select('module_id, count')
-      .in('module_id', moduleIds)
-      .eq('is_published', true)
-      .select('module_id, count:count(*)', { count: 'exact', head: false })
+    // Get lesson counts one by one (simpler approach)
+    for (const module of modules) {
+      const { count, error: countError } = await supabase
+        .from('lessons')
+        .select('*', { count: 'exact', head: true })
+        .eq('module_id', module.id)
+        .eq('is_published', true)
 
-    if (countError) {
-      console.error('Error fetching lesson counts:', countError)
-    }
+      if (countError) {
+        console.error(`Error fetching lesson count for module ${module.id}:`, countError)
+      }
 
-    // Create a map of module_id to lesson count
-    const countMap = new Map()
-    if (lessonCounts) {
-      lessonCounts.forEach((item: any) => {
-        countMap.set(item.module_id, item.count)
+      modulesWithCount.push({
+        id: module.id,
+        title: module.title,
+        description: module.description,
+        module_order: module.module_order,
+        lesson_count: count || 0
       })
     }
-
-    // Combine modules with their lesson counts
-    modulesWithCount = modules.map(module => ({
-      ...module,
-      lesson_count: countMap.get(module.id) || 0
-    }))
   }
 
   const totalLessons = modulesWithCount.reduce((acc, m) => acc + m.lesson_count, 0)
@@ -168,7 +146,6 @@ export default async function CourseDetailPage({
 
     if (error) {
       console.error('Error enrolling in course:', error)
-      // Handle error appropriately
       return
     }
 
