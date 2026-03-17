@@ -54,21 +54,6 @@ export async function POST(request: NextRequest) {
         console.log('Unhandled webhook event:', payload.type)
     }
 
-    // Log webhook for auditing
-    const logQuery = supabase
-      .from('webhook_logs')
-      .insert({
-        event_type: payload.type,
-        payload: payload,
-        received_at: new Date().toISOString(),
-      })
-    
-    const { error: logError } = await (logQuery as any)
-
-    if (logError) {
-      console.error('Error logging webhook:', logError)
-    }
-
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error('Error processing webhook:', error)
@@ -146,7 +131,7 @@ async function handlePaymentSucceeded(data: any) {
     .from('enrollments')
     .select('id')
     .eq('id', data.enrollmentId)
-    .single()
+    .maybeSingle()
   
   const { data: enrollment } = await (checkQuery as any)
 
