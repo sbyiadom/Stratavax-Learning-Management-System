@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         event_type: payload.type,
         payload: payload,
         received_at: new Date().toISOString(),
-      }) as any
+      } as any)
 
     if (logError) {
       console.error('Error logging webhook:', logError)
@@ -89,7 +89,7 @@ async function handleUserCreated(data: any) {
       last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    }) as any
+    } as any)
 
   if (error) {
     console.error('Error creating user profile:', error)
@@ -106,8 +106,8 @@ async function handleUserUpdated(data: any) {
       first_name: data.first_name || data.full_name?.split(' ')[0] || '',
       last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
       updated_at: new Date().toISOString(),
-    })
-    .eq('id', data.id) as any
+    } as any)
+    .eq('id', data.id)
 
   if (error) {
     console.error('Error updating user profile:', error)
@@ -122,8 +122,8 @@ async function handleUserDeleted(data: any) {
     .from('profiles')
     .update({
       deleted_at: new Date().toISOString(),
-    })
-    .eq('id', data.id) as any
+    } as any)
+    .eq('id', data.id)
 
   if (error) {
     console.error('Error archiving user profile:', error)
@@ -147,8 +147,8 @@ async function handlePaymentSucceeded(data: any) {
       .update({
         status: 'active',
         updated_at: new Date().toISOString(),
-      })
-      .eq('id', data.enrollmentId) as any
+      } as any)
+      .eq('id', data.enrollmentId)
 
     if (error) {
       console.error('Error updating enrollment:', error)
@@ -165,7 +165,7 @@ async function handlePaymentSucceeded(data: any) {
         enrolled_at: new Date().toISOString(),
         progress_percentage: 0,
         updated_at: new Date().toISOString(),
-      }) as any
+      } as any)
 
     if (error) {
       console.error('Error creating enrollment:', error)
@@ -181,8 +181,8 @@ async function handlePaymentFailed(data: any) {
     .update({
       status: 'failed',
       updated_at: new Date().toISOString(),
-    })
-    .eq('id', data.enrollmentId) as any
+    } as any)
+    .eq('id', data.enrollmentId)
 
   if (error) {
     console.error('Error updating enrollment:', error)
@@ -200,9 +200,9 @@ async function handleCourseCompleted(data: any) {
       completed_at: new Date().toISOString(),
       status: 'completed',
       updated_at: new Date().toISOString(),
-    })
+    } as any)
     .eq('user_id', data.userId)
-    .eq('course_id', data.courseId) as any
+    .eq('course_id', data.courseId)
 
   if (enrollmentError) {
     console.error('Error updating enrollment:', enrollmentError)
@@ -216,7 +216,7 @@ async function handleCourseCompleted(data: any) {
       course_id: data.courseId,
       issued_at: new Date().toISOString(),
       certificate_number: `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-    }) as any
+    } as any)
 
   if (certError) {
     console.error('Error creating certificate:', certError)
