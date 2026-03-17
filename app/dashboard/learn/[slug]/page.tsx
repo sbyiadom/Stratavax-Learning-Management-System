@@ -1,3 +1,6 @@
+// Add dynamic export to fix DYNAMIC_SERVER_USAGE warning
+export const dynamic = 'force-dynamic'
+
 import { createClient } from '@/lib/supabase-server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -92,7 +95,7 @@ async function enrollInCourse(formData: FormData) {
     .select('id')
     .eq('user_id', user.id)
     .eq('course_id', courseId)
-    .maybeSingle()
+    .maybeSingle() as any
 
   console.log('Existing enrollment check:', existingEnrollment, checkError)
 
@@ -110,7 +113,7 @@ async function enrollInCourse(formData: FormData) {
       status: 'active',
       progress_percentage: 0,
       enrolled_at: new Date().toISOString()
-    })
+    } as any)
     .select()
 
   console.log('Insert result:', { data, error })
@@ -186,7 +189,7 @@ export default async function CoursePage({
       .select('*')
       .eq('slug', params.slug)
       .eq('is_published', true)
-      .single()
+      .single() as any
 
     console.log('6. Course query result:', { 
       courseId: course?.id, 
@@ -222,7 +225,7 @@ export default async function CoursePage({
       .select('status, progress_percentage, completed_at')
       .eq('user_id', user.id)
       .eq('course_id', course.id)
-      .maybeSingle()
+      .maybeSingle() as any
 
     console.log('8. Enrollment result:', { 
       isEnrolled: !!enrollment, 
@@ -247,7 +250,7 @@ export default async function CoursePage({
       `)
       .eq('course_id', course.id)
       .eq('is_published', true)
-      .order('module_order', { ascending: true })
+      .order('module_order', { ascending: true }) as any
 
     console.log('10. Modules query result:', { 
       moduleCount: modules?.length, 
@@ -262,7 +265,7 @@ export default async function CoursePage({
     let modulesWithLessons: ModuleWithLessons[] = []
     
     if (modules && modules.length > 0) {
-      const moduleIds = modules.map(m => m.id)
+      const moduleIds = modules.map((m: any) => m.id)
       console.log('11. Fetching lessons for modules:', moduleIds)
       
       const { data: lessons, error: lessonsError } = await supabase
@@ -270,7 +273,7 @@ export default async function CoursePage({
         .select('id, title, module_id, content_type, duration_minutes, lesson_order, is_published, content_url')
         .in('module_id', moduleIds)
         .eq('is_published', true)
-        .order('lesson_order', { ascending: true })
+        .order('lesson_order', { ascending: true }) as any
 
       console.log('12. Lessons query result:', { 
         lessonCount: lessons?.length, 
@@ -284,7 +287,7 @@ export default async function CoursePage({
       // Group lessons by module_id
       const lessonsByModule: { [key: string]: Lesson[] } = {}
       if (lessons) {
-        lessons.forEach(lesson => {
+        lessons.forEach((lesson: any) => {
           if (!lessonsByModule[lesson.module_id]) {
             lessonsByModule[lesson.module_id] = []
           }
@@ -293,38 +296,38 @@ export default async function CoursePage({
       }
 
       // Combine modules with their lessons
-      modulesWithLessons = modules.map(module => ({
+      modulesWithLessons = modules.map((module: any) => ({
         ...module,
         lessons: lessonsByModule[module.id] || []
       }))
       
-      console.log('13. Modules with lessons:', modulesWithLessons.map(m => ({ 
+      console.log('13. Modules with lessons:', modulesWithLessons.map((m: any) => ({ 
         module: m.title, 
         lessonCount: m.lessons.length 
       })))
     }
 
     // Calculate content stats - ALL lessons with content (videos, HTML, interactive)
-    const totalLessonsWithContent = modulesWithLessons.reduce((acc, m) => 
-      acc + m.lessons.filter(l => l.content_url).length, 0
+    const totalLessonsWithContent = modulesWithLessons.reduce((acc: number, m: any) => 
+      acc + m.lessons.filter((l: any) => l.content_url).length, 0
     )
     
     // Keep video count for display
-    const totalVideoLessons = modulesWithLessons.reduce((acc, m) => 
-      acc + m.lessons.filter(l => l.content_type === 'video' && l.content_url).length, 0
+    const totalVideoLessons = modulesWithLessons.reduce((acc: number, m: any) => 
+      acc + m.lessons.filter((l: any) => l.content_type === 'video' && l.content_url).length, 0
     )
     
     // Count HTML/interactive lessons
-    const totalHtmlLessons = modulesWithLessons.reduce((acc, m) => 
-      acc + m.lessons.filter(l => (l.content_type === 'html' || l.content_type === 'interactive') && l.content_url).length, 0
+    const totalHtmlLessons = modulesWithLessons.reduce((acc: number, m: any) => 
+      acc + m.lessons.filter((l: any) => (l.content_type === 'html' || l.content_type === 'interactive') && l.content_url).length, 0
     )
 
     // If user is enrolled, get their progress
     let lessonProgress: LessonProgress[] = []
     if (isEnrolled) {
       // Get all lesson IDs for this course
-      const lessonIds = modulesWithLessons.flatMap(m => 
-        m.lessons.map(l => l.id)
+      const lessonIds = modulesWithLessons.flatMap((m: any) => 
+        m.lessons.map((l: any) => l.id)
       )
 
       console.log('14. Fetching progress for lessons:', lessonIds.length)
@@ -334,7 +337,7 @@ export default async function CoursePage({
           .from('lesson_progress')
           .select('lesson_id, completed, quiz_score')
           .eq('user_id', user.id)
-          .in('lesson_id', lessonIds)
+          .in('lesson_id', lessonIds) as any
 
         console.log('15. Progress query result:', { 
           progressCount: progress?.length, 
@@ -350,7 +353,7 @@ export default async function CoursePage({
     }
 
     // Calculate overall progress (for all lessons)
-    const completedLessons = lessonProgress.filter(p => p.completed).length
+    const completedLessons = lessonProgress.filter((p: any) => p.completed).length
     const overallProgressPercentage = totalLessonsWithContent > 0 
       ? Math.round((completedLessons / totalLessonsWithContent) * 100) 
       : 0
@@ -510,14 +513,14 @@ export default async function CoursePage({
               </div>
 
               <div className="divide-y">
-                {modulesWithLessons.map((module) => {
+                {modulesWithLessons.map((module: any) => {
                   // Filter lessons to show ALL lessons with content
-                  const lessonsWithContent = module.lessons.filter(l => l.content_url)
+                  const lessonsWithContent = module.lessons.filter((l: any) => l.content_url)
                   
                   if (lessonsWithContent.length === 0) return null
                   
                   const completedInModule = lessonsWithContent.filter(
-                    l => lessonProgress.find(p => p.lesson_id === l.id)?.completed
+                    (l: any) => lessonProgress.find((p: any) => p.lesson_id === l.id)?.completed
                   ).length
 
                   return (
@@ -548,8 +551,8 @@ export default async function CoursePage({
 
                       {/* Lessons List */}
                       <div className="space-y-2">
-                        {lessonsWithContent.map((lesson) => {
-                          const progress = lessonProgress.find(p => p.lesson_id === lesson.id)
+                        {lessonsWithContent.map((lesson: any) => {
+                          const progress = lessonProgress.find((p: any) => p.lesson_id === lesson.id)
                           const isCompleted = progress?.completed || false
                           const isLocked = !isEnrolled
                           const isVideo = lesson.content_type === 'video'
