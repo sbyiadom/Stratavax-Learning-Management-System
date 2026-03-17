@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, Clock, Users, ChevronLeft, PlayCircle, Award, Star, Calendar } from 'lucide-react'
+import { BookOpen, Clock, Users, ChevronLeft, PlayCircle, Award, Star } from 'lucide-react'
 import CourseImage from '@/components/shared/CourseImage'
 
 // Approved course slugs
@@ -35,6 +35,7 @@ type Course = {
   duration_hours: number | null
   enrollment_count: number | null
   is_featured: boolean | null
+  is_published: boolean | null
   created_at: string | null
 }
 
@@ -44,6 +45,16 @@ type Module = {
   description: string | null
   module_order: number
   lesson_count: number
+}
+
+type ModuleWithLessons = {
+  id: string
+  title: string
+  description: string | null
+  module_order: number
+  lessons: {
+    count: number
+  }[]
 }
 
 export default async function CourseDetailPage({
@@ -84,24 +95,55 @@ export default async function CourseDetailPage({
 
   const isEnrolled = !!existingEnrollment
 
-  // Get modules for this course with lesson counts
-  const { data: modules } = await supabase
+  // Get modules for this course
+  const { data: modules, error: modulesError } = await supabase
     .from('modules')
     .select(`
       id,
       title,
       description,
-      module_order,
-      lessons(count)
+      module_order
     `)
     .eq('course_id', course.id)
     .eq('is_published', true)
     .order('module_order', { ascending: true })
 
-  const modulesWithCount = modules?.map(module => ({
-    ...module,
-    lesson_count: module.lessons?.[0]?.count || 0
-  })) || []
+  if (modulesError) {
+    console.error('Error fetching modules:', modulesError)
+  }
+
+  // Get lesson counts for each module
+  let modulesWithCount: Module[] = []
+  
+  if (modules && modules.length > 0) {
+    // Fetch lesson counts for all modules
+    const moduleIds = modules.map(m => m.id)
+    
+    const { data: lessonCounts, error: countError } = await supabase
+      .from('lessons')
+      .select('module_id, count')
+      .in('module_id', moduleIds)
+      .eq('is_published', true)
+      .select('module_id, count:count(*)', { count: 'exact', head: false })
+
+    if (countError) {
+      console.error('Error fetching lesson counts:', countError)
+    }
+
+    // Create a map of module_id to lesson count
+    const countMap = new Map()
+    if (lessonCounts) {
+      lessonCounts.forEach((item: any) => {
+        countMap.set(item.module_id, item.count)
+      })
+    }
+
+    // Combine modules with their lesson counts
+    modulesWithCount = modules.map(module => ({
+      ...module,
+      lesson_count: countMap.get(module.id) || 0
+    }))
+  }
 
   const totalLessons = modulesWithCount.reduce((acc, m) => acc + m.lesson_count, 0)
 
@@ -124,9 +166,13 @@ export default async function CourseDetailPage({
         progress_percentage: 0
       })
 
-    if (!error) {
-      redirect(`/dashboard/learn/${course.slug}`)
+    if (error) {
+      console.error('Error enrolling in course:', error)
+      // Handle error appropriately
+      return
     }
+
+    redirect(`/dashboard/learn/${course.slug}`)
   }
 
   return (
@@ -234,28 +280,30 @@ export default async function CourseDetailPage({
             )}
 
             {/* Course Content */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Course Content</h2>
-              <div className="space-y-4">
-                {modulesWithCount.map((module) => (
-                  <div key={module.id} className="border border-gray-100 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium text-gray-900">
-                          Module {module.module_order}: {module.title}
-                        </h3>
-                        {module.description && (
-                          <p className="text-sm text-gray-500 mt-1">{module.description}</p>
-                        )}
+            {modulesWithCount.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Course Content</h2>
+                <div className="space-y-4">
+                  {modulesWithCount.map((module) => (
+                    <div key={module.id} className="border border-gray-100 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium text-gray-900">
+                            Module {module.module_order}: {module.title}
+                          </h3>
+                          {module.description && (
+                            <p className="text-sm text-gray-500 mt-1">{module.description}</p>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                          {module.lesson_count} {module.lesson_count === 1 ? 'lesson' : 'lessons'}
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                        {module.lesson_count} lessons
-                      </span>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right Column - Sidebar */}
