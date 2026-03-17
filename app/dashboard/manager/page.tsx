@@ -1,5 +1,8 @@
 'use client'
 
+// Add dynamic export to fix DYNAMIC_SERVER_USAGE warning
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -132,18 +135,37 @@ export default function ManagerDashboardPage() {
       return
     }
 
-    // Get current user's profile
+    // Get current user's profile from profiles table (FIXED: user_profiles -> profiles)
     const { data: profile } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('*')
-      .eq('user_id', user.id)
-      .single()
+      .eq('id', user.id)  // FIXED: user_id -> id (profiles uses id)
+      .single() as any
 
     if (profile) {
-      setUserProfile(profile)
+      // Format full name from first_name and last_name
+      const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+      const formattedProfile = {
+        id: profile.id,
+        user_id: profile.id,
+        full_name: fullName,
+        email: profile.email,
+        department: profile.department,
+        role: profile.role,
+        total_points: 0
+      }
       
-      // Check if user is a manager/supervisor (has role = 'manager' or 'supervisor')
-      const hasManagerRole = profile.role === 'manager' || profile.role === 'supervisor' || profile.role === 'admin'
+      setUserProfile(formattedProfile)
+      
+      // Get user role from profiles_roles (FIXED: added role lookup)
+      const { data: roleData } = await supabase
+        .from('profiles_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single() as any
+
+      const userRole = roleData?.role || 'learner'
+      const hasManagerRole = userRole === 'manager' || userRole === 'supervisor' || userRole === 'admin'
       setIsManager(hasManagerRole)
 
       if (viewMode === 'team' && hasManagerRole) {
@@ -159,13 +181,82 @@ export default function ManagerDashboardPage() {
   }
 
   const loadAssignedTeam = async (supervisorId: string) => {
-    const { data: teamData } = await supabase
-      .from('supervisor_student_progress')
-      .select('*')
+    // FIXED: Replaced supervisor_student_progress view with direct queries
+    // Get assignments for this supervisor
+    const { data: assignments } = await supabase
+      .from('supervisor_assignments')
+      .select('student_id')
       .eq('supervisor_id', supervisorId)
-      .order('student_name')
+      .eq('is_active', true) as any
 
-    if (teamData) {
+    if (!assignments || assignments.length === 0) {
+      setTeamMembers([])
+      setFilteredMembers([])
+      return
+    }
+
+    const studentIds = assignments.map((a: any) => a.student_id)
+    
+    // Get student profiles
+    const { data: students } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', studentIds) as any
+
+    if (students) {
+      // Build team data with progress
+      const teamData: TeamMember[] = await Promise.all(
+        students.map(async (student: any) => {
+          const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim()
+          
+          // Get enrollments
+          const { data: enrollments } = await supabase
+            .from('enrollments')
+            .select('*')
+            .eq('user_id', student.id) as any
+
+          const courses_started = enrollments?.length || 0
+          const courses_completed = enrollments?.filter((e: any) => e.completed_at).length || 0
+          const courses_in_progress = enrollments?.filter((e: any) => !e.completed_at && e.progress_percentage > 0).length || 0
+
+          // Get assignments
+          const { data: assignments } = await supabase
+            .from('user_assignments')
+            .select('*')
+            .eq('user_id', student.id) as any
+
+          const assignments_submitted = assignments?.length || 0
+          const assignments_passed = assignments?.filter((a: any) => a.status === 'passed').length || 0
+          const assignments_failed = assignments?.filter((a: any) => a.status === 'failed').length || 0
+          const assignments_pending = assignments?.filter((a: any) => a.status === 'submitted').length || 0
+          
+          let avg_grade = 0
+          if (assignments && assignments.length > 0) {
+            const totalGrade = assignments.reduce((acc: number, a: any) => acc + (a.grade || 0), 0)
+            avg_grade = totalGrade / assignments.length
+          }
+
+          return {
+            student_id: student.id,
+            student_user_id: student.id,
+            student_name: fullName,
+            student_email: student.email,
+            department: student.department,
+            role: 'student',
+            total_points: 0,
+            courses_started,
+            courses_completed,
+            courses_in_progress,
+            assignments_submitted,
+            assignments_passed,
+            assignments_failed,
+            assignments_pending_review: assignments_pending,
+            avg_assignment_grade: avg_grade,
+            last_active: student.updated_at || new Date().toISOString()
+          }
+        })
+      )
+
       setTeamMembers(teamData)
       setFilteredMembers(teamData)
 
@@ -179,60 +270,68 @@ export default function ManagerDashboardPage() {
   }
 
   const loadAllStudents = async () => {
-    const { data: allStudents } = await supabase
-      .from('user_profiles')
-      .select(`
-        id,
-        user_id,
-        full_name,
-        email,
-        department,
-        role,
-        total_points
-      `)
-      .eq('role', 'student')
-      .order('full_name')
+    // FIXED: user_profiles -> profiles with proper role lookup
+    // Get all student IDs from profiles_roles
+    const { data: studentRoles } = await supabase
+      .from('profiles_roles')
+      .select('user_id')
+      .eq('role', 'student') as any
 
-    if (allStudents) {
+    if (!studentRoles || studentRoles.length === 0) {
+      setTeamMembers([])
+      setFilteredMembers([])
+      return
+    }
+
+    const studentIds = studentRoles.map((r: any) => r.user_id)
+    
+    const { data: students } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', studentIds)
+      .order('first_name', { ascending: true }) as any
+
+    if (students) {
       // For each student, get their progress
       const studentsWithProgress: TeamMember[] = await Promise.all(
-        allStudents.map(async (student) => {
-          // Get course progress
+        students.map(async (student: any) => {
+          const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim()
+          
+          // Get enrollments
           const { data: enrollments } = await supabase
             .from('enrollments')
-            .select('course_id, completed_at, status')
-            .eq('user_id', student.user_id)
+            .select('*')
+            .eq('user_id', student.id) as any
 
           const courses_started = enrollments?.length || 0
-          const courses_completed = enrollments?.filter((e: Enrollment) => e.completed_at).length || 0
-          const courses_in_progress = enrollments?.filter((e: Enrollment) => !e.completed_at && e.status === 'active').length || 0
+          const courses_completed = enrollments?.filter((e: any) => e.completed_at).length || 0
+          const courses_in_progress = enrollments?.filter((e: any) => !e.completed_at && e.progress_percentage > 0).length || 0
 
-          // Get assignment progress
+          // Get assignments
           const { data: assignments } = await supabase
             .from('user_assignments')
-            .select('status, grade')
-            .eq('user_id', student.user_id)
+            .select('*')
+            .eq('user_id', student.id) as any
 
           const assignments_submitted = assignments?.length || 0
-          const assignments_passed = assignments?.filter((a: UserAssignment) => a.status === 'passed').length || 0
-          const assignments_failed = assignments?.filter((a: UserAssignment) => a.status === 'failed').length || 0
-          const assignments_pending = assignments?.filter((a: UserAssignment) => a.status === 'submitted').length || 0
+          const assignments_passed = assignments?.filter((a: any) => a.status === 'passed').length || 0
+          const assignments_failed = assignments?.filter((a: any) => a.status === 'failed').length || 0
+          const assignments_pending = assignments?.filter((a: any) => a.status === 'submitted').length || 0
           
-          // Fix the avg_grade calculation with proper type checking
           let avg_grade = 0
           if (assignments && assignments.length > 0) {
-            const totalGrade = assignments.reduce((acc: number, a: UserAssignment) => acc + (a.grade || 0), 0)
+            const totalGrade = assignments.reduce((acc: number, a: any) => acc + (a.grade || 0), 0)
             avg_grade = totalGrade / assignments.length
           }
 
           return {
             student_id: student.id,
-            student_user_id: student.user_id,
-            student_name: student.full_name,
+            student_user_id: student.id,
+            student_name: fullName,
             student_email: student.email,
             department: student.department,
-            role: student.role,
-            total_points: student.total_points || 0,
+            role: 'student',
+            total_points: 0,
             courses_started,
             courses_completed,
             courses_in_progress,
@@ -241,7 +340,7 @@ export default function ManagerDashboardPage() {
             assignments_failed,
             assignments_pending_review: assignments_pending,
             avg_assignment_grade: avg_grade,
-            last_active: new Date().toISOString()
+            last_active: student.updated_at || new Date().toISOString()
           }
         })
       )
