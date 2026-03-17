@@ -9,6 +9,9 @@ import {
   Settings, ArrowRight
 } from 'lucide-react'
 
+// Add dynamic export to fix DYNAMIC_SERVER_USAGE warning
+export const dynamic = 'force-dynamic'
+
 // Approved course slugs
 const APPROVED_COURSE_SLUGS = [
   'electrical-engineering',
