@@ -54,6 +54,15 @@ export async function POST(request: NextRequest) {
         console.log('Unhandled webhook event:', payload.type)
     }
 
+    // Log webhook for auditing
+    await supabase
+      .from('webhook_logs')
+      .insert({
+        event_type: payload.type,
+        payload: payload,
+        received_at: new Date().toISOString(),
+      })
+
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error('Error processing webhook:', error)
@@ -67,8 +76,7 @@ export async function POST(request: NextRequest) {
 async function handleUserCreated(data: any) {
   const supabase = await createClient()
   
-  // Use type assertion on the entire query chain
-  const query = supabase
+  await supabase
     .from('profiles')
     .insert({
       id: data.id,
@@ -78,20 +86,12 @@ async function handleUserCreated(data: any) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-  
-  // Execute with type assertion
-  const { error } = await (query as any)
-
-  if (error) {
-    console.error('Error creating user profile:', error)
-  }
 }
 
 async function handleUserUpdated(data: any) {
   const supabase = await createClient()
   
-  // Build query
-  const query = supabase
+  await supabase
     .from('profiles')
     .update({
       email: data.email,
@@ -100,64 +100,38 @@ async function handleUserUpdated(data: any) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', data.id)
-  
-  // Execute with type assertion
-  const { error } = await (query as any)
-
-  if (error) {
-    console.error('Error updating user profile:', error)
-  }
 }
 
 async function handleUserDeleted(data: any) {
   const supabase = await createClient()
   
-  // Build query
-  const query = supabase
+  await supabase
     .from('profiles')
     .update({
       deleted_at: new Date().toISOString(),
     })
     .eq('id', data.id)
-  
-  // Execute with type assertion
-  const { error } = await (query as any)
-
-  if (error) {
-    console.error('Error archiving user profile:', error)
-  }
 }
 
 async function handlePaymentSucceeded(data: any) {
   const supabase = await createClient()
   
-  // Check if enrollment exists
-  const checkQuery = supabase
+  const { data: enrollment } = await supabase
     .from('enrollments')
     .select('id')
     .eq('id', data.enrollmentId)
     .maybeSingle()
-  
-  const { data: enrollment } = await (checkQuery as any)
 
   if (enrollment) {
-    // Update existing enrollment
-    const updateQuery = supabase
+    await supabase
       .from('enrollments')
       .update({
         status: 'active',
         updated_at: new Date().toISOString(),
       })
       .eq('id', data.enrollmentId)
-    
-    const { error } = await (updateQuery as any)
-
-    if (error) {
-      console.error('Error updating enrollment:', error)
-    }
   } else {
-    // Create new enrollment
-    const insertQuery = supabase
+    await supabase
       .from('enrollments')
       .insert({
         id: data.enrollmentId,
@@ -168,40 +142,25 @@ async function handlePaymentSucceeded(data: any) {
         progress_percentage: 0,
         updated_at: new Date().toISOString(),
       })
-    
-    const { error } = await (insertQuery as any)
-
-    if (error) {
-      console.error('Error creating enrollment:', error)
-    }
   }
 }
 
 async function handlePaymentFailed(data: any) {
   const supabase = await createClient()
   
-  // Build query
-  const query = supabase
+  await supabase
     .from('enrollments')
     .update({
       status: 'failed',
       updated_at: new Date().toISOString(),
     })
     .eq('id', data.enrollmentId)
-  
-  // Execute with type assertion
-  const { error } = await (query as any)
-
-  if (error) {
-    console.error('Error updating enrollment:', error)
-  }
 }
 
 async function handleCourseCompleted(data: any) {
   const supabase = await createClient()
   
-  // Update enrollment
-  const enrollmentQuery = supabase
+  await supabase
     .from('enrollments')
     .update({
       progress_percentage: 100,
@@ -212,14 +171,7 @@ async function handleCourseCompleted(data: any) {
     .eq('user_id', data.userId)
     .eq('course_id', data.courseId)
   
-  const { error: enrollmentError } = await (enrollmentQuery as any)
-
-  if (enrollmentError) {
-    console.error('Error updating enrollment:', enrollmentError)
-  }
-  
-  // Award certificate
-  const certQuery = supabase
+  await supabase
     .from('certificates')
     .insert({
       user_id: data.userId,
@@ -227,10 +179,4 @@ async function handleCourseCompleted(data: any) {
       issued_at: new Date().toISOString(),
       certificate_number: `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
     })
-  
-  const { error: certError } = await (certQuery as any)
-
-  if (certError) {
-    console.error('Error creating certificate:', certError)
-  }
 }
