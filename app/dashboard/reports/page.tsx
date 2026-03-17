@@ -1,5 +1,8 @@
 'use client'
 
+// Add dynamic export to fix DYNAMIC_SERVER_USAGE warning
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -109,31 +112,32 @@ export default function ReportsPage() {
         return
       }
 
+      // FIXED: user_profiles -> profiles
       // Get total users
       const { count: totalUsers } = await supabase
-        .from('user_profiles')
-        .select('*', { count: 'exact', head: true })
+        .from('profiles')
+        .select('*', { count: 'exact', head: true }) as any
 
       // Get total courses
       const { count: totalCourses } = await supabase
         .from('courses')
         .select('*', { count: 'exact', head: true })
-        .eq('is_published', true)
+        .eq('is_published', true) as any
 
       // Get all enrollments
       const { data: enrollments } = await supabase
         .from('enrollments')
-        .select('*')
+        .select('*') as any
 
       // Calculate enrollment stats
       const totalEnrollments = enrollments?.length || 0
-      const totalCompletions = enrollments?.filter(e => e.completed_at).length || 0
+      const totalCompletions = enrollments?.filter((e: any) => e.completed_at).length || 0
       const completionRate = totalEnrollments > 0 
         ? Math.round((totalCompletions / totalEnrollments) * 100) 
         : 0
 
       // Calculate average progress
-      const totalProgress = enrollments?.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) || 0
+      const totalProgress = enrollments?.reduce((acc: number, e: any) => acc + (e.progress_percentage || 0), 0) || 0
       const averageProgress = totalEnrollments > 0 
         ? Math.round(totalProgress / totalEnrollments) 
         : 0
@@ -145,19 +149,19 @@ export default function ReportsPage() {
       const { data: activeEnrollments } = await supabase
         .from('enrollments')
         .select('user_id')
-        .gte('enrolled_at', thirtyDaysAgo.toISOString())
+        .gte('enrolled_at', thirtyDaysAgo.toISOString()) as any
 
-      const activeUsers = new Set(activeEnrollments?.map(e => e.user_id)).size || 0
+      const activeUsers = new Set(activeEnrollments?.map((e: any) => e.user_id)).size || 0
 
-      // Get new users this month
+      // Get new users this month - FIXED: user_profiles -> profiles
       const firstDayOfMonth = new Date()
       firstDayOfMonth.setDate(1)
       firstDayOfMonth.setHours(0, 0, 0, 0)
 
       const { count: newUsers } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('*', { count: 'exact', head: true })
-        .gte('created_at', firstDayOfMonth.toISOString())
+        .gte('created_at', firstDayOfMonth.toISOString()) as any
 
       setStats({
         totalUsers: totalUsers || 0,
@@ -181,10 +185,10 @@ export default function ReportsPage() {
             progress_percentage
           )
         `)
-        .eq('is_published', true)
+        .eq('is_published', true) as any
 
       if (courses) {
-        const courseStatsData: CourseStats[] = courses.map(course => {
+        const courseStatsData: CourseStats[] = courses.map((course: any) => {
           const courseEnrollments = course.enrollments || []
           const completions = courseEnrollments.filter((e: any) => e.completed_at).length
           const totalEnrolled = courseEnrollments.length
@@ -205,32 +209,36 @@ export default function ReportsPage() {
         setCourseStats(courseStatsData.sort((a, b) => b.enrollments - a.enrollments))
       }
 
+      // FIXED: user_profiles -> profiles with first_name/last_name
       // Get user progress data
       const { data: profiles } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select(`
           id,
-          full_name,
+          first_name,
+          last_name,
           email,
           total_points,
+          created_at,
           enrollments (
             completed_at,
             progress_percentage
           )
         `)
         .order('total_points', { ascending: false })
-        .limit(10)
+        .limit(10) as any
 
       if (profiles) {
-        const userProgressData: UserProgress[] = profiles.map(profile => {
+        const userProgressData: UserProgress[] = profiles.map((profile: any) => {
           const enrollments = profile.enrollments || []
           const completed = enrollments.filter((e: any) => e.completed_at).length
           const inProgress = enrollments.filter((e: any) => !e.completed_at && e.progress_percentage > 0).length
+          const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
 
           return {
             id: profile.id,
-            full_name: profile.full_name,
-            email: profile.email,
+            full_name: fullName || 'Unknown User',
+            email: profile.email || '',
             enrolled_courses: enrollments.length,
             completed_courses: completed,
             in_progress: inProgress,
