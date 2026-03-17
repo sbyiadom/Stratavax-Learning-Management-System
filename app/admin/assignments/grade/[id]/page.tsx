@@ -1,5 +1,8 @@
 'use client'
 
+// Add dynamic export to fix DYNAMIC_SERVER_USAGE warning
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -55,47 +58,52 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
   }, [])
 
   const loadSubmission = async () => {
-    const { data } = await supabase
-      .from('user_assignments')
-      .select(`
-        *,
-        profiles!inner(
-          first_name,
-          last_name,
-          email,
-          department
-        ),
-        assignments!inner(
-          title, 
-          description, 
-          solution_text, 
-          solution_file_url,
-          grading_rubric,
-          points,
-          passing_score
-        )
-      `)
-      .eq('id', params.id)
-      .single() as any
+    try {
+      const { data } = await supabase
+        .from('user_assignments')
+        .select(`
+          *,
+          profiles!inner(
+            first_name,
+            last_name,
+            email,
+            department
+          ),
+          assignments!inner(
+            title, 
+            description, 
+            solution_text, 
+            solution_file_url,
+            grading_rubric,
+            points,
+            passing_score
+          )
+        `)
+        .eq('id', params.id)
+        .single() as any
 
-    if (data) {
-      setSubmission(data as Submission)
-      
-      // Initialize grades from rubric
-      const rubric = (data as any).assignments.grading_rubric
-      if (rubric) {
-        const initialGrades: Record<string, number> = {}
-        Object.keys(rubric).forEach(key => {
-          initialGrades[key] = 0
-        })
-        setGrades(initialGrades)
+      if (data) {
+        setSubmission(data as Submission)
+        
+        // Initialize grades from rubric
+        const rubric = (data as any).assignments.grading_rubric
+        if (rubric) {
+          const initialGrades: Record<string, number> = {}
+          Object.keys(rubric).forEach(key => {
+            initialGrades[key] = 0
+          })
+          setGrades(initialGrades)
+        }
       }
+    } catch (error) {
+      console.error('Error loading submission:', error)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const calculateTotal = () => {
-    return Object.values(grades).reduce((sum, grade) => sum + grade, 0)
+    return Object.values(grades).reduce((sum: number, grade: number) => sum + grade, 0)
   }
 
   const handleSubmitGrade = async () => {
@@ -106,17 +114,27 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
     const total = calculateTotal()
     const passed = total >= (submission.assignments.passing_score || 70)
 
-    await supabase
-      .from('user_assignments')
-      .update({
-        grade: total,
-        feedback,
-        status: passed ? 'passed' : 'failed',
-        graded_at: new Date().toISOString()
-      } as any)
-      .eq('id', params.id)
+    try {
+      const { error } = await supabase
+        .from('user_assignments')
+        .update({
+          grade: total,
+          feedback,
+          status: passed ? 'passed' : 'failed',
+          graded_at: new Date().toISOString()
+        } as any)
+        .eq('id', params.id)
 
-    router.push('/admin/assignments')
+      if (!error) {
+        router.push('/admin/assignments')
+      } else {
+        console.error('Error submitting grade:', error)
+      }
+    } catch (error) {
+      console.error('Error submitting grade:', error)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (loading) return <div className="p-8 text-center">Loading...</div>
