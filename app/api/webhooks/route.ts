@@ -1,30 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
+import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
+// Verify webhook signature (customize based on your provider)
+function verifySignature(signature: string | null, body: string, secret: string): boolean {
+  if (!signature) return false
+  
+  const hmac = crypto.createHmac('sha256', secret)
+  const digest = hmac.update(body).digest('hex')
+  return signature === digest
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const body = await request.json()
-    
-    // Verify webhook signature (implement based on your webhook provider)
+    const body = await request.text()
     const signature = request.headers.get('x-webhook-signature')
-    // Add your signature verification logic here
+    const webhookSecret = process.env.WEBHOOK_SECRET
 
+    // Verify webhook signature if secret is configured
+    if (webhookSecret && !verifySignature(signature, body, webhookSecret)) {
+      return NextResponse.json(
+        { error: 'Invalid signature' },
+        { status: 401 }
+      )
+    }
+
+    const payload = JSON.parse(body)
+    const supabase = await createClient()
+    
     // Process different webhook events
-    switch (body.event) {
+    switch (payload.type) {
       case 'user.created':
-        // Handle user creation
-        await handleUserCreated(body.data)
+        await handleUserCreated(payload.data)
+        break
+      case 'user.updated':
+        await handleUserUpdated(payload.data)
+        break
+      case 'user.deleted':
+        await handleUserDeleted(payload.data)
         break
       case 'payment.succeeded':
-        // Handle successful payment
-        await handlePaymentSucceeded(body.data)
+        await handlePaymentSucceeded(payload.data)
+        break
+      case 'payment.failed':
+        await handlePaymentFailed(payload.data)
+        break
+      case 'course.completed':
+        await handleCourseCompleted(payload.data)
         break
       default:
-        console.log('Unhandled webhook event:', body.event)
+        console.log('Unhandled webhook event:', payload.type)
     }
+
+    // Log webhook for auditing
+    await supabase
+      .from('webhook_logs')
+      .insert({
+        event_type: payload.type,
+        payload: payload,
+        received_at: new Date().toISOString(),
+      } as any)
 
     return NextResponse.json({ received: true })
   } catch (error) {
@@ -39,36 +76,113 @@ export async function POST(request: NextRequest) {
 async function handleUserCreated(data: any) {
   const supabase = await createClient()
   
-  // Create user profile - with type assertion on the insert object
-  const { error } = await supabase
+  await supabase
     .from('profiles')
     .insert({
       id: data.id,
       email: data.email,
-      first_name: data.first_name || '',
-      last_name: data.last_name || '',
+      first_name: data.first_name || data.full_name?.split(' ')[0] || '',
+      last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     } as any)
+}
 
-  if (error) {
-    console.error('Error creating user profile:', error)
-  }
+async function handleUserUpdated(data: any) {
+  const supabase = await createClient()
+  
+  await supabase
+    .from('profiles')
+    .update({
+      email: data.email,
+      first_name: data.first_name || data.full_name?.split(' ')[0] || '',
+      last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
+      updated_at: new Date().toISOString(),
+    } as any)
+    .eq('id', data.id)
+}
+
+async function handleUserDeleted(data: any) {
+  const supabase = await createClient()
+  
+  // Archive user data instead of deleting
+  await supabase
+    .from('profiles')
+    .update({
+      deleted_at: new Date().toISOString(),
+    } as any)
+    .eq('id', data.id)
 }
 
 async function handlePaymentSucceeded(data: any) {
   const supabase = await createClient()
   
-  // Update enrollment - with type assertion on the update object
-  const { error } = await supabase
+  // Check if enrollment exists
+  const { data: enrollment } = await supabase
+    .from('enrollments')
+    .select('id')
+    .eq('id', data.enrollmentId)
+    .single() as any
+
+  if (enrollment) {
+    // Update existing enrollment
+    await supabase
+      .from('enrollments')
+      .update({
+        status: 'active',
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq('id', data.enrollmentId)
+  } else {
+    // Create new enrollment if it doesn't exist
+    await supabase
+      .from('enrollments')
+      .insert({
+        id: data.enrollmentId,
+        user_id: data.userId,
+        course_id: data.courseId,
+        status: 'active',
+        enrolled_at: new Date().toISOString(),
+        progress_percentage: 0,
+        updated_at: new Date().toISOString(),
+      } as any)
+  }
+}
+
+async function handlePaymentFailed(data: any) {
+  const supabase = await createClient()
+  
+  await supabase
     .from('enrollments')
     .update({
-      status: 'paid',
+      status: 'failed',
       updated_at: new Date().toISOString(),
     } as any)
     .eq('id', data.enrollmentId)
+}
 
-  if (error) {
-    console.error('Error updating enrollment:', error)
-  }
+async function handleCourseCompleted(data: any) {
+  const supabase = await createClient()
+  
+  // Update enrollment
+  await supabase
+    .from('enrollments')
+    .update({
+      progress_percentage: 100,
+      completed_at: new Date().toISOString(),
+      status: 'completed',
+      updated_at: new Date().toISOString(),
+    } as any)
+    .eq('user_id', data.userId)
+    .eq('course_id', data.courseId)
+  
+  // Award certificate
+  await supabase
+    .from('certificates')
+    .insert({
+      user_id: data.userId,
+      course_id: data.courseId,
+      issued_at: new Date().toISOString(),
+      certificate_number: `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+    } as any)
 }
