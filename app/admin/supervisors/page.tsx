@@ -1,5 +1,8 @@
 'use client'
 
+// Add dynamic export to fix DYNAMIC_SERVER_USAGE warning
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -67,156 +70,177 @@ export default function AdminSupervisorsPage() {
   const loadData = async () => {
     setLoading(true)
 
-    // Get all supervisors (users with role = 'supervisor') from profiles_roles
-    const { data: supervisorRoles } = await supabase
-      .from('profiles_roles')
-      .select('user_id')
-      .eq('role', 'supervisor')
+    try {
+      // Get all supervisors (users with role = 'supervisor') from profiles_roles
+      const { data: supervisorRoles } = await supabase
+        .from('profiles_roles')
+        .select('user_id')
+        .eq('role', 'supervisor') as any
 
-    if (supervisorRoles && supervisorRoles.length > 0) {
-      const supervisorIds = supervisorRoles.map(r => r.user_id)
-      
-      const { data: supervisorsData } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', supervisorIds)
-        .order('first_name', { ascending: true }) as any
+      if (supervisorRoles && supervisorRoles.length > 0) {
+        const supervisorIds = supervisorRoles.map((r: any) => r.user_id)
+        
+        const { data: supervisorsData } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', supervisorIds)
+          .order('first_name', { ascending: true }) as any
 
-      if (supervisorsData) {
-        // Format supervisor data
-        const formattedSupervisors = supervisorsData.map((profile: any) => ({
-          id: profile.id,
-          user_id: profile.id,
-          full_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
-          email: profile.email,
-          department: profile.department || '',
-          employee_id: '',
-          is_active: true,
-          created_at: profile.created_at,
-          last_active: profile.updated_at
-        }))
+        if (supervisorsData) {
+          // Format supervisor data
+          const formattedSupervisors = supervisorsData.map((profile: any) => ({
+            id: profile.id,
+            user_id: profile.id,
+            full_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown',
+            email: profile.email || '',
+            department: profile.department || '',
+            employee_id: '',
+            is_active: true,
+            created_at: profile.created_at,
+            last_active: profile.updated_at
+          }))
 
-        // Get student counts for each supervisor
-        const supervisorsWithCounts = await Promise.all(
-          formattedSupervisors.map(async (sup: any) => {
-            const { count } = await supabase
-              .from('supervisor_assignments')
-              .select('*', { count: 'exact', head: true })
-              .eq('supervisor_id', sup.id)
-              .eq('is_active', true)
+          // Get student counts for each supervisor
+          const supervisorsWithCounts = await Promise.all(
+            formattedSupervisors.map(async (sup: any) => {
+              const { count } = await supabase
+                .from('supervisor_assignments')
+                .select('*', { count: 'exact', head: true })
+                .eq('supervisor_id', sup.id)
+                .eq('is_active', true) as any
 
-            return {
-              ...sup,
-              student_count: count || 0,
-              courses_count: 0
-            }
-          })
-        )
-        setSupervisors(supervisorsWithCounts)
+              return {
+                ...sup,
+                student_count: count || 0,
+                courses_count: 0
+              }
+            })
+          )
+          setSupervisors(supervisorsWithCounts)
+        }
       }
-    }
 
-    // Get all students (users with role = 'student') from profiles_roles
-    const { data: studentRoles } = await supabase
-      .from('profiles_roles')
-      .select('user_id')
-      .eq('role', 'student')
+      // Get all students (users with role = 'student') from profiles_roles
+      const { data: studentRoles } = await supabase
+        .from('profiles_roles')
+        .select('user_id')
+        .eq('role', 'student') as any
 
-    if (studentRoles && studentRoles.length > 0) {
-      const studentIds = studentRoles.map(r => r.user_id)
-      
-      const { data: studentsData } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', studentIds)
-        .order('first_name', { ascending: true }) as any
+      if (studentRoles && studentRoles.length > 0) {
+        const studentIds = studentRoles.map((r: any) => r.user_id)
+        
+        const { data: studentsData } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', studentIds)
+          .order('first_name', { ascending: true }) as any
 
-      if (studentsData) {
-        // Check which students already have supervisors
-        const { data: assignments } = await supabase
-          .from('supervisor_assignments')
-          .select('student_id')
-          .eq('is_active', true)
+        if (studentsData) {
+          // Check which students already have supervisors
+          const { data: assignments } = await supabase
+            .from('supervisor_assignments')
+            .select('student_id')
+            .eq('is_active', true) as any
 
-        const assignedStudentIds = new Set(assignments?.map(a => a.student_id) || [])
+          const assignedStudentIds = new Set(assignments?.map((a: any) => a.student_id) || [])
 
-        // Format student data
-        const formattedStudents = studentsData.map((profile: any) => ({
-          id: profile.id,
-          user_id: profile.id,
-          full_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
-          email: profile.email,
-          department: profile.department || '',
-          role: 'student',
-          has_supervisor: assignedStudentIds.has(profile.id),
-          enrollment_count: 0,
-          last_active: profile.updated_at
-        }))
+          // Format student data
+          const formattedStudents = studentsData.map((profile: any) => ({
+            id: profile.id,
+            user_id: profile.id,
+            full_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown',
+            email: profile.email || '',
+            department: profile.department || '',
+            role: 'student',
+            has_supervisor: assignedStudentIds.has(profile.id),
+            enrollment_count: 0,
+            last_active: profile.updated_at
+          }))
 
-        setStudents(formattedStudents)
+          setStudents(formattedStudents)
+        }
       }
+    } catch (error) {
+      console.error('Error loading data:', error)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   const handleAssignStudents = async () => {
     if (!selectedSupervisor || selectedStudents.length === 0) return
 
-    const assignments = selectedStudents.map(studentId => ({
-      supervisor_id: selectedSupervisor.id,
-      student_id: studentId,
-      is_active: true,
-      assigned_at: new Date().toISOString()
-    }))
+    try {
+      const assignments = selectedStudents.map(studentId => ({
+        supervisor_id: selectedSupervisor.id,
+        student_id: studentId,
+        is_active: true,
+        assigned_at: new Date().toISOString()
+      }))
 
-    const { error } = await supabase
-      .from('supervisor_assignments')
-      .insert(assignments as any)
+      const { error } = await supabase
+        .from('supervisor_assignments')
+        .insert(assignments as any)
 
-    if (!error) {
-      setShowAssignModal(false)
-      setSelectedStudents([])
-      loadData()
+      if (!error) {
+        setShowAssignModal(false)
+        setSelectedStudents([])
+        loadData()
+      } else {
+        console.error('Error assigning students:', error)
+      }
+    } catch (error) {
+      console.error('Error assigning students:', error)
     }
   }
 
   const handleRemoveAssignment = async (studentId: string) => {
     if (!confirm('Are you sure you want to remove this student assignment?')) return
 
-    const { error } = await supabase
-      .from('supervisor_assignments')
-      .update({ is_active: false, ended_at: new Date().toISOString() } as any)
-      .eq('supervisor_id', selectedSupervisor?.id)
-      .eq('student_id', studentId)
-      .eq('is_active', true)
+    try {
+      const { error } = await supabase
+        .from('supervisor_assignments')
+        .update({ is_active: false, ended_at: new Date().toISOString() } as any)
+        .eq('supervisor_id', selectedSupervisor?.id)
+        .eq('student_id', studentId)
+        .eq('is_active', true)
 
-    if (!error) {
-      loadData()
+      if (!error) {
+        loadData()
+      } else {
+        console.error('Error removing assignment:', error)
+      }
+    } catch (error) {
+      console.error('Error removing assignment:', error)
     }
   }
 
   // Get assigned students for selected supervisor
   const getAssignedStudents = async (supervisorId: string) => {
-    const { data: assignments } = await supabase
-      .from('supervisor_assignments')
-      .select('student_id')
-      .eq('supervisor_id', supervisorId)
-      .eq('is_active', true)
+    try {
+      const { data: assignments } = await supabase
+        .from('supervisor_assignments')
+        .select('student_id')
+        .eq('supervisor_id', supervisorId)
+        .eq('is_active', true) as any
 
-    if (!assignments) return []
+      if (!assignments) return []
 
-    const studentIds = assignments.map(a => a.student_id)
-    const { data: assignedStudents } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', studentIds) as any
+      const studentIds = assignments.map((a: any) => a.student_id)
+      const { data: assignedStudents } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', studentIds) as any
 
-    return assignedStudents?.map((profile: any) => ({
-      id: profile.id,
-      full_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
-      email: profile.email
-    })) || []
+      return assignedStudents?.map((profile: any) => ({
+        id: profile.id,
+        full_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
+        email: profile.email
+      })) || []
+    } catch (error) {
+      console.error('Error getting assigned students:', error)
+      return []
+    }
   }
 
   const filteredStudents = students.filter(student => 
