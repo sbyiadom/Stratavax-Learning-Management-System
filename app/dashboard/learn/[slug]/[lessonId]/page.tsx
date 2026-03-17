@@ -1,3 +1,6 @@
+// Add dynamic export to fix DYNAMIC_SERVER_USAGE warning
+export const dynamic = 'force-dynamic'
+
 import { createClient } from '@/lib/supabase-server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -66,7 +69,7 @@ async function markLessonComplete(formData: FormData) {
     .select('time_spent')
     .eq('user_id', user.id)
     .eq('lesson_id', lessonId)
-    .maybeSingle()
+    .maybeSingle() as any
 
   const { error } = await supabase
     .from('lesson_progress')
@@ -76,9 +79,9 @@ async function markLessonComplete(formData: FormData) {
       completed: true,
       completed_at: new Date().toISOString(),
       time_spent: currentProgress?.time_spent || 0
-    }, {
+    } as any, {
       onConflict: 'user_id,lesson_id'
-    })
+    } as any)
 
   if (!error) {
     await updateCourseProgress(user.id, courseId)
@@ -93,17 +96,17 @@ async function updateCourseProgress(userId: string, courseId: string) {
   const { data: courseModules } = await supabase
     .from('modules')
     .select('id')
-    .eq('course_id', courseId)
+    .eq('course_id', courseId) as any
 
   if (!courseModules || courseModules.length === 0) return
 
-  const moduleIds = courseModules.map(m => m.id)
+  const moduleIds = courseModules.map((m: any) => m.id)
   
   const { data: totalLessons } = await supabase
     .from('lessons')
     .select('id')
     .in('module_id', moduleIds)
-    .eq('is_published', true)
+    .eq('is_published', true) as any
 
   if (!totalLessons || totalLessons.length === 0) return
 
@@ -112,7 +115,7 @@ async function updateCourseProgress(userId: string, courseId: string) {
     .select('lesson_id')
     .eq('user_id', userId)
     .eq('completed', true)
-    .in('lesson_id', totalLessons.map(l => l.id))
+    .in('lesson_id', totalLessons.map((l: any) => l.id)) as any
 
   const progressPercentage = Math.round((completedLessons?.length || 0) / totalLessons.length * 100)
   
@@ -121,7 +124,7 @@ async function updateCourseProgress(userId: string, courseId: string) {
     .update({ 
       progress_percentage: progressPercentage,
       ...(progressPercentage === 100 ? { completed_at: new Date().toISOString() } : {})
-    })
+    } as any)
     .eq('user_id', userId)
     .eq('course_id', courseId)
 }
@@ -148,7 +151,7 @@ export default async function LessonPage({
       .select('id, title, slug, description, difficulty_level, thumbnail_url')
       .eq('slug', params.slug)
       .eq('is_published', true)
-      .single()
+      .single() as any
 
     if (courseError || !course) {
       console.error('Course error:', courseError)
@@ -173,7 +176,7 @@ export default async function LessonPage({
       .select('status, progress_percentage')
       .eq('user_id', user.id)
       .eq('course_id', course.id)
-      .maybeSingle()
+      .maybeSingle() as any
 
     if (enrollmentError) {
       console.error('Enrollment error:', enrollmentError)
@@ -193,7 +196,7 @@ export default async function LessonPage({
       .select('*')
       .eq('id', params.lessonId)
       .eq('is_published', true)
-      .maybeSingle()
+      .maybeSingle() as any
 
     if (lessonError || !lesson) {
       console.error('Lesson error:', lessonError)
@@ -224,7 +227,7 @@ export default async function LessonPage({
       .from('modules')
       .select('*')
       .eq('id', lesson.module_id)
-      .single()
+      .single() as any
 
     if (moduleError || !module) {
       console.error('Module error:', moduleError)
@@ -265,7 +268,7 @@ export default async function LessonPage({
       .select('completed, completed_at, quiz_score, time_spent, last_position')
       .eq('user_id', user.id)
       .eq('lesson_id', params.lessonId)
-      .maybeSingle()
+      .maybeSingle() as any
 
     console.log('Progress:', progress)
 
@@ -274,7 +277,7 @@ export default async function LessonPage({
       .from('modules')
       .select('id, module_order')
       .eq('course_id', course.id)
-      .order('module_order', { ascending: true })
+      .order('module_order', { ascending: true }) as any
 
     if (modulesError) {
       console.error('Modules error:', modulesError)
@@ -283,13 +286,13 @@ export default async function LessonPage({
     let allLessons: { id: string; title: string; lesson_order: number; module_order: number }[] = []
 
     if (courseModules && courseModules.length > 0) {
-      const moduleIds = courseModules.map(m => m.id)
+      const moduleIds = courseModules.map((m: any) => m.id)
       
       const { data: lessons, error: navError } = await supabase
         .from('lessons')
         .select('id, title, lesson_order, module_id')
         .in('module_id', moduleIds)
-        .eq('is_published', true)
+        .eq('is_published', true) as any
 
       if (navError) {
         console.error('Navigation error:', navError)
@@ -297,11 +300,11 @@ export default async function LessonPage({
 
       if (lessons) {
         const moduleOrderMap = new Map()
-        courseModules.forEach(module => {
+        courseModules.forEach((module: any) => {
           moduleOrderMap.set(module.id, module.module_order)
         })
 
-        allLessons = lessons.map(lesson => ({
+        allLessons = lessons.map((lesson: any) => ({
           id: lesson.id,
           title: lesson.title,
           lesson_order: lesson.lesson_order,
@@ -503,7 +506,7 @@ async function getFirstLesson(courseId: string) {
     .eq('is_published', true)
     .order('module_order', { ascending: true })
     .limit(1)
-    .single()
+    .single() as any
 
   if (!firstModule) return { data: null }
 
@@ -514,7 +517,7 @@ async function getFirstLesson(courseId: string) {
     .eq('is_published', true)
     .order('lesson_order', { ascending: true })
     .limit(1)
-    .single()
+    .single() as any
 
   return { data: firstLesson }
 }
