@@ -1,5 +1,8 @@
 'use client'
 
+// Add dynamic export to fix DYNAMIC_SERVER_USAGE warning
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
@@ -81,61 +84,70 @@ export default function AdminAssignmentsPage() {
   }, [])
 
   const loadSubmissions = async () => {
-    const supabase = createClient()
-    
-    const { data } = await supabase
-      .from('user_assignments')
-      .select(`
-        *,
-        profiles!inner(
-          first_name,
-          last_name,
-          email,
-          department
-        ),
-        assignments!inner(
-          title, 
-          course_id, 
-          points, 
-          passing_score,
-          courses!inner(title)
-        )
-      `)
-      .order('submitted_at', { ascending: false }) as any
+    try {
+      const supabase = createClient()
+      
+      const { data, error } = await supabase
+        .from('user_assignments')
+        .select(`
+          *,
+          profiles!inner(
+            first_name,
+            last_name,
+            email,
+            department
+          ),
+          assignments!inner(
+            title, 
+            course_id, 
+            points, 
+            passing_score,
+            courses!inner(title)
+          )
+        `)
+        .order('submitted_at', { ascending: false }) as any
 
-    if (data) {
-      setSubmissions(data as Submission[])
-      
-      const pending = data.filter((s: any) => s.status === 'submitted').length
-      const graded = data.filter((s: any) => ['passed', 'failed', 'graded'].includes(s.status)).length
-      const passed = data.filter((s: any) => s.status === 'passed').length
-      const failed = data.filter((s: any) => s.status === 'failed').length
-      
-      // Calculate average score
-      const scores = data
-        .filter((s: any) => s.grade !== null)
-        .map((s: any) => s.grade as number)
-      
-      let averageScore = 0
-      if (scores.length > 0) {
-        const sum = scores.reduce((acc: number, curr: number) => acc + curr, 0)
-        averageScore = Math.round(sum / scores.length)
+      if (error) {
+        console.error('Error loading submissions:', error)
+        return
       }
 
-      // Calculate completion rate
-      const completionRate = data.length > 0
-        ? Math.round((graded / data.length) * 100)
-        : 0
+      if (data) {
+        setSubmissions(data as Submission[])
+        
+        const pending = data.filter((s: any) => s.status === 'submitted').length
+        const graded = data.filter((s: any) => ['passed', 'failed', 'graded'].includes(s.status)).length
+        const passed = data.filter((s: any) => s.status === 'passed').length
+        const failed = data.filter((s: any) => s.status === 'failed').length
+        
+        // Calculate average score
+        const scores = data
+          .filter((s: any) => s.grade !== null)
+          .map((s: any) => s.grade as number)
+        
+        let averageScore = 0
+        if (scores.length > 0) {
+          const sum = scores.reduce((acc: number, curr: number) => acc + curr, 0)
+          averageScore = Math.round(sum / scores.length)
+        }
 
-      setStats({
-        total: data.length,
-        pending,
-        graded,
-        passed,
-        failed,
-        averageScore,
-        completionRate
-      })
+        // Calculate completion rate
+        const completionRate = data.length > 0
+          ? Math.round((graded / data.length) * 100)
+          : 0
+
+        setStats({
+          total: data.length,
+          pending,
+          graded,
+          passed,
+          failed,
+          averageScore,
+          completionRate
+        })
+      }
+    } catch (error) {
+      console.error('Error in loadSubmissions:', error)
     }
   }
 
