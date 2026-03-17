@@ -4,6 +4,38 @@ import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
+// Define types inline since we don't have generated types yet
+type Profile = {
+  id: string
+  email: string
+  first_name: string
+  last_name: string
+  avatar_url?: string | null
+  created_at: string
+  updated_at: string
+}
+
+type Enrollment = {
+  id?: string
+  user_id: string
+  course_id: string
+  status: string
+  enrolled_at: string
+  completed_at?: string | null
+  progress_percentage: number
+  created_at: string
+  updated_at: string
+}
+
+type Certificate = {
+  id?: string
+  user_id: string
+  course_id: string
+  issued_at: string
+  certificate_number: string
+  created_at: string
+}
+
 // Verify webhook signature (customize based on your provider)
 function verifySignature(signature: string | null, body: string, secret: string): boolean {
   if (!signature) return false
@@ -21,6 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature if secret is configured
     if (webhookSecret && !verifySignature(signature, body, webhookSecret)) {
+      console.log('Invalid signature')
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 401 }
@@ -28,27 +61,29 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = JSON.parse(body)
+    console.log('Processing webhook event:', payload.type)
+    
     const supabase = await createClient()
     
     // Process different webhook events
     switch (payload.type) {
       case 'user.created':
-        await handleUserCreated(payload.data)
+        await handleUserCreated(payload.data, supabase)
         break
       case 'user.updated':
-        await handleUserUpdated(payload.data)
+        await handleUserUpdated(payload.data, supabase)
         break
       case 'user.deleted':
-        await handleUserDeleted(payload.data)
+        await handleUserDeleted(payload.data, supabase)
         break
       case 'payment.succeeded':
-        await handlePaymentSucceeded(payload.data)
+        await handlePaymentSucceeded(payload.data, supabase)
         break
       case 'payment.failed':
-        await handlePaymentFailed(payload.data)
+        await handlePaymentFailed(payload.data, supabase)
         break
       case 'course.completed':
-        await handleCourseCompleted(payload.data)
+        await handleCourseCompleted(payload.data, supabase)
         break
       default:
         console.log('Unhandled webhook event:', payload.type)
@@ -64,233 +99,219 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handleUserCreated(data: any) {
-  const supabase = await createClient()
+async function handleUserCreated(data: any, supabase: any) {
+  console.log('Handling user.created for:', data.email || data.id)
   
-  // First, check if we're using profiles or user_profiles table
-  // Let's try to insert into profiles first, if that fails, try user_profiles
+  // Parse name from either first_name/last_name or full_name
+  let firstName = data.first_name || ''
+  let lastName = data.last_name || ''
   
-  try {
-    // Try to insert into profiles table (first_name, last_name structure)
-    const { error } = await supabase
-      .from('profiles')
-      .insert({
-        id: data.id,
-        email: data.email,
-        first_name: data.first_name || data.full_name?.split(' ')[0] || '',
-        last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+  if (data.full_name && !firstName && !lastName) {
+    const nameParts = data.full_name.split(' ')
+    firstName = nameParts[0] || ''
+    lastName = nameParts.slice(1).join(' ') || ''
+  }
 
-    if (error) {
-      // If profiles table doesn't exist or has different structure, try user_profiles
-      console.log('Failed to insert into profiles, trying user_profiles:', error.message)
-      
-      const { error: userProfilesError } = await supabase
-        .from('user_profiles')
-        .insert({
-          id: data.id,
-          email: data.email,
-          full_name: data.full_name || `${data.first_name || ''} ${data.last_name || ''}`.trim(),
-          created_at: new Date().toISOString(),
-          // Set default values for other fields if they exist in the table
-          role: data.role || 'student',
-          department: data.department || null,
-          employee_id: data.employee_id || null,
-          is_active: true,
-          last_active: new Date().toISOString(),
-        })
+  const now = new Date().toISOString()
+  
+  const profile: Profile = {
+    id: data.id,
+    email: data.email,
+    first_name: firstName,
+    last_name: lastName,
+    avatar_url: data.avatar_url || null,
+    created_at: now,
+    updated_at: now,
+  }
 
-      if (userProfilesError) {
-        console.error('Error creating user profile in both tables:', userProfilesError)
-      } else {
-        console.log('Successfully created user in user_profiles table')
-      }
-    } else {
-      console.log('Successfully created user in profiles table')
-    }
-  } catch (err) {
-    console.error('Unexpected error in handleUserCreated:', err)
+  const { error } = await supabase
+    .from('profiles')
+    .insert(profile)
+
+  if (error) {
+    console.error('Error creating user profile:', error)
+    // Log the actual error for debugging
+    console.error('Error details:', JSON.stringify(error, null, 2))
+  } else {
+    console.log('Successfully created user profile for:', data.email)
   }
 }
 
-async function handleUserUpdated(data: any) {
-  const supabase = await createClient()
+async function handleUserUpdated(data: any, supabase: any) {
+  console.log('Handling user.updated for:', data.email || data.id)
   
-  try {
-    // Try to update profiles table first
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        email: data.email,
-        first_name: data.first_name || data.full_name?.split(' ')[0] || '',
-        last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', data.id)
+  // Parse name from either first_name/last_name or full_name
+  let firstName = data.first_name || ''
+  let lastName = data.last_name || ''
+  
+  if (data.full_name && !firstName && !lastName) {
+    const nameParts = data.full_name.split(' ')
+    firstName = nameParts[0] || ''
+    lastName = nameParts.slice(1).join(' ') || ''
+  }
 
-    if (error) {
-      // If profiles update fails, try user_profiles
-      console.log('Failed to update profiles, trying user_profiles:', error.message)
-      
-      const { error: userProfilesError } = await supabase
-        .from('user_profiles')
-        .update({
-          email: data.email,
-          full_name: data.full_name || `${data.first_name || ''} ${data.last_name || ''}`.trim(),
-          updated_at: new Date().toISOString(),
-          last_active: new Date().toISOString(),
-        })
-        .eq('id', data.id)
+  const updates = {
+    email: data.email,
+    first_name: firstName,
+    last_name: lastName,
+    avatar_url: data.avatar_url,
+    updated_at: new Date().toISOString(),
+  }
 
-      if (userProfilesError) {
-        console.error('Error updating user profile in both tables:', userProfilesError)
-      } else {
-        console.log('Successfully updated user in user_profiles table')
-      }
-    } else {
-      console.log('Successfully updated user in profiles table')
-    }
-  } catch (err) {
-    console.error('Unexpected error in handleUserUpdated:', err)
+  const { error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', data.id)
+
+  if (error) {
+    console.error('Error updating user profile:', error)
+  } else {
+    console.log('Successfully updated user profile for:', data.email)
   }
 }
 
-async function handleUserDeleted(data: any) {
-  const supabase = await createClient()
+async function handleUserDeleted(data: any, supabase: any) {
+  console.log('Handling user.deleted for:', data.id)
   
-  try {
-    // Try to soft delete from profiles table first
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', data.id)
+  // Soft delete by clearing sensitive data
+  const updates = {
+    first_name: '[deleted]',
+    last_name: '[deleted]',
+    email: null,
+    avatar_url: null,
+    updated_at: new Date().toISOString(),
+  }
 
-    if (error) {
-      // If profiles update fails, try user_profiles
-      console.log('Failed to update profiles, trying user_profiles:', error.message)
-      
-      const { error: userProfilesError } = await supabase
-        .from('user_profiles')
-        .update({
-          is_active: false,
-          updated_at: new Date().toISOString(),
-          last_active: new Date().toISOString(),
-        })
-        .eq('id', data.id)
+  const { error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', data.id)
 
-      if (userProfilesError) {
-        console.error('Error deactivating user in both tables:', userProfilesError)
-      } else {
-        console.log('Successfully deactivated user in user_profiles table')
-      }
-    } else {
-      console.log('Successfully updated user in profiles table')
-    }
-  } catch (err) {
-    console.error('Unexpected error in handleUserDeleted:', err)
+  if (error) {
+    console.error('Error archiving user profile:', error)
+  } else {
+    console.log('Successfully archived user profile')
   }
 }
 
-async function handlePaymentSucceeded(data: any) {
-  const supabase = await createClient()
+async function handlePaymentSucceeded(data: any, supabase: any) {
+  console.log('Handling payment.succeeded for enrollment:', data.enrollmentId)
   
-  try {
-    const { data: enrollment } = await supabase
-      .from('enrollments')
-      .select('id')
-      .eq('id', data.enrollmentId)
-      .maybeSingle()
+  // Check if enrollment exists
+  const { data: enrollment, error: selectError } = await supabase
+    .from('enrollments')
+    .select('id')
+    .eq('id', data.enrollmentId)
+    .maybeSingle()
 
-    if (enrollment) {
-      const { error } = await supabase
-        .from('enrollments')
-        .update({
-          status: 'active',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', data.enrollmentId)
-
-      if (error) {
-        console.error('Error updating enrollment:', error)
-      }
-    } else {
-      const { error } = await supabase
-        .from('enrollments')
-        .insert({
-          id: data.enrollmentId,
-          user_id: data.userId,
-          course_id: data.courseId,
-          status: 'active',
-          enrolled_at: new Date().toISOString(),
-          progress_percentage: 0,
-          updated_at: new Date().toISOString(),
-        })
-
-      if (error) {
-        console.error('Error creating enrollment:', error)
-      }
-    }
-  } catch (err) {
-    console.error('Unexpected error in handlePaymentSucceeded:', err)
+  if (selectError) {
+    console.error('Error checking enrollment:', selectError)
+    return
   }
-}
 
-async function handlePaymentFailed(data: any) {
-  const supabase = await createClient()
-  
-  try {
+  const now = new Date().toISOString()
+
+  if (enrollment) {
+    // Update existing enrollment
     const { error } = await supabase
       .from('enrollments')
       .update({
-        status: 'failed',
-        updated_at: new Date().toISOString(),
+        status: 'active',
+        updated_at: now,
       })
       .eq('id', data.enrollmentId)
 
     if (error) {
       console.error('Error updating enrollment:', error)
+    } else {
+      console.log('Successfully updated enrollment:', data.enrollmentId)
     }
-  } catch (err) {
-    console.error('Unexpected error in handlePaymentFailed:', err)
+  } else {
+    // Create new enrollment
+    const newEnrollment: Enrollment = {
+      user_id: data.userId,
+      course_id: data.courseId,
+      status: 'active',
+      enrolled_at: now,
+      progress_percentage: 0,
+      created_at: now,
+      updated_at: now,
+    }
+
+    // Only add id if it's provided in the data
+    if (data.enrollmentId) {
+      newEnrollment.id = data.enrollmentId
+    }
+
+    const { error } = await supabase
+      .from('enrollments')
+      .insert(newEnrollment)
+
+    if (error) {
+      console.error('Error creating enrollment:', error)
+    } else {
+      console.log('Successfully created enrollment for user:', data.userId)
+    }
   }
 }
 
-async function handleCourseCompleted(data: any) {
-  const supabase = await createClient()
+async function handlePaymentFailed(data: any, supabase: any) {
+  console.log('Handling payment.failed for enrollment:', data.enrollmentId)
   
-  try {
-    const { error: enrollmentError } = await supabase
-      .from('enrollments')
-      .update({
-        progress_percentage: 100,
-        completed_at: new Date().toISOString(),
-        status: 'completed',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', data.userId)
-      .eq('course_id', data.courseId)
+  const { error } = await supabase
+    .from('enrollments')
+    .update({
+      status: 'failed',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', data.enrollmentId)
 
-    if (enrollmentError) {
-      console.error('Error updating enrollment:', enrollmentError)
-    }
-    
-    const { error: certError } = await supabase
-      .from('certificates')
-      .insert({
-        user_id: data.userId,
-        course_id: data.courseId,
-        issued_at: new Date().toISOString(),
-        certificate_number: `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      })
+  if (error) {
+    console.error('Error updating enrollment:', error)
+  } else {
+    console.log('Successfully updated enrollment status to failed')
+  }
+}
 
-    if (certError) {
-      console.error('Error creating certificate:', certError)
-    }
-  } catch (err) {
-    console.error('Unexpected error in handleCourseCompleted:', err)
+async function handleCourseCompleted(data: any, supabase: any) {
+  console.log('Handling course.completed for user:', data.userId, 'course:', data.courseId)
+  
+  const now = new Date().toISOString()
+  
+  // Update enrollment
+  const { error: enrollmentError } = await supabase
+    .from('enrollments')
+    .update({
+      progress_percentage: 100,
+      completed_at: now,
+      status: 'completed',
+      updated_at: now,
+    })
+    .eq('user_id', data.userId)
+    .eq('course_id', data.courseId)
+
+  if (enrollmentError) {
+    console.error('Error updating enrollment:', enrollmentError)
+  } else {
+    console.log('Successfully updated enrollment to completed')
+  }
+  
+  // Create certificate
+  const certificate: Certificate = {
+    user_id: data.userId,
+    course_id: data.courseId,
+    issued_at: now,
+    certificate_number: `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+    created_at: now,
+  }
+
+  const { error: certError } = await supabase
+    .from('certificates')
+    .insert(certificate)
+
+  if (certError) {
+    console.error('Error creating certificate:', certError)
+  } else {
+    console.log('Successfully created certificate for user:', data.userId)
   }
 }
