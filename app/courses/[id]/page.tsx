@@ -75,15 +75,19 @@ export default async function CourseDetailPage({
     notFound()
   }
 
-  // Check if user is already enrolled
-  const { data: existingEnrollment } = await supabase
-    .from('enrollments')
-    .select('id')
-    .eq('user_id', user?.id)
-    .eq('course_id', course.id)
-    .maybeSingle()
+  // Check if user is already enrolled (only if user is logged in)
+  let isEnrolled = false
+  
+  if (user) {
+    const { data: existingEnrollment } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('user_id', user.id)  // Now user.id is guaranteed to exist
+      .eq('course_id', course.id)
+      .maybeSingle()
 
-  const isEnrolled = !!existingEnrollment
+    isEnrolled = !!existingEnrollment
+  }
 
   // Get modules for this course
   const { data: modules, error: modulesError } = await supabase
