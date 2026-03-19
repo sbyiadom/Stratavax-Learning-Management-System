@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { BookOpen, Clock, Users, ChevronLeft, PlayCircle, Award, Star } from 'lucide-react'
 import CourseImage from '@/components/shared/CourseImage'
 
-// Define types based on your actual schema
+// Define types based on your schema
 type Course = {
   id: string
   title: string
@@ -33,20 +33,12 @@ type Module = {
   updated_at: string
 }
 
-type ModuleWithLessonCount = Module & {
-  lesson_count: number
-}
-
-type Enrollment = {
+type ModuleWithLessonCount = {
   id: string
-  user_id: string
-  course_id: string
-  status: string
-  progress_percentage: number
-  enrolled_at: string
-  completed_at: string | null
-  created_at: string
-  updated_at: string
+  title: string
+  description: string | null
+  module_order: number
+  lesson_count: number
 }
 
 // Approved course slugs
@@ -86,13 +78,13 @@ export default async function CourseDetailPage({
     .eq('is_published', true)
     .single()
 
-  // Type assertion since we know the structure
-  const typedCourse = course as Course | null
-
-  if (courseError || !typedCourse) {
+  if (courseError || !course) {
     console.error('Course error:', courseError)
     notFound()
   }
+
+  // Type assertion for course
+  const typedCourse = course as unknown as Course
 
   // Check if this is an approved course by slug
   if (!APPROVED_COURSE_SLUGS.includes(typedCourse.slug)) {
@@ -113,10 +105,10 @@ export default async function CourseDetailPage({
     isEnrolled = !!existingEnrollment
   }
 
-  // Get modules for this course
-  const { data: modules, error: modulesError } = await supabase
+  // Get modules for this course with explicit typing
+  const { data: modulesData, error: modulesError } = await supabase
     .from('modules')
-    .select('*')
+    .select('id, title, description, module_order')
     .eq('course_id', typedCourse.id)
     .eq('is_published', true)
     .order('module_order', { ascending: true })
@@ -125,30 +117,33 @@ export default async function CourseDetailPage({
     console.error('Error fetching modules:', modulesError)
   }
 
-  // Type assertion for modules
-  const typedModules = (modules as Module[]) || []
+  // Safely type the modules data
+  const modules: { id: string; title: string; description: string | null; module_order: number }[] = 
+    modulesData || []
 
   // Get lesson counts for each module
   let modulesWithCount: ModuleWithLessonCount[] = []
   
-  if (typedModules.length > 0) {
-    // For each module, get the lesson count
-    for (const module of typedModules) {
-      const { count, error: countError } = await supabase
-        .from('lessons')
-        .select('*', { count: 'exact', head: true })
-        .eq('module_id', module.id)
-        .eq('is_published', true)
+  // Process modules one by one with proper typing
+  for (const module of modules) {
+    // Now TypeScript knows module has an id property
+    const { count, error: countError } = await supabase
+      .from('lessons')
+      .select('*', { count: 'exact', head: true })
+      .eq('module_id', module.id)  // This now works!
+      .eq('is_published', true)
 
-      if (countError) {
-        console.error(`Error fetching lesson count for module ${module.id}:`, countError)
-      }
-
-      modulesWithCount.push({
-        ...module,
-        lesson_count: count || 0
-      })
+    if (countError) {
+      console.error(`Error fetching lesson count for module ${module.id}:`, countError)
     }
+
+    modulesWithCount.push({
+      id: module.id,
+      title: module.title,
+      description: module.description,
+      module_order: module.module_order,
+      lesson_count: count || 0
+    })
   }
 
   const totalLessons = modulesWithCount.reduce((acc, m) => acc + m.lesson_count, 0)
