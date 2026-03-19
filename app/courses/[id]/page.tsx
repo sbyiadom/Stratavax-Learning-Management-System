@@ -1,189 +1,109 @@
-import { createClient } from '@/lib/supabase-server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { BookOpen, Clock, Users, ChevronLeft, PlayCircle, Award, Star } from 'lucide-react'
 import CourseImage from '@/components/shared/CourseImage'
-
-// Define types based on your schema
-type Course = {
-  id: string
-  title: string
-  slug: string
-  description: string | null
-  short_description: string | null
-  category: string | null
-  difficulty_level: string | null
-  thumbnail_url: string | null
-  duration_hours: number | null
-  enrollment_count: number | null
-  is_featured: boolean | null
-  is_published: boolean | null
-  created_at: string | null
-  updated_at: string | null
-}
-
-type Module = {
-  id: string
-  title: string
-  description: string | null
-  module_order: number
-}
-
-type ModuleWithLessonCount = {
-  id: string
-  title: string
-  description: string | null
-  module_order: number
-  lesson_count: number
-}
+import { createClient } from '@/lib/supabase-server'
+import { checkExists, selectData, selectDataWithConditions, insertData, updateData } from '@/lib/supabase-helpers'
 
 // Approved course slugs
 const APPROVED_COURSE_SLUGS = [
-  'electrical-engineering',
-  'microsoft-office',
-  'programming-fundamentals',
-  'web-development',
-  'data-analysis',
-  'ai-fundamentals',
-  'entrepreneurship-pathway',
-  'financial-literacy',
-  'business-model-design',
-  'business-plan-development',
-  'marketing-sales',
-  'digital-marketing',
-  'business-growth-strategy',
-  'leadership',
-  'basic-mechanical-engineering'
+  'electrical-engineering', 'microsoft-office', 'programming-fundamentals',
+  'web-development', 'data-analysis', 'ai-fundamentals', 'entrepreneurship-pathway',
+  'financial-literacy', 'business-model-design', 'business-plan-development',
+  'marketing-sales', 'digital-marketing', 'business-growth-strategy',
+  'leadership', 'basic-mechanical-engineering'
 ]
 
-export default async function CourseDetailPage({
-  params,
-}: {
-  params: { id: string }
-}) {
+export default async function CourseDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
-  
-  // Check if user is authenticated
   const { data: { user } } = await supabase.auth.getUser()
   
-  // Get course details by ID
-  const { data: course, error: courseError } = await supabase
-    .from('courses')
-    .select('*')
-    .eq('id', params.id)
-    .eq('is_published', true)
-    .single()
-
+  // Get course details
+  const { data: course, error: courseError } = await selectData('courses', 'id', params.id)
+  
   if (courseError || !course) {
     console.error('Course error:', courseError)
     notFound()
   }
 
-  // Type assertion for course
-  const typedCourse = course as unknown as Course
-
-  // Check if this is an approved course by slug
-  if (!APPROVED_COURSE_SLUGS.includes(typedCourse.slug)) {
+  // Check if approved course
+  if (!APPROVED_COURSE_SLUGS.includes(course.slug)) {
     notFound()
   }
 
-  // Check if user is already enrolled (only if user is logged in)
+  // Check enrollment status
   let isEnrolled = false
-  
   if (user?.id) {
-    const { data: existingEnrollment } = await supabase
-      .from('enrollments')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('course_id', typedCourse.id)
-      .maybeSingle()
-
-    isEnrolled = !!existingEnrollment
+    const { data: enrollment } = await checkExists('enrollments', {
+      user_id: user.id,
+      course_id: course.id
+    })
+    isEnrolled = !!enrollment
   }
 
-  // Get modules for this course
-  const { data: modulesData, error: modulesError } = await supabase
+  // Get modules
+  const { data: modules, error: modulesError } = await supabase
     .from('modules')
     .select('id, title, description, module_order')
-    .eq('course_id', typedCourse.id)
+    .eq('course_id', course.id)
     .eq('is_published', true)
     .order('module_order', { ascending: true })
 
-  if (modulesError) {
-    console.error('Error fetching modules:', modulesError)
-  }
-
-  // Safely type the modules data
-  const modules: Module[] = modulesData || []
-
-  // Get lesson counts for each module
-  let modulesWithCount: ModuleWithLessonCount[] = []
-  
-  // Process modules one by one
-  for (const module of modules) {
-    const { count, error: countError } = await supabase
-      .from('lessons')
-      .select('*', { count: 'exact', head: true })
-      .eq('module_id', module.id)
-      .eq('is_published', true)
-
-    if (countError) {
-      console.error(`Error fetching lesson count for module ${module.id}:`, countError)
+  // Get lesson counts
+  const modulesWithCount = []
+  if (modules) {
+    for (const module of modules) {
+      const { count } = await supabase
+        .from('lessons')
+        .select('*', { count: 'exact', head: true })
+        .eq('module_id', module.id)
+        .eq('is_published', true)
+      
+      modulesWithCount.push({
+        ...module,
+        lesson_count: count || 0
+      })
     }
-
-    modulesWithCount.push({
-      id: module.id,
-      title: module.title,
-      description: module.description,
-      module_order: module.module_order,
-      lesson_count: count || 0
-    })
   }
 
   const totalLessons = modulesWithCount.reduce((acc, m) => acc + m.lesson_count, 0)
 
-  // Handle enrollment
+  // Enrollment action
   async function enrollInCourse() {
     'use server'
-
-    if (!user) {
-      redirect('/login')
-    }
-
+    
+    if (!user) redirect('/login')
+    
     const supabase = await createClient()
-
-    // Use type assertion on the whole insert operation
-    const { error } = await supabase
+    
+    // Insert enrollment
+    const { error: enrollError } = await supabase
       .from('enrollments')
       .insert({
         user_id: user.id,
-        course_id: typedCourse.id,
+        course_id: course.id,
         status: 'active',
         progress_percentage: 0,
         enrolled_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      } as never)
+      })
 
-    if (error) {
-      console.error('Error enrolling in course:', error)
+    if (enrollError) {
+      console.error('Error enrolling:', enrollError)
       return
     }
 
-    // Use type assertion on the whole update operation
-    const { error: updateError } = await supabase
+    // Update enrollment count
+    await supabase
       .from('courses')
       .update({
-        enrollment_count: (typedCourse.enrollment_count || 0) + 1,
+        enrollment_count: (course.enrollment_count || 0) + 1,
         updated_at: new Date().toISOString()
-      } as never)
-      .eq('id', typedCourse.id)
+      })
+      .eq('id', course.id)
 
-    if (updateError) {
-      console.error('Error updating course enrollment count:', updateError)
-    }
-
-    redirect(`/dashboard/learn/${typedCourse.slug}`)
+    redirect(`/dashboard/learn/${course.slug}`)
   }
 
   return (
@@ -191,10 +111,7 @@ export default async function CourseDetailPage({
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link
-            href="/dashboard/courses"
-            className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
-          >
+          <Link href="/dashboard/courses" className="text-gray-600 hover:text-gray-900 flex items-center gap-2">
             <ChevronLeft size={20} />
             <span>Back to Courses</span>
           </Link>
@@ -208,9 +125,9 @@ export default async function CourseDetailPage({
             {/* Thumbnail */}
             <div className="md:w-64 h-48 rounded-lg overflow-hidden shadow-lg">
               <CourseImage 
-                src={typedCourse.thumbnail_url}
-                alt={typedCourse.title}
-                title={typedCourse.title}
+                src={course.thumbnail_url}
+                alt={course.title}
+                title={course.title}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -219,24 +136,21 @@ export default async function CourseDetailPage({
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-3">
                 <span className="bg-blue-500 bg-opacity-30 text-white text-xs px-3 py-1 rounded-full">
-                  {typedCourse.category?.split(' ')[0] || 'Course'}
+                  {course.category?.split(' ')[0] || 'Course'}
                 </span>
-                {typedCourse.is_featured && (
+                {course.is_featured && (
                   <span className="bg-yellow-500 text-white text-xs px-3 py-1 rounded-full flex items-center gap-1">
-                    <Star size={12} />
-                    Featured
+                    <Star size={12} /> Featured
                   </span>
                 )}
               </div>
-              <h1 className="text-4xl font-bold mb-4">{typedCourse.title}</h1>
-              <p className="text-xl text-blue-100 mb-6">
-                {typedCourse.short_description || typedCourse.description}
-              </p>
+              <h1 className="text-4xl font-bold mb-4">{course.title}</h1>
+              <p className="text-xl text-blue-100 mb-6">{course.short_description || course.description}</p>
               
               <div className="flex flex-wrap gap-6 mb-6">
                 <div className="flex items-center gap-2">
                   <Clock size={18} className="text-blue-200" />
-                  <span>{typedCourse.duration_hours || 0} hours</span>
+                  <span>{course.duration_hours || 0} hours</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <BookOpen size={18} className="text-blue-200" />
@@ -244,31 +158,23 @@ export default async function CourseDetailPage({
                 </div>
                 <div className="flex items-center gap-2">
                   <Users size={18} className="text-blue-200" />
-                  <span>{typedCourse.enrollment_count || 0} enrolled</span>
+                  <span>{course.enrollment_count || 0} enrolled</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Award size={18} className="text-blue-200" />
-                  <span className="capitalize">{typedCourse.difficulty_level || 'Beginner'}</span>
+                  <span className="capitalize">{course.difficulty_level || 'Beginner'}</span>
                 </div>
               </div>
 
               {/* Action Button */}
               {isEnrolled ? (
-                <Link
-                  href={`/dashboard/learn/${typedCourse.slug}`}
-                  className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
-                >
-                  <PlayCircle size={20} className="mr-2" />
-                  Continue Learning
+                <Link href={`/dashboard/learn/${course.slug}`} className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition">
+                  <PlayCircle size={20} className="mr-2" /> Continue Learning
                 </Link>
               ) : (
                 <form action={enrollInCourse}>
-                  <button
-                    type="submit"
-                    className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
-                  >
-                    <BookOpen size={20} className="mr-2" />
-                    Enroll Now
+                  <button type="submit" className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition">
+                    <BookOpen size={20} className="mr-2" /> Enroll Now
                   </button>
                 </form>
               )}
@@ -277,20 +183,17 @@ export default async function CourseDetailPage({
         </div>
       </div>
 
-      {/* Course Content */}
+      {/* Rest of your JSX remains the same */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Course Details */}
           <div className="lg:col-span-2 space-y-8">
-            {/* About This Course */}
-            {typedCourse.description && (
+            {course.description && (
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">About This Course</h2>
-                <p className="text-gray-600 whitespace-pre-wrap">{typedCourse.description}</p>
+                <p className="text-gray-600 whitespace-pre-wrap">{course.description}</p>
               </div>
             )}
 
-            {/* Course Content */}
             {modulesWithCount.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Course Content</h2>
@@ -299,12 +202,8 @@ export default async function CourseDetailPage({
                     <div key={module.id} className="border border-gray-100 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-medium text-gray-900">
-                            Module {module.module_order}: {module.title}
-                          </h3>
-                          {module.description && (
-                            <p className="text-sm text-gray-500 mt-1">{module.description}</p>
-                          )}
+                          <h3 className="font-medium text-gray-900">Module {module.module_order}: {module.title}</h3>
+                          {module.description && <p className="text-sm text-gray-500 mt-1">{module.description}</p>}
                         </div>
                         <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                           {module.lesson_count} {module.lesson_count === 1 ? 'lesson' : 'lessons'}
@@ -317,14 +216,14 @@ export default async function CourseDetailPage({
             )}
           </div>
 
-          {/* Right Column - Sidebar */}
+          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Instructor Info */}
+            {/* Instructor */}
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
               <h3 className="font-semibold text-gray-900 mb-4">Instructor</h3>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                  {typedCourse.title[0]}
+                  {course.title[0]}
                 </div>
                 <div>
                   <p className="font-medium text-gray-900">Stratavax Learning</p>
@@ -337,22 +236,10 @@ export default async function CourseDetailPage({
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
               <h3 className="font-semibold text-gray-900 mb-4">What You'll Learn</h3>
               <ul className="space-y-3">
-                <li className="flex items-start gap-2 text-sm text-gray-600">
-                  <span className="text-green-500 mt-0.5">✓</span>
-                  <span>Fundamental concepts and principles</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm text-gray-600">
-                  <span className="text-green-500 mt-0.5">✓</span>
-                  <span>Hands-on practical applications</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm text-gray-600">
-                  <span className="text-green-500 mt-0.5">✓</span>
-                  <span>Real-world examples and case studies</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm text-gray-600">
-                  <span className="text-green-500 mt-0.5">✓</span>
-                  <span>Industry best practices</span>
-                </li>
+                <li className="flex items-start gap-2 text-sm text-gray-600"><span className="text-green-500 mt-0.5">✓</span>Fundamental concepts and principles</li>
+                <li className="flex items-start gap-2 text-sm text-gray-600"><span className="text-green-500 mt-0.5">✓</span>Hands-on practical applications</li>
+                <li className="flex items-start gap-2 text-sm text-gray-600"><span className="text-green-500 mt-0.5">✓</span>Real-world examples and case studies</li>
+                <li className="flex items-start gap-2 text-sm text-gray-600"><span className="text-green-500 mt-0.5">✓</span>Industry best practices</li>
               </ul>
             </div>
 
@@ -369,20 +256,14 @@ export default async function CourseDetailPage({
             {/* Enroll CTA */}
             <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-sm p-6 text-white">
               <h3 className="text-lg font-semibold mb-2">Ready to start?</h3>
-              <p className="text-sm text-blue-100 mb-4">Join {typedCourse.enrollment_count || 0} other learners</p>
+              <p className="text-sm text-blue-100 mb-4">Join {course.enrollment_count || 0} other learners</p>
               {isEnrolled ? (
-                <Link
-                  href={`/dashboard/learn/${typedCourse.slug}`}
-                  className="block w-full px-4 py-3 bg-white text-blue-600 rounded-lg text-center font-medium hover:bg-gray-50 transition"
-                >
+                <Link href={`/dashboard/learn/${course.slug}`} className="block w-full px-4 py-3 bg-white text-blue-600 rounded-lg text-center font-medium hover:bg-gray-50 transition">
                   Continue Learning
                 </Link>
               ) : (
                 <form action={enrollInCourse}>
-                  <button
-                    type="submit"
-                    className="w-full px-4 py-3 bg-white text-blue-600 rounded-lg font-medium hover:bg-gray-50 transition"
-                  >
+                  <button type="submit" className="w-full px-4 py-3 bg-white text-blue-600 rounded-lg font-medium hover:bg-gray-50 transition">
                     Enroll Now
                   </button>
                 </form>
