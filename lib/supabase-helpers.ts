@@ -1,52 +1,63 @@
 import { createClient } from './supabase-server'
+import { Database } from './database.types'
 
-// Generic function for inserts that bypasses TypeScript strict checking
-export async function insertData(table: string, data: any) {
+// Type helpers
+export type Tables = Database['public']['Tables']
+export type TableInsert<T extends keyof Tables> = Tables[T]['Insert']
+export type TableRow<T extends keyof Tables> = Tables[T]['Row']
+export type TableUpdate<T extends keyof Tables> = Tables[T]['Update']
+
+// Safe insert helper - bypasses TypeScript strict checking
+export async function safeInsert<T extends keyof Tables>(
+  table: T,
+  data: TableInsert<T>
+) {
   const supabase = await createClient()
   return await supabase
     .from(table)
-    .insert(data)
+    .insert(data as any)
 }
 
-// Generic function for updates
-export async function updateData(table: string, data: any, matchField: string, matchValue: string) {
+// Safe update helper
+export async function safeUpdate<T extends keyof Tables>(
+  table: T,
+  data: TableUpdate<T>,
+  matchField: string,
+  matchValue: string
+) {
   const supabase = await createClient()
   return await supabase
     .from(table)
-    .update(data)
+    .update(data as any)
     .eq(matchField, matchValue)
 }
 
-// Generic function for selects
-export async function selectData(table: string, matchField: string, matchValue: string) {
+// Safe upsert helper
+export async function safeUpsert<T extends keyof Tables>(
+  table: T,
+  data: TableInsert<T>,
+  onConflict: string
+) {
   const supabase = await createClient()
   return await supabase
     .from(table)
-    .select('*')
-    .eq(matchField, matchValue)
-    .single()
+    .upsert(data as any, { onConflict } as any)
 }
 
-// Generic function for select with multiple conditions
-export async function selectDataWithConditions(table: string, conditions: Record<string, any>) {
+// Safe select helper with proper typing
+export async function safeSelect<T extends keyof Tables>(
+  table: T,
+  columns: string = '*',
+  conditions?: Record<string, any>
+) {
   const supabase = await createClient()
-  let query = supabase.from(table).select('*')
+  let query = supabase.from(table).select(columns)
   
-  Object.entries(conditions).forEach(([key, value]) => {
-    query = query.eq(key, value)
-  })
+  if (conditions) {
+    Object.entries(conditions).forEach(([key, value]) => {
+      query = query.eq(key, value)
+    })
+  }
   
-  return await query
-}
-
-// Generic function for checking existence
-export async function checkExists(table: string, conditions: Record<string, any>) {
-  const supabase = await createClient()
-  let query = supabase.from(table).select('id')
-  
-  Object.entries(conditions).forEach(([key, value]) => {
-    query = query.eq(key, value)
-  })
-  
-  return await query.maybeSingle()
+  return await query as any
 }
