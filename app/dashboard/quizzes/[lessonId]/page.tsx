@@ -1,473 +1,344 @@
-// Add dynamic export to fix DYNAMIC_SERVER_USAGE warning
-export const dynamic = 'force-dynamic'
+'use client'
 
-import { createClient } from '@/lib/supabase-server'
-import { notFound, redirect } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
-import { ChevronLeft, Clock, CheckCircle } from 'lucide-react'
-import LessonContent from '@/components/dashboard/LessonContent'
-import LubricationModule from '@/components/courses/lubrication-module'
+import { ChevronLeft, Clock, CheckCircle, XCircle } from 'lucide-react'
 
-// Server action defined at the top level, outside the component
-async function markLessonComplete(formData: FormData) {
-  'use server'
-  
-  const courseId = formData.get('courseId') as string
-  const lessonId = formData.get('lessonId') as string
-  const slug = formData.get('slug') as string
-  
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) return
-
-  // Get current progress
-  const { data: currentProgress } = await supabase
-    .from('lesson_progress')
-    .select('time_spent')
-    .eq('user_id', user.id)
-    .eq('lesson_id', lessonId)
-    .maybeSingle()
-
-  // Create progress update matching database.types.ts
-  const progressUpdate = {
-    user_id: user.id,
-    lesson_id: lessonId,
-    completed: true,
-    completed_at: new Date().toISOString(),
-    time_spent: (currentProgress as any)?.time_spent || 0
-  }
-
-  const { error } = await supabase
-    .from('lesson_progress')
-    .upsert(progressUpdate as any, { onConflict: 'user_id,lesson_id' } as any)
-
-  if (!error) {
-    await updateCourseProgress(user.id, courseId)
-    redirect(`/dashboard/learn/${slug}/${lessonId}`)
-  }
+interface Question {
+  id: string
+  type: 'multiple-choice' | 'true-false'
+  question: string
+  options: string[]
+  correct: number
+  explanation?: string
 }
 
-// Helper function for updating course progress
-async function updateCourseProgress(userId: string, courseId: string) {
-  const supabase = await createClient()
-  
-  const { data: courseModules } = await supabase
-    .from('modules')
-    .select('id')
-    .eq('course_id', courseId)
+export default function QuizPage() {
+  const params = useParams()
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [lesson, setLesson] = useState<any>(null)
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [currentQuestion, setCurrentQuestion] = useState(0)
+  const [answers, setAnswers] = useState<Record<string, number>>({})
+  const [showResults, setShowResults] = useState(false)
+  const [score, setScore] = useState(0)
+  const [timeLeft, setTimeLeft] = useState<number | null>(null)
+  const supabase = createClient()
 
-  if (!courseModules || (courseModules as any[]).length === 0) return
+  useEffect(() => {
+    const fetchQuiz = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/login')
+        return
+      }
 
-  const moduleIds = (courseModules as any[]).map((m: any) => m.id)
-  
-  const { data: totalLessons } = await supabase
-    .from('lessons')
-    .select('id')
-    .in('module_id', moduleIds)
-    .eq('is_published', true)
+      // Fetch lesson details
+      const { data: lessonData } = await supabase
+        .from('lessons')
+        .select(`
+          *,
+          module:modules(
+            course_id,
+            courses(slug)
+          )
+        `)
+        .eq('id', params.lessonId)
+        .single()
 
-  if (!totalLessons || (totalLessons as any[]).length === 0) return
+      if (lessonData) {
+        setLesson(lessonData)
+        if ((lessonData as any).content?.questions) {
+          setQuestions((lessonData as any).content.questions)
+          if ((lessonData as any).content.time_limit) {
+            setTimeLeft((lessonData as any).content.time_limit * 60)
+          }
+        }
+      }
+      setLoading(false)
+    }
 
-  const { data: completedLessons } = await supabase
-    .from('lesson_progress')
-    .select('lesson_id')
-    .eq('user_id', userId)
-    .eq('completed', true)
-    .in('lesson_id', (totalLessons as any[]).map((l: any) => l.id))
+    fetchQuiz()
+  }, [params.lessonId])
 
-  const progressPercentage = Math.round(((completedLessons as any[])?.length || 0) / (totalLessons as any[]).length * 100)
-  
-  // Create enrollment update matching database.types.ts
-  const enrollmentUpdate: any = {
-    progress_percentage: progressPercentage
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0 || showResults) return
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(timer)
+          handleSubmitQuiz()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [timeLeft, showResults])
+
+  const handleAnswer = (questionId: string, answerIndex: number) => {
+    setAnswers(prev => ({ ...prev, [questionId]: answerIndex }))
   }
-  
-  if (progressPercentage === 100) {
-    enrollmentUpdate.completed_at = new Date().toISOString()
-  }
 
-  await supabase
-    .from('enrollments')
-    .update(enrollmentUpdate as any)
-    .eq('user_id', userId)
-    .eq('course_id', courseId)
-}
-
-export default async function LessonPage({
-  params,
-}: {
-  params: { slug: string; lessonId: string }
-}) {
-  try {
-    const supabase = await createClient()
+  const handleSubmitQuiz = async () => {
+    setSubmitting(true)
     
+    // Calculate score
+    let correctAnswers = 0
+    questions.forEach(q => {
+      if (answers[q.id] === q.correct) {
+        correctAnswers++
+      }
+    })
+    
+    const finalScore = Math.round((correctAnswers / questions.length) * 100)
+    setScore(finalScore)
+    setShowResults(true)
+
+    // Save quiz attempt
     const { data: { user } } = await supabase.auth.getUser()
     
-    if (!user) {
-      redirect('/login')
-    }
-
-    // First, verify the course exists and get its ID from the slug
-    const { data: course, error: courseError } = await supabase
-      .from('courses')
-      .select('id, title, slug, description, difficulty_level, thumbnail_url')
-      .eq('slug', params.slug)
-      .eq('is_published', true)
-      .single()
-
-    if (courseError || !course) {
-      console.error('Course error:', courseError)
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Course Not Found</h1>
-            <p className="text-gray-600 mb-4">The course "{params.slug}" could not be found.</p>
-            <Link href="/dashboard" className="text-blue-600 hover:underline">
-              Return to Dashboard
-            </Link>
-          </div>
-        </div>
-      )
-    }
-
-    // Check if user is enrolled
-    const { data: enrollment, error: enrollmentError } = await supabase
-      .from('enrollments')
-      .select('status, progress_percentage')
-      .eq('user_id', user.id)
-      .eq('course_id', course.id)
-      .maybeSingle()
-
-    if (enrollmentError) {
-      console.error('Enrollment error:', enrollmentError)
-    }
-
-    // If not enrolled, redirect to course page
-    if (!enrollment) {
-      redirect(`/dashboard/learn/${params.slug}`)
-    }
-
-    // Get the current lesson
-    const { data: lesson, error: lessonError } = await supabase
-      .from('lessons')
-      .select('*')
-      .eq('id', params.lessonId)
-      .eq('is_published', true)
-      .maybeSingle()
-
-    if (lessonError || !lesson) {
-      console.error('Lesson error:', lessonError)
-      
-      // If lesson not found, try to redirect to the first lesson of the course
-      const { data: firstLesson } = await getFirstLesson(course.id)
-      if (firstLesson) {
-        redirect(`/dashboard/learn/${params.slug}/${(firstLesson as any).id}`)
-      }
-      
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Lesson Not Found</h1>
-            <p className="text-gray-600 mb-4">The lesson could not be found.</p>
-            <Link href={`/dashboard/learn/${params.slug}`} className="text-blue-600 hover:underline">
-              Back to Course
-            </Link>
-          </div>
-        </div>
-      )
-    }
-
-    // Get the module for this lesson
-    const { data: module, error: moduleError } = await supabase
-      .from('modules')
-      .select('*')
-      .eq('id', lesson.module_id)
-      .single()
-
-    if (moduleError || !module) {
-      console.error('Module error:', moduleError)
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Module Not Found</h1>
-            <p className="text-gray-600 mb-4">The module for this lesson could not be found.</p>
-            <Link href={`/dashboard/learn/${params.slug}`} className="text-blue-600 hover:underline">
-              Back to Course
-            </Link>
-          </div>
-        </div>
-      )
-    }
-
-    // Verify this lesson belongs to the correct course
-    if (module.course_id !== course.id) {
-      console.error('Course mismatch:', { moduleCourseId: module.course_id, courseId: course.id })
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Course Mismatch</h1>
-            <p className="text-gray-600 mb-4">This lesson does not belong to the specified course.</p>
-            <Link href={`/dashboard/learn/${params.slug}`} className="text-blue-600 hover:underline">
-              Back to Course
-            </Link>
-          </div>
-        </div>
-      )
-    }
-
-    // Get user's progress for this lesson
-    const { data: progress } = await supabase
-      .from('lesson_progress')
-      .select('completed, completed_at, quiz_score, time_spent, last_position')
-      .eq('user_id', user.id)
-      .eq('lesson_id', params.lessonId)
-      .maybeSingle()
-
-    // Get all modules for this course
-    const { data: courseModules, error: modulesError } = await supabase
-      .from('modules')
-      .select('id, module_order')
-      .eq('course_id', course.id)
-      .order('module_order', { ascending: true })
-
-    if (modulesError) {
-      console.error('Modules error:', modulesError)
-    }
-
-    let allLessons: { id: string; title: string; lesson_order: number; module_order: number }[] = []
-
-    if (courseModules && (courseModules as any[]).length > 0) {
-      const moduleIds = (courseModules as any[]).map((m: any) => m.id)
-      
-      const { data: lessons, error: navError } = await supabase
-        .from('lessons')
-        .select('id, title, lesson_order, module_id')
-        .in('module_id', moduleIds)
-        .eq('is_published', true)
-
-      if (navError) {
-        console.error('Navigation error:', navError)
+    if (user) {
+      // Create attempt data matching database.types.ts
+      const attemptData = {
+        user_id: user.id,
+        assessment_id: lesson?.id,
+        score: finalScore,
+        answers: answers,
+        passed: finalScore >= (lesson?.content?.passing_score || 70),
+        completed_at: new Date().toISOString()
       }
 
-      if (lessons) {
-        const moduleOrderMap = new Map()
-        ;(courseModules as any[]).forEach((module: any) => {
-          moduleOrderMap.set(module.id, module.module_order)
-        })
+      await supabase
+        .from('assessment_attempts')
+        .insert(attemptData as any)
 
-        allLessons = (lessons as any[]).map((lesson: any) => ({
-          id: lesson.id,
-          title: lesson.title,
-          lesson_order: lesson.lesson_order,
-          module_order: moduleOrderMap.get(lesson.module_id) || 0
-        }))
-
-        allLessons.sort((a, b) => {
-          if (a.module_order !== b.module_order) {
-            return a.module_order - b.module_order
-          }
-          return a.lesson_order - b.lesson_order
-        })
+      // If passed, mark lesson as completed
+      if (finalScore >= (lesson?.content?.passing_score || 70)) {
+        const progressData = {
+          user_id: user.id,
+          lesson_id: lesson.id,
+          completed: true,
+          completed_at: new Date().toISOString()
+        }
+        
+        await supabase
+          .from('lesson_progress')
+          .insert(progressData as any)
       }
     }
 
-    const currentIndex = allLessons.findIndex(l => l.id === params.lessonId)
-    const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null
-    const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null
+    setSubmitting(false)
+  }
 
-    // Check if this is the Lubrication Engineering interactive lesson
-    const isLubricationLesson = lesson.id === 'f40673f8-8262-4acb-a098-6a98b1337337'
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
 
-    return (
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white border-b sticky top-0 z-10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <Link
-                href={`/dashboard/learn/${params.slug}`}
-                className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
-              >
-                <ChevronLeft size={20} />
-                <span>Back to Course</span>
-              </Link>
-              <div className="flex items-center gap-4">
-                {lesson.duration_minutes && (
-                  <span className="text-sm text-gray-500 flex items-center gap-1">
-                    <Clock size={16} />
-                    {lesson.duration_minutes} min
-                  </span>
-                )}
-                <span className="text-sm text-gray-500">
-                  Lesson {lesson.lesson_order}
-                </span>
-                {course.difficulty_level && (
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                    {course.difficulty_level}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            {/* Progress bar for course */}
-            <div className="h-1 bg-gray-200">
-              <div 
-                className="h-1 bg-green-500 transition-all duration-300" 
-                style={{ width: `${(enrollment as any)?.progress_percentage || 0}%` }}
-              />
-            </div>
-
-            <div className="p-8">
-              <h1 className="text-2xl font-bold mb-6">{lesson.title}</h1>
-              
-              {/* Module info */}
-              <div className="mb-6 text-sm text-gray-500">
-                Module: {module.title}
-                {module.estimated_minutes && (
-                  <span className="ml-2">• {module.estimated_minutes} min total</span>
-                )}
-              </div>
-              
-              {/* Conditionally render either the Lubrication module or regular lesson content */}
-              {isLubricationLesson ? (
-                <div className="border rounded-lg p-6 bg-gray-50">
-                  <LubricationModule />
-                </div>
-              ) : (
-                <LessonContent 
-                  lesson={lesson as any}
-                  contentType={(lesson as any).content_type || 'video'} 
-                />
-              )}
-
-              {/* Complete button with form data */}
-              <div className="mt-8 flex justify-center">
-                {(progress as any)?.completed ? (
-                  <div className="flex items-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded-lg">
-                    <CheckCircle size={20} />
-                    <span>Lesson Completed</span>
-                  </div>
-                ) : (
-                  <form action={markLessonComplete}>
-                    <input type="hidden" name="courseId" value={course.id} />
-                    <input type="hidden" name="lessonId" value={params.lessonId} />
-                    <input type="hidden" name="slug" value={params.slug} />
-                    <button
-                      type="submit"
-                      className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-                    >
-                      Mark as Completed
-                    </button>
-                  </form>
-                )}
-              </div>
-
-              {/* Navigation */}
-              <div className="mt-8 flex items-center justify-between border-t pt-6">
-                {prevLesson ? (
-                  <Link
-                    href={`/dashboard/learn/${params.slug}/${prevLesson.id}`}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                  >
-                    ← Previous Lesson
-                  </Link>
-                ) : (
-                  <div />
-                )}
-                
-                {nextLesson ? (
-                  <Link
-                    href={`/dashboard/learn/${params.slug}/${nextLesson.id}`}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                  >
-                    Next Lesson →
-                  </Link>
-                ) : (
-                  <Link
-                    href={`/dashboard/learn/${params.slug}`}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                  >
-                    Complete Course
-                  </Link>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Progress details */}
-          {(progress as any) && (
-            <div className="mt-4 grid grid-cols-3 gap-4">
-              {(progress as any).quiz_score !== null && (
-                <div className="bg-white p-3 rounded-lg shadow text-center">
-                  <div className="text-sm text-gray-500">Quiz Score</div>
-                  <div className="text-xl font-bold text-blue-600">{(progress as any).quiz_score}%</div>
-                </div>
-              )}
-              {(progress as any).time_spent !== null && (progress as any).time_spent > 0 && (
-                <div className="bg-white p-3 rounded-lg shadow text-center">
-                  <div className="text-sm text-gray-500">Time Spent</div>
-                  <div className="text-xl font-bold text-purple-600">{Math.floor((progress as any).time_spent / 60)} min</div>
-                </div>
-              )}
-              {(progress as any).last_position !== null && (progress as any).last_position > 0 && (
-                <div className="bg-white p-3 rounded-lg shadow text-center">
-                  <div className="text-sm text-gray-500">Last Position</div>
-                  <div className="text-xl font-bold text-orange-600">{(progress as any).last_position}s</div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  } catch (error) {
-    console.error('Unexpected error in LessonPage:', error)
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h1>
-          <p className="text-gray-600 mb-4">An unexpected error occurred while loading this page.</p>
-          <pre className="bg-gray-100 p-4 rounded text-xs mb-4 overflow-auto">
-            {error instanceof Error ? error.message : String(error)}
-          </pre>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!lesson) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Quiz not found</h2>
           <Link href="/dashboard" className="text-blue-600 hover:underline">
-            Return to Dashboard
+            Back to Dashboard
           </Link>
         </div>
       </div>
     )
   }
-}
 
-// Helper function to get first lesson of a course
-async function getFirstLesson(courseId: string) {
-  const supabase = await createClient()
-  
-  const { data: firstModule } = await supabase
-    .from('modules')
-    .select('id')
-    .eq('course_id', courseId)
-    .eq('is_published', true)
-    .order('module_order', { ascending: true })
-    .limit(1)
-    .single()
+  if (showResults) {
+    const passed = score >= (lesson?.content?.passing_score || 70)
+    
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-3xl mx-auto px-4">
+          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+            <div className="mb-6">
+              {passed ? (
+                <CheckCircle size={64} className="text-green-500 mx-auto" />
+              ) : (
+                <XCircle size={64} className="text-red-500 mx-auto" />
+              )}
+            </div>
+            
+            <h1 className="text-3xl font-bold mb-2">Quiz Complete!</h1>
+            <p className="text-gray-600 mb-6">{lesson.title}</p>
+            
+            <div className="text-5xl font-bold mb-4">{score}%</div>
+            
+            {passed ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <p className="text-green-700">Congratulations! You passed the quiz.</p>
+              </div>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <p className="text-red-700">You didn't pass this time. Review the material and try again.</p>
+              </div>
+            )}
 
-  if (!firstModule) return { data: null }
+            <div className="space-y-4 text-left mb-8">
+              <h3 className="font-semibold">Question Review:</h3>
+              {questions.map((q, idx) => {
+                const userAnswer = answers[q.id]
+                const isCorrect = userAnswer === q.correct
+                
+                return (
+                  <div key={q.id} className={`p-4 rounded-lg ${isCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
+                    <p className="font-medium mb-2">
+                      {idx + 1}. {q.question}
+                    </p>
+                    <p className="text-sm mb-1">
+                      Your answer: <span className={isCorrect ? 'text-green-600' : 'text-red-600'}>
+                        {q.options[userAnswer]}
+                      </span>
+                    </p>
+                    {!isCorrect && (
+                      <p className="text-sm text-green-600">
+                        Correct answer: {q.options[q.correct]}
+                      </p>
+                    )}
+                    {q.explanation && (
+                      <p className="text-sm text-gray-600 mt-2">{q.explanation}</p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
 
-  const { data: firstLesson } = await supabase
-    .from('lessons')
-    .select('id')
-    .eq('module_id', (firstModule as any).id)
-    .eq('is_published', true)
-    .order('lesson_order', { ascending: true })
-    .limit(1)
-    .single()
+            <div className="flex gap-4 justify-center">
+              <Link
+                href={`/dashboard/learn/${(lesson as any).module?.courses?.slug}`}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                Back to Course
+              </Link>
+              {!passed && (
+                <button
+                  onClick={() => {
+                    setShowResults(false)
+                    setCurrentQuestion(0)
+                    setAnswers({})
+                  }}
+                  className="px-6 py-3 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition"
+                >
+                  Try Again
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
-  return { data: firstLesson }
+  const currentQ = questions[currentQuestion]
+  const progress = ((currentQuestion + 1) / questions.length) * 100
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-3xl mx-auto px-4">
+        {/* Header */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <Link
+              href={`/dashboard/learn/${(lesson as any).module?.courses?.slug}`}
+              className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
+            >
+              <ChevronLeft size={20} />
+              Back to Course
+            </Link>
+            {timeLeft !== null && (
+              <div className="flex items-center gap-2 text-gray-600">
+                <Clock size={18} />
+                <span className="font-mono">{formatTime(timeLeft)}</span>
+              </div>
+            )}
+          </div>
+          
+          <h1 className="text-2xl font-bold mb-2">{lesson.title}</h1>
+          <p className="text-gray-600 mb-4">{lesson?.content?.description}</p>
+          
+          {/* Progress bar */}
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+          <p className="text-sm text-gray-500 mt-2">
+            Question {currentQuestion + 1} of {questions.length}
+          </p>
+        </div>
+
+        {/* Question */}
+        {currentQ && (
+          <div className="bg-white rounded-xl shadow-lg p-8">
+            <h2 className="text-xl font-semibold mb-6">{currentQ.question}</h2>
+            
+            <div className="space-y-3">
+              {currentQ.options.map((option, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleAnswer(currentQ.id, idx)}
+                  className={`w-full text-left p-4 rounded-lg border transition ${
+                    answers[currentQ.id] === idx
+                      ? 'border-blue-600 bg-blue-50'
+                      : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="font-medium">{String.fromCharCode(65 + idx)}.</span> {option}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex justify-between mt-8">
+              <button
+                onClick={() => setCurrentQuestion(prev => Math.max(0, prev - 1))}
+                disabled={currentQuestion === 0}
+                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              
+              {currentQuestion === questions.length - 1 ? (
+                <button
+                  onClick={handleSubmitQuiz}
+                  disabled={Object.keys(answers).length !== questions.length || submitting}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                >
+                  {submitting ? 'Submitting...' : 'Submit Quiz'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setCurrentQuestion(prev => prev + 1)}
+                  disabled={answers[currentQ.id] === undefined}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
