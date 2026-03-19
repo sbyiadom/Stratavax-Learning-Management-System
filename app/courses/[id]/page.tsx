@@ -104,6 +104,12 @@ export default async function CourseDetailPage({ params }: { params: { id: strin
     
     const supabase = await createClient()
     
+    // Double-check that course exists (it should, but TypeScript needs this)
+    if (!course) {
+      console.error('Course not found')
+      return
+    }
+    
     // Create enrollment
     const enrollment = {
       user_id: user.id,
