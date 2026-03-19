@@ -13,17 +13,35 @@ const APPROVED_COURSE_SLUGS = [
   'leadership', 'basic-mechanical-engineering'
 ]
 
+// Define Course type inline
+type Course = {
+  id: string
+  title: string
+  slug: string
+  description: string | null
+  short_description: string | null
+  category: string | null
+  difficulty_level: string | null
+  thumbnail_url: string | null
+  duration_hours: number | null
+  enrollment_count: number | null
+  is_featured: boolean | null
+  is_published: boolean | null
+  created_at: string | null
+  updated_at: string | null
+}
+
 export default async function CourseDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   
-  // Get course details
+  // Get course details with type assertion
   const { data: course, error: courseError } = await supabase
     .from('courses')
     .select('*')
     .eq('id', params.id)
     .eq('is_published', true)
-    .single()
+    .single() as { data: Course | null, error: any }
 
   if (courseError || !course) {
     console.error('Course error:', courseError)
@@ -49,12 +67,12 @@ export default async function CourseDetailPage({ params }: { params: { id: strin
   }
 
   // Get modules
-  const { data: modules, error: modulesError } = await supabase
+  const { data: modules } = await supabase
     .from('modules')
     .select('id, title, description, module_order')
     .eq('course_id', course.id)
     .eq('is_published', true)
-    .order('module_order', { ascending: true })
+    .order('module_order', { ascending: true }) as { data: any[] | null, error: any }
 
   // Get lesson counts
   const modulesWithCount = []
@@ -64,7 +82,7 @@ export default async function CourseDetailPage({ params }: { params: { id: strin
         .from('lessons')
         .select('*', { count: 'exact', head: true })
         .eq('module_id', module.id)
-        .eq('is_published', true)
+        .eq('is_published', true) as { count: number | null, error: any }
       
       modulesWithCount.push({
         id: module.id,
@@ -86,7 +104,7 @@ export default async function CourseDetailPage({ params }: { params: { id: strin
     
     const supabase = await createClient()
     
-    // Create enrollment matching database.types.ts
+    // Create enrollment
     const enrollment = {
       user_id: user.id,
       course_id: course.id,
@@ -211,7 +229,7 @@ export default async function CourseDetailPage({ params }: { params: { id: strin
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Course Content</h2>
                 <div className="space-y-4">
-                  {modulesWithCount.map((module) => (
+                  {modulesWithCount.map((module: any) => (
                     <div key={module.id} className="border border-gray-100 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
