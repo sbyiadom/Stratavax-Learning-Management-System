@@ -27,10 +27,6 @@ type Module = {
   title: string
   description: string | null
   module_order: number
-  course_id: string
-  is_published: boolean
-  created_at: string
-  updated_at: string
 }
 
 type ModuleWithLessonCount = {
@@ -39,6 +35,17 @@ type ModuleWithLessonCount = {
   description: string | null
   module_order: number
   lesson_count: number
+}
+
+// Define enrollment type based on your schema
+type Enrollment = {
+  user_id: string
+  course_id: string
+  status: string
+  progress_percentage: number
+  enrolled_at: string
+  created_at: string
+  updated_at: string
 }
 
 // Approved course slugs
@@ -105,7 +112,7 @@ export default async function CourseDetailPage({
     isEnrolled = !!existingEnrollment
   }
 
-  // Get modules for this course with explicit typing
+  // Get modules for this course
   const { data: modulesData, error: modulesError } = await supabase
     .from('modules')
     .select('id, title, description, module_order')
@@ -118,19 +125,17 @@ export default async function CourseDetailPage({
   }
 
   // Safely type the modules data
-  const modules: { id: string; title: string; description: string | null; module_order: number }[] = 
-    modulesData || []
+  const modules: Module[] = modulesData || []
 
   // Get lesson counts for each module
   let modulesWithCount: ModuleWithLessonCount[] = []
   
-  // Process modules one by one with proper typing
+  // Process modules one by one
   for (const module of modules) {
-    // Now TypeScript knows module has an id property
     const { count, error: countError } = await supabase
       .from('lessons')
       .select('*', { count: 'exact', head: true })
-      .eq('module_id', module.id)  // This now works!
+      .eq('module_id', module.id)
       .eq('is_published', true)
 
     if (countError) {
@@ -158,17 +163,21 @@ export default async function CourseDetailPage({
 
     const supabase = await createClient()
 
+    // Create enrollment object with proper typing
+    const newEnrollment: Enrollment = {
+      user_id: user.id,
+      course_id: typedCourse.id,
+      status: 'active',
+      progress_percentage: 0,
+      enrolled_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    // Use type assertion to bypass TypeScript's strict checking
     const { error } = await supabase
       .from('enrollments')
-      .insert({
-        user_id: user.id,
-        course_id: typedCourse.id,
-        status: 'active',
-        progress_percentage: 0,
-        enrolled_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .insert(newEnrollment as any)
 
     if (error) {
       console.error('Error enrolling in course:', error)
@@ -181,7 +190,7 @@ export default async function CourseDetailPage({
       .update({ 
         enrollment_count: (typedCourse.enrollment_count || 0) + 1,
         updated_at: new Date().toISOString()
-      })
+      } as any)
       .eq('id', typedCourse.id)
 
     redirect(`/dashboard/learn/${typedCourse.slug}`)
