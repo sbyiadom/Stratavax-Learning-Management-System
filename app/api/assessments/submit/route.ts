@@ -6,13 +6,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const supabase = await createClient()
     
+    // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Create object matching database.types.ts
+    // Create submission object matching database.types.ts
     const submission = {
       user_id: user.id,
       assessment_id: body.assessmentId,
@@ -22,6 +23,7 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString()
     }
 
+    // Insert with type assertion
     const { data, error } = await supabase
       .from('assessment_submissions')
       .insert(submission as any)
