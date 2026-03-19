@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if already enrolled - using maybeSingle() instead of single() to avoid errors
+    // Check if already enrolled
     const { data: existing, error: checkError } = await supabase
       .from('enrollments')
       .select('id')
@@ -45,18 +45,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Enroll user in course - using 'as any' to bypass TypeScript type checking
-    // The table 'enrollments' exists in your database with columns:
-    // id, user_id, course_id, enrolled_at, progress_percentage, status, completed_at, last_accessed_at
+    // Create enrollment matching database.types.ts
+    const enrollment = {
+      user_id: user.id,
+      course_id: courseId,
+      status: 'active',
+      progress_percentage: 0,
+      enrolled_at: new Date().toISOString()
+    }
+
+    // Enroll user in course
     const { data, error } = await supabase
       .from('enrollments')
-      .insert({
-        user_id: user.id,
-        course_id: courseId,
-        status: 'active',
-        progress_percentage: 0,
-        enrolled_at: new Date().toISOString()
-      } as any)
+      .insert(enrollment as any)
       .select()
       .single()
 
