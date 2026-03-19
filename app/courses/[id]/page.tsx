@@ -104,7 +104,7 @@ export default async function CourseDetailPage({ params }: { params: { id: strin
     
     const supabase = await createClient()
     
-    // Double-check that course exists (it should, but TypeScript needs this)
+    // Double-check that course exists
     if (!course) {
       console.error('Course not found')
       return
@@ -129,14 +129,16 @@ export default async function CourseDetailPage({ params }: { params: { id: strin
       return
     }
 
-    // Update course count - use type assertion on the whole operation
-    const { error: updateError } = await (supabase
+    // Create update object first, then use it with type assertion
+    const updateData = {
+      enrollment_count: (course.enrollment_count || 0) + 1,
+      updated_at: new Date().toISOString()
+    }
+
+    const { error: updateError } = await supabase
       .from('courses')
-      .update({
-        enrollment_count: (course.enrollment_count || 0) + 1,
-        updated_at: new Date().toISOString()
-      } as any)
-      .eq('id', course.id))
+      .update(updateData as any)
+      .eq('id', course.id)
 
     if (updateError) {
       console.error('Error updating course count:', updateError)
