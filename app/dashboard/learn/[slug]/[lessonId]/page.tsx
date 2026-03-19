@@ -8,49 +8,6 @@ import { ChevronLeft, Clock, CheckCircle } from 'lucide-react'
 import LessonContent from '@/components/dashboard/LessonContent'
 import LubricationModule from '@/components/courses/lubrication-module'
 
-// Types based on your actual schema
-type Course = {
-  id: string
-  title: string
-  slug: string
-  description: string | null
-  difficulty_level: string | null
-  thumbnail_url: string | null
-}
-
-type Module = {
-  id: string
-  title: string
-  description: string | null
-  module_order: number
-  estimated_minutes: number | null
-  course_id: string
-}
-
-type Lesson = {
-  id: string
-  title: string
-  module_id: string
-  content_type: string | null
-  content_url: string | null
-  duration_minutes: number | null
-  lesson_order: number
-  is_published: boolean | null
-}
-
-type LessonProgress = {
-  completed: boolean
-  completed_at: string | null
-  quiz_score: number | null
-  time_spent: number | null
-  last_position: number | null
-}
-
-type Enrollment = {
-  status: string
-  progress_percentage: number
-}
-
 // Server action defined at the top level, outside the component
 async function markLessonComplete(formData: FormData) {
   'use server'
@@ -64,24 +21,26 @@ async function markLessonComplete(formData: FormData) {
   
   if (!user) return
 
+  // Get current progress
   const { data: currentProgress } = await supabase
     .from('lesson_progress')
     .select('time_spent')
     .eq('user_id', user.id)
     .eq('lesson_id', lessonId)
-    .maybeSingle() as any
+    .maybeSingle()
+
+  // Create progress update matching database.types.ts
+  const progressUpdate = {
+    user_id: user.id,
+    lesson_id: lessonId,
+    completed: true,
+    completed_at: new Date().toISOString(),
+    time_spent: (currentProgress as any)?.time_spent || 0
+  }
 
   const { error } = await supabase
     .from('lesson_progress')
-    .upsert({
-      user_id: user.id,
-      lesson_id: lessonId,
-      completed: true,
-      completed_at: new Date().toISOString(),
-      time_spent: currentProgress?.time_spent || 0
-    } as any, {
-      onConflict: 'user_id,lesson_id'
-    } as any)
+    .upsert(progressUpdate as any, { onConflict: 'user_id,lesson_id' } as any)
 
   if (!error) {
     await updateCourseProgress(user.id, courseId)
@@ -96,35 +55,41 @@ async function updateCourseProgress(userId: string, courseId: string) {
   const { data: courseModules } = await supabase
     .from('modules')
     .select('id')
-    .eq('course_id', courseId) as any
+    .eq('course_id', courseId)
 
-  if (!courseModules || courseModules.length === 0) return
+  if (!courseModules || (courseModules as any[]).length === 0) return
 
-  const moduleIds = courseModules.map((m: any) => m.id)
+  const moduleIds = (courseModules as any[]).map((m: any) => m.id)
   
   const { data: totalLessons } = await supabase
     .from('lessons')
     .select('id')
     .in('module_id', moduleIds)
-    .eq('is_published', true) as any
+    .eq('is_published', true)
 
-  if (!totalLessons || totalLessons.length === 0) return
+  if (!totalLessons || (totalLessons as any[]).length === 0) return
 
   const { data: completedLessons } = await supabase
     .from('lesson_progress')
     .select('lesson_id')
     .eq('user_id', userId)
     .eq('completed', true)
-    .in('lesson_id', totalLessons.map((l: any) => l.id)) as any
+    .in('lesson_id', (totalLessons as any[]).map((l: any) => l.id))
 
-  const progressPercentage = Math.round((completedLessons?.length || 0) / totalLessons.length * 100)
+  const progressPercentage = Math.round(((completedLessons as any[])?.length || 0) / (totalLessons as any[]).length * 100)
   
+  // Create enrollment update matching database.types.ts
+  const enrollmentUpdate: any = {
+    progress_percentage: progressPercentage
+  }
+  
+  if (progressPercentage === 100) {
+    enrollmentUpdate.completed_at = new Date().toISOString()
+  }
+
   await supabase
     .from('enrollments')
-    .update({ 
-      progress_percentage: progressPercentage,
-      ...(progressPercentage === 100 ? { completed_at: new Date().toISOString() } : {})
-    } as any)
+    .update(enrollmentUpdate as any)
     .eq('user_id', userId)
     .eq('course_id', courseId)
 }
@@ -143,15 +108,13 @@ export default async function LessonPage({
       redirect('/login')
     }
 
-    console.log('Loading lesson page for:', params)
-
     // First, verify the course exists and get its ID from the slug
     const { data: course, error: courseError } = await supabase
       .from('courses')
       .select('id, title, slug, description, difficulty_level, thumbnail_url')
       .eq('slug', params.slug)
       .eq('is_published', true)
-      .single() as any
+      .single()
 
     if (courseError || !course) {
       console.error('Course error:', courseError)
@@ -168,15 +131,13 @@ export default async function LessonPage({
       )
     }
 
-    console.log('Course found:', course.id)
-
     // Check if user is enrolled
     const { data: enrollment, error: enrollmentError } = await supabase
       .from('enrollments')
       .select('status, progress_percentage')
       .eq('user_id', user.id)
       .eq('course_id', course.id)
-      .maybeSingle() as any
+      .maybeSingle()
 
     if (enrollmentError) {
       console.error('Enrollment error:', enrollmentError)
@@ -184,11 +145,8 @@ export default async function LessonPage({
 
     // If not enrolled, redirect to course page
     if (!enrollment) {
-      console.log('User not enrolled, redirecting to course page')
       redirect(`/dashboard/learn/${params.slug}`)
     }
-
-    console.log('User is enrolled')
 
     // Get the current lesson
     const { data: lesson, error: lessonError } = await supabase
@@ -196,7 +154,7 @@ export default async function LessonPage({
       .select('*')
       .eq('id', params.lessonId)
       .eq('is_published', true)
-      .maybeSingle() as any
+      .maybeSingle()
 
     if (lessonError || !lesson) {
       console.error('Lesson error:', lessonError)
@@ -204,7 +162,7 @@ export default async function LessonPage({
       // If lesson not found, try to redirect to the first lesson of the course
       const { data: firstLesson } = await getFirstLesson(course.id)
       if (firstLesson) {
-        redirect(`/dashboard/learn/${params.slug}/${firstLesson.id}`)
+        redirect(`/dashboard/learn/${params.slug}/${(firstLesson as any).id}`)
       }
       
       return (
@@ -220,14 +178,12 @@ export default async function LessonPage({
       )
     }
 
-    console.log('Lesson found:', lesson.id)
-
     // Get the module for this lesson
     const { data: module, error: moduleError } = await supabase
       .from('modules')
       .select('*')
       .eq('id', lesson.module_id)
-      .single() as any
+      .single()
 
     if (moduleError || !module) {
       console.error('Module error:', moduleError)
@@ -243,8 +199,6 @@ export default async function LessonPage({
         </div>
       )
     }
-
-    console.log('Module found:', module.id)
 
     // Verify this lesson belongs to the correct course
     if (module.course_id !== course.id) {
@@ -268,16 +222,14 @@ export default async function LessonPage({
       .select('completed, completed_at, quiz_score, time_spent, last_position')
       .eq('user_id', user.id)
       .eq('lesson_id', params.lessonId)
-      .maybeSingle() as any
-
-    console.log('Progress:', progress)
+      .maybeSingle()
 
     // Get all modules for this course
     const { data: courseModules, error: modulesError } = await supabase
       .from('modules')
       .select('id, module_order')
       .eq('course_id', course.id)
-      .order('module_order', { ascending: true }) as any
+      .order('module_order', { ascending: true })
 
     if (modulesError) {
       console.error('Modules error:', modulesError)
@@ -285,14 +237,14 @@ export default async function LessonPage({
 
     let allLessons: { id: string; title: string; lesson_order: number; module_order: number }[] = []
 
-    if (courseModules && courseModules.length > 0) {
-      const moduleIds = courseModules.map((m: any) => m.id)
+    if (courseModules && (courseModules as any[]).length > 0) {
+      const moduleIds = (courseModules as any[]).map((m: any) => m.id)
       
       const { data: lessons, error: navError } = await supabase
         .from('lessons')
         .select('id, title, lesson_order, module_id')
         .in('module_id', moduleIds)
-        .eq('is_published', true) as any
+        .eq('is_published', true)
 
       if (navError) {
         console.error('Navigation error:', navError)
@@ -300,11 +252,11 @@ export default async function LessonPage({
 
       if (lessons) {
         const moduleOrderMap = new Map()
-        courseModules.forEach((module: any) => {
+        ;(courseModules as any[]).forEach((module: any) => {
           moduleOrderMap.set(module.id, module.module_order)
         })
 
-        allLessons = lessons.map((lesson: any) => ({
+        allLessons = (lessons as any[]).map((lesson: any) => ({
           id: lesson.id,
           title: lesson.title,
           lesson_order: lesson.lesson_order,
@@ -323,8 +275,6 @@ export default async function LessonPage({
     const currentIndex = allLessons.findIndex(l => l.id === params.lessonId)
     const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null
     const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null
-
-    const typedEnrollment = enrollment as Enrollment
 
     // Check if this is the Lubrication Engineering interactive lesson
     const isLubricationLesson = lesson.id === 'f40673f8-8262-4acb-a098-6a98b1337337'
@@ -369,7 +319,7 @@ export default async function LessonPage({
             <div className="h-1 bg-gray-200">
               <div 
                 className="h-1 bg-green-500 transition-all duration-300" 
-                style={{ width: `${typedEnrollment.progress_percentage || 0}%` }}
+                style={{ width: `${(enrollment as any)?.progress_percentage || 0}%` }}
               />
             </div>
 
@@ -391,14 +341,14 @@ export default async function LessonPage({
                 </div>
               ) : (
                 <LessonContent 
-                  lesson={lesson}
-                  contentType={lesson.content_type || 'video'} 
+                  lesson={lesson as any}
+                  contentType={(lesson as any).content_type || 'video'} 
                 />
               )}
 
               {/* Complete button with form data */}
               <div className="mt-8 flex justify-center">
-                {progress?.completed ? (
+                {(progress as any)?.completed ? (
                   <div className="flex items-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded-lg">
                     <CheckCircle size={20} />
                     <span>Lesson Completed</span>
@@ -451,24 +401,24 @@ export default async function LessonPage({
           </div>
 
           {/* Progress details */}
-          {progress && (
+          {(progress as any) && (
             <div className="mt-4 grid grid-cols-3 gap-4">
-              {progress.quiz_score !== null && (
+              {(progress as any).quiz_score !== null && (
                 <div className="bg-white p-3 rounded-lg shadow text-center">
                   <div className="text-sm text-gray-500">Quiz Score</div>
-                  <div className="text-xl font-bold text-blue-600">{progress.quiz_score}%</div>
+                  <div className="text-xl font-bold text-blue-600">{(progress as any).quiz_score}%</div>
                 </div>
               )}
-              {progress.time_spent !== null && progress.time_spent > 0 && (
+              {(progress as any).time_spent !== null && (progress as any).time_spent > 0 && (
                 <div className="bg-white p-3 rounded-lg shadow text-center">
                   <div className="text-sm text-gray-500">Time Spent</div>
-                  <div className="text-xl font-bold text-purple-600">{Math.floor(progress.time_spent / 60)} min</div>
+                  <div className="text-xl font-bold text-purple-600">{Math.floor((progress as any).time_spent / 60)} min</div>
                 </div>
               )}
-              {progress.last_position !== null && progress.last_position > 0 && (
+              {(progress as any).last_position !== null && (progress as any).last_position > 0 && (
                 <div className="bg-white p-3 rounded-lg shadow text-center">
                   <div className="text-sm text-gray-500">Last Position</div>
-                  <div className="text-xl font-bold text-orange-600">{progress.last_position}s</div>
+                  <div className="text-xl font-bold text-orange-600">{(progress as any).last_position}s</div>
                 </div>
               )}
             </div>
@@ -506,18 +456,18 @@ async function getFirstLesson(courseId: string) {
     .eq('is_published', true)
     .order('module_order', { ascending: true })
     .limit(1)
-    .single() as any
+    .single()
 
   if (!firstModule) return { data: null }
 
   const { data: firstLesson } = await supabase
     .from('lessons')
     .select('id')
-    .eq('module_id', firstModule.id)
+    .eq('module_id', (firstModule as any).id)
     .eq('is_published', true)
     .order('lesson_order', { ascending: true })
     .limit(1)
-    .single() as any
+    .single()
 
   return { data: firstLesson }
 }
