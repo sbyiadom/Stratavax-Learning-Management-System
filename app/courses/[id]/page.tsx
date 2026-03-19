@@ -86,31 +86,34 @@ export default async function CourseDetailPage({ params }: { params: { id: strin
     
     const supabase = await createClient()
     
-    // @ts-ignore - Bypass TypeScript for enrollment insert
+    // Create enrollment matching database.types.ts
+    const enrollment = {
+      user_id: user.id,
+      course_id: course.id,
+      status: 'active',
+      progress_percentage: 0,
+      enrolled_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
     const { error: enrollError } = await supabase
       .from('enrollments')
-      .insert({
-        user_id: user.id,
-        course_id: course.id,
-        status: 'active',
-        progress_percentage: 0,
-        enrolled_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .insert(enrollment as any)
 
     if (enrollError) {
       console.error('Error enrolling:', enrollError)
       return
     }
 
-    // @ts-ignore - Bypass TypeScript for course update
+    // Update course count
+    const courseUpdate = {
+      enrollment_count: (course.enrollment_count || 0) + 1,
+      updated_at: new Date().toISOString()
+    }
+
     await supabase
       .from('courses')
-      .update({
-        enrollment_count: (course.enrollment_count || 0) + 1,
-        updated_at: new Date().toISOString()
-      })
+      .update(courseUpdate as any)
       .eq('id', course.id)
 
     redirect(`/dashboard/learn/${course.slug}`)
