@@ -129,16 +129,19 @@ export default async function CourseDetailPage({ params }: { params: { id: strin
       return
     }
 
-    // Update course count
-    const courseUpdate = {
-      enrollment_count: (course.enrollment_count || 0) + 1,
-      updated_at: new Date().toISOString()
-    }
-
-    await supabase
+    // Update course count - use type assertion on the whole operation
+    const { error: updateError } = await (supabase
       .from('courses')
-      .update(courseUpdate as any)
-      .eq('id', course.id)
+      .update({
+        enrollment_count: (course.enrollment_count || 0) + 1,
+        updated_at: new Date().toISOString()
+      } as any)
+      .eq('id', course.id))
+
+    if (updateError) {
+      console.error('Error updating course count:', updateError)
+      return
+    }
 
     redirect(`/dashboard/learn/${course.slug}`)
   }
