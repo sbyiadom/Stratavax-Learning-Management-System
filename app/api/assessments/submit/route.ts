@@ -10,14 +10,11 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     
     if (userError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Use type assertion on the entire query builder
-    const { data, error } = await (supabase
+    // @ts-ignore - Bypass TypeScript for assessment submission
+    const { data, error } = await supabase
       .from('assessment_submissions')
       .insert({
         user_id: user.id,
@@ -27,25 +24,16 @@ export async function POST(request: NextRequest) {
         submitted_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      }) as any)
+      })
 
     if (error) {
       console.error('Error submitting assessment:', error)
-      return NextResponse.json(
-        { error: 'Failed to submit assessment' },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: 'Failed to submit assessment' }, { status: 500 })
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      data 
-    })
+    return NextResponse.json({ success: true, data })
   } catch (error) {
     console.error('Error in assessment submission:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
