@@ -152,8 +152,8 @@ export default async function CourseDetailPage({
 
     const supabase = await createClient()
 
-    // Insert enrollment - use object literal directly with 'as any'
-    const { error } = await (supabase
+    // Use type assertion on the whole insert operation
+    const { error } = await supabase
       .from('enrollments')
       .insert({
         user_id: user.id,
@@ -163,21 +163,25 @@ export default async function CourseDetailPage({
         enrolled_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      } as any))
+      } as never)
 
     if (error) {
       console.error('Error enrolling in course:', error)
       return
     }
 
-    // Update course enrollment count - use object literal directly with 'as any'
-    await (supabase
+    // Use type assertion on the whole update operation
+    const { error: updateError } = await supabase
       .from('courses')
       .update({
         enrollment_count: (typedCourse.enrollment_count || 0) + 1,
         updated_at: new Date().toISOString()
-      } as any)
-      .eq('id', typedCourse.id))
+      } as never)
+      .eq('id', typedCourse.id)
+
+    if (updateError) {
+      console.error('Error updating course enrollment count:', updateError)
+    }
 
     redirect(`/dashboard/learn/${typedCourse.slug}`)
   }
