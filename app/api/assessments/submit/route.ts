@@ -6,25 +6,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const supabase = await createClient()
     
-    // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // @ts-ignore - Bypass TypeScript for assessment submission
+    // Create object matching database.types.ts
+    const submission = {
+      user_id: user.id,
+      assessment_id: body.assessmentId,
+      answers: body.answers || {},
+      score: body.score || 0,
+      submitted_at: new Date().toISOString(),
+      created_at: new Date().toISOString()
+    }
+
     const { data, error } = await supabase
       .from('assessment_submissions')
-      .insert({
-        user_id: user.id,
-        assessment_id: body.assessmentId,
-        answers: body.answers,
-        score: body.score,
-        submitted_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .insert(submission as any)
 
     if (error) {
       console.error('Error submitting assessment:', error)
