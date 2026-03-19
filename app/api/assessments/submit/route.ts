@@ -16,16 +16,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Insert assessment submission with type assertion
+    // Create the submission object first
+    const submission = {
+      user_id: user.id,
+      assessment_id: body.assessmentId,
+      answers: body.answers,
+      score: body.score,
+      submitted_at: new Date().toISOString()
+    }
+
+    // Then insert with type assertion on the whole operation
     const { data, error } = await supabase
       .from('assessment_submissions')
-      .insert({
-        user_id: user.id,
-        assessment_id: body.assessmentId,
-        answers: body.answers,
-        score: body.score,
-        submitted_at: new Date().toISOString()
-      } as never)
+      .insert(submission as never)
 
     if (error) {
       console.error('Error submitting assessment:', error)
