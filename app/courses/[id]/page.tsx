@@ -37,17 +37,6 @@ type ModuleWithLessonCount = {
   lesson_count: number
 }
 
-// Define enrollment type based on your schema
-type Enrollment = {
-  user_id: string
-  course_id: string
-  status: string
-  progress_percentage: number
-  enrolled_at: string
-  created_at: string
-  updated_at: string
-}
-
 // Approved course slugs
 const APPROVED_COURSE_SLUGS = [
   'electrical-engineering',
@@ -163,35 +152,32 @@ export default async function CourseDetailPage({
 
     const supabase = await createClient()
 
-    // Create enrollment object with proper typing
-    const newEnrollment: Enrollment = {
-      user_id: user.id,
-      course_id: typedCourse.id,
-      status: 'active',
-      progress_percentage: 0,
-      enrolled_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-
-    // Use type assertion to bypass TypeScript's strict checking
-    const { error } = await supabase
+    // Insert enrollment - use object literal directly with 'as any'
+    const { error } = await (supabase
       .from('enrollments')
-      .insert(newEnrollment as any)
+      .insert({
+        user_id: user.id,
+        course_id: typedCourse.id,
+        status: 'active',
+        progress_percentage: 0,
+        enrolled_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      } as any))
 
     if (error) {
       console.error('Error enrolling in course:', error)
       return
     }
 
-    // Increment enrollment count
-    await supabase
+    // Update course enrollment count - use object literal directly with 'as any'
+    await (supabase
       .from('courses')
-      .update({ 
+      .update({
         enrollment_count: (typedCourse.enrollment_count || 0) + 1,
         updated_at: new Date().toISOString()
       } as any)
-      .eq('id', typedCourse.id)
+      .eq('id', typedCourse.id))
 
     redirect(`/dashboard/learn/${typedCourse.slug}`)
   }
