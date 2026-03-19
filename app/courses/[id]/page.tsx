@@ -129,16 +129,17 @@ export default async function CourseDetailPage({ params }: { params: { id: strin
       return
     }
 
-    // Create update object first, then use it with type assertion
+    // Use type assertion on the entire update operation
     const updateData = {
       enrollment_count: (course.enrollment_count || 0) + 1,
       updated_at: new Date().toISOString()
     }
 
-    const { error: updateError } = await supabase
+    // Cast the entire supabase operation to any
+    const { error: updateError } = await (supabase
       .from('courses')
-      .update(updateData as any)
-      .eq('id', course.id)
+      .update(updateData)
+      .eq('id', course.id) as any)
 
     if (updateError) {
       console.error('Error updating course count:', updateError)
