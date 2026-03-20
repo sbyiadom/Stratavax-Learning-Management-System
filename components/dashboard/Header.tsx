@@ -1,0 +1,283 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { 
+  Bell, 
+  Search, 
+  User as UserIcon, 
+  LogOut, 
+  Settings,
+  ChevronDown,
+  Github,
+  FileSpreadsheet,
+  Loader2
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { createClient } from '@/lib/supabase'
+import { toast } from 'react-hot-toast'
+import type { User } from '@supabase/supabase-js'
+
+interface HeaderProps {
+  user: User
+  profile?: any
+}
+
+export default function Header({ user, profile }: HeaderProps) {
+  const router = useRouter()
+  const [mounted, setMounted] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [connectingGitHub, setConnectingGitHub] = useState(false)
+
+  const supabase = createClient()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    toast.success('Signed out successfully')
+    router.push('/')
+    router.refresh()
+  }
+
+  const handleExportExcel = async () => {
+    setExporting(true)
+    try {
+      const response = await fetch('/api/exports/courses', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error('Export failed')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `course-progress-${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      
+      toast.success('Export completed successfully')
+    } catch (error) {
+      console.error('Export failed:', error)
+      toast.error('Failed to export. Please try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleGitHubConnect = async () => {
+    setConnectingGitHub(true)
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        }
+      })
+      
+      if (error) {
+        toast.error('Failed to connect GitHub')
+      }
+    } catch (error) {
+      toast.error('Something went wrong')
+    } finally {
+      setConnectingGitHub(false)
+    }
+  }
+
+  const userDisplayName = profile?.first_name && profile?.last_name 
+    ? `${profile.first_name} ${profile.last_name}`
+    : user?.user_metadata?.full_name || 
+      user?.user_metadata?.name || 
+      user?.email?.split('@')[0] || 
+      'User'
+  
+  const userEmail = profile?.email || user?.email || ''
+  const userAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url
+
+  // Don't render interactive elements until mounted on client
+  if (!mounted) {
+    return (
+      <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
+        <div className="px-6 py-4 flex items-center justify-between">
+          <div className="flex-1 max-w-2xl">
+            <div className="h-10 bg-gray-100 rounded-lg animate-pulse"></div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="w-24 h-10 bg-gray-100 rounded-lg animate-pulse"></div>
+            <div className="w-24 h-10 bg-gray-100 rounded-lg animate-pulse"></div>
+            <div className="w-10 h-10 bg-gray-100 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  return (
+    <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
+      <div className="px-6 py-4 flex items-center justify-between">
+        {/* Search Bar */}
+        <div className="flex-1 max-w-2xl">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="search"
+              placeholder="Search courses, lessons..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        {/* Right side buttons and user menu */}
+        <div className="flex items-center space-x-4">
+          {/* Export Button */}
+          <Button
+            onClick={handleExportExcel}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+            disabled={exporting}
+          >
+            {exporting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="w-4 h-4" />
+            )}
+            {exporting ? 'Exporting...' : 'Export Excel'}
+          </Button>
+
+          {/* GitHub Integration */}
+          <Button
+            onClick={handleGitHubConnect}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+            disabled={connectingGitHub}
+          >
+            {connectingGitHub ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Github className="w-4 h-4" />
+            )}
+            {connectingGitHub ? 'Connecting...' : 'Connect GitHub'}
+          </Button>
+
+          {/* Notifications */}
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="relative"
+              onClick={() => setNotificationsOpen(!notificationsOpen)}
+            >
+              <Bell className="w-5 h-5" />
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                3
+              </span>
+            </Button>
+            
+            {notificationsOpen && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                <div className="px-4 py-2 border-b border-gray-100">
+                  <h3 className="font-semibold text-gray-900">Notifications</h3>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {[
+                    { id: 1, text: 'New course "Advanced React" is available', time: '2 hours ago' },
+                    { id: 2, text: 'Assessment score: 95% on JavaScript Basics', time: '1 day ago' },
+                    { id: 3, text: 'Complete your profile to get personalized recommendations', time: '2 days ago' },
+                  ].map((notification) => (
+                    <div key={notification.id} className="px-4 py-3 hover:bg-gray-50 cursor-pointer">
+                      <p className="text-sm text-gray-900">{notification.text}</p>
+                      <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-4 py-2 border-t border-gray-100">
+                  <Button variant="ghost" size="sm" className="w-full text-sm">
+                    View all notifications
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* User Menu */}
+          <div className="relative">
+            <Button
+              variant="ghost"
+              className="flex items-center space-x-2"
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+            >
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
+                {userAvatar ? (
+                  <img 
+                    src={userAvatar} 
+                    alt={userDisplayName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <UserIcon className="w-5 h-5 text-blue-600" />
+                )}
+              </div>
+              <div className="hidden md:block text-left">
+                <p className="text-sm font-medium text-gray-900">
+                  {userDisplayName}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {userEmail}
+                </p>
+              </div>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </Button>
+
+            {userMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                <Link
+                  href="/dashboard/profile"
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => setUserMenuOpen(false)}
+                >
+                  <UserIcon className="w-4 h-4 mr-3" />
+                  Your Profile
+                </Link>
+                <Link
+                  href="/dashboard/settings"
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => setUserMenuOpen(false)}
+                >
+                  <Settings className="w-4 h-4 mr-3" />
+                  Settings
+                </Link>
+                <div className="border-t border-gray-100 my-1"></div>
+                <button
+                  onClick={() => {
+                    setUserMenuOpen(false)
+                    handleSignOut()
+                  }}
+                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                >
+                  <LogOut className="w-4 h-4 mr-3" />
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}
