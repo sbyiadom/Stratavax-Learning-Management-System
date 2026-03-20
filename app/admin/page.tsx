@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase-server'
+import { supabaseServer } from '@/lib/supabase-server'
 import Link from 'next/link'
 import { 
   Users, BookOpen, FileText, Settings, BarChart, 
@@ -8,9 +8,10 @@ import {
 } from 'lucide-react'
 
 export default async function AdminDashboardPage() {
-  const supabase = await createClient()
+  // Use supabaseServer directly - no need to create a client
+  // Remove: const supabase = await createClient()
   
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await supabaseServer.auth.getUser()
   
   if (!user) {
     return null
@@ -25,14 +26,14 @@ export default async function AdminDashboardPage() {
     { count: recentEnrollments },
     { data: recentActivity }
   ] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }),
-    supabase.from('courses').select('*', { count: 'exact', head: true }).eq('is_published', true),
-    supabase.from('assignments').select('*', { count: 'exact', head: true }),
-    supabase.from('submissions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'supervisor'),
-    supabase.from('enrollments').select('*', { count: 'exact', head: true })
+    supabaseServer.from('profiles').select('*', { count: 'exact', head: true }),
+    supabaseServer.from('courses').select('*', { count: 'exact', head: true }).eq('is_published', true),
+    supabaseServer.from('assignments').select('*', { count: 'exact', head: true }),
+    supabaseServer.from('submissions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabaseServer.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'supervisor'),
+    supabaseServer.from('enrollments').select('*', { count: 'exact', head: true })
       .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
-    supabase.from('activity_logs')
+    supabaseServer.from('activity_logs')
       .select(`
         *,
         profiles:user_id (first_name, last_name, email)
@@ -44,7 +45,7 @@ export default async function AdminDashboardPage() {
   const lastMonth = new Date()
   lastMonth.setMonth(lastMonth.getMonth() - 1)
   
-  const { count: lastMonthUsers } = await supabase
+  const { count: lastMonthUsers } = await supabaseServer
     .from('profiles')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', lastMonth.toISOString())
@@ -88,13 +89,143 @@ export default async function AdminDashboardPage() {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {/* ... rest of your stats cards ... */}
+            {/* Total Users Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Total Users</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalUsers || 0}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Users className="text-blue-600" size={24} />
+                </div>
+              </div>
+            </div>
+
+            {/* Active Courses Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Active Courses</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalCourses || 0}</p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <BookOpen className="text-green-600" size={24} />
+                </div>
+              </div>
+            </div>
+
+            {/* Assignments Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Assignments</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalAssignments || 0}</p>
+                </div>
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <FileText className="text-purple-600" size={24} />
+                </div>
+              </div>
+            </div>
+
+            {/* Pending Reviews Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Pending Reviews</p>
+                  <p className="text-2xl font-bold text-yellow-600">{pendingReviews || 0}</p>
+                </div>
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Clock className="text-yellow-600" size={24} />
+                </div>
+              </div>
+            </div>
+
+            {/* Active Supervisors Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Active Supervisors</p>
+                  <p className="text-2xl font-bold text-indigo-600">{activeSupervisors || 0}</p>
+                </div>
+                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <UserPlus className="text-indigo-600" size={24} />
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Enrollments Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">New Enrollments (30d)</p>
+                  <p className="text-2xl font-bold text-green-600">{recentEnrollments || 0}</p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="text-green-600" size={24} />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Quick Actions */}
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {/* ... your quick action links ... */}
+            <Link href="/admin/users" className="block">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all hover:border-blue-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <UserPlus className="text-blue-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Add User</p>
+                    <p className="text-xs text-gray-500">Create new user account</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+
+            <Link href="/admin/courses/new" className="block">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all hover:border-green-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <BookOpen className="text-green-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Create Course</p>
+                    <p className="text-xs text-gray-500">Add new course</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+
+            <Link href="/admin/assignments/create" className="block">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all hover:border-purple-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <FileText className="text-purple-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Create Assignment</p>
+                    <p className="text-xs text-gray-500">Add new assignment</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+
+            <Link href="/admin/reports" className="block">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all hover:border-orange-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <BarChart className="text-orange-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Generate Report</p>
+                    <p className="text-xs text-gray-500">View analytics</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
           </div>
 
           {/* Recent Activity */}
