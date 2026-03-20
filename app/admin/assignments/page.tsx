@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'  // Changed from createClient
 import Link from 'next/link'
 import { 
   FileText, 
@@ -81,9 +81,9 @@ export default function AdminAssignmentsPage() {
   }, [])
 
   const loadSubmissions = async () => {
-    const supabase = createClient()
+    // Removed: const supabase = createClient()
     
-    const { data } = await supabase
+    const { data } = await supabase  // Use imported supabase directly
       .from('user_assignments')
       .select(`
         *,
