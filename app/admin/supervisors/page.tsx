@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -57,7 +57,6 @@ export default function AdminSupervisorsPage() {
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState<'assigned' | 'unassigned'>('unassigned')
   
-  const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
