@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -114,7 +114,6 @@ export default function ManagerDashboardPage() {
     topPerformer: null
   })
 
-  const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
