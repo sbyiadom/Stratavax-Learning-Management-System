@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { supabaseServer } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
     // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabaseServer.auth.getUser()
     
     if (authError || !user) {
       return NextResponse.json(
@@ -18,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user is admin - using profiles_roles table (from your schema)
-    const { data: userRole, error: roleError } = await supabase
+    const { data: userRole, error: roleError } = await supabaseServer
       .from('profiles_roles')
       .select('role')
       .eq('user_id', user.id)
@@ -39,7 +37,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all courses with related data - using 'as any' to bypass TypeScript type checking
-    const { data: courses, error } = await supabase
+    const { data: courses, error } = await supabaseServer
       .from('courses')
       .select(`
         *,
