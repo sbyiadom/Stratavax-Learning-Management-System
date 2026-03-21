@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { supabaseServer } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
     // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabaseServer.auth.getUser()
     
     if (authError || !user) {
       return NextResponse.json(
@@ -18,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's GitHub token from your database - using 'as any' to bypass TypeScript type checking
-    const { data: githubToken, error: tokenError } = await supabase
+    const { data: githubToken, error: tokenError } = await supabaseServer
       .from('user_connections')
       .select('access_token')
       .eq('user_id', user.id)
@@ -59,7 +57,7 @@ export async function GET(request: NextRequest) {
 
       // If token is invalid, remove it from database
       if (response.status === 401) {
-        await supabase
+        await supabaseServer
           .from('user_connections')
           .delete()
           .eq('user_id', user.id)
