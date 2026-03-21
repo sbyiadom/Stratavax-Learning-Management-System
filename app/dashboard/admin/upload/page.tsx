@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Upload, FileText, Video, Link as LinkIcon, Code } from 'lucide-react'
@@ -16,11 +16,10 @@ export default function AdminUploadPage() {
   const [content, setContent] = useState('')
   const [htmlContent, setHtmlContent] = useState('')
   
-  const supabase = createClient()
   const router = useRouter()
 
   // Load courses on mount
-  useState(() => {
+  useEffect(() => {
     const loadCourses = async () => {
       const { data } = await supabase
         .from('courses')
@@ -30,7 +29,7 @@ export default function AdminUploadPage() {
       if (data) setCourses(data)
     }
     loadCourses()
-  })
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
