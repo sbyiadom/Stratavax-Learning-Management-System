@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { supabaseServer } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,11 +8,10 @@ export async function GET(
   { params }: { params: { formId: string } }
 ) {
   try {
-    const supabase = await createClient()
     const { formId } = params
 
     // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabaseServer.auth.getUser()
     
     if (authError || !user) {
       return NextResponse.json(
@@ -22,7 +21,7 @@ export async function GET(
     }
 
     // Fetch form data
-    const { data: form, error } = await supabase
+    const { data: form, error } = await supabaseServer
       .from('microsoft_forms')
       .select('*')
       .eq('id', formId)
