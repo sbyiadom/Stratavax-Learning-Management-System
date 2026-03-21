@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -61,7 +61,6 @@ export default function StudentDetailPage({ params }: { params: { id: string } }
   const [activeTab, setActiveTab] = useState('courses')
   
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
     loadStudentData()
@@ -292,7 +291,7 @@ export default function StudentDetailPage({ params }: { params: { id: string } }
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Progress</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
-                </tr>
+                 </tr>
               </thead>
               <tbody className="divide-y">
                 {enrollments.map((enrollment) => (
@@ -350,7 +349,7 @@ export default function StudentDetailPage({ params }: { params: { id: string } }
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
-                </tr>
+                 </tr>
               </thead>
               <tbody className="divide-y">
                 {assignments.map((assignment) => (
