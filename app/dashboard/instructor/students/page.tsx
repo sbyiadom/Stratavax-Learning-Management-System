@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { 
   Users, 
@@ -55,8 +55,6 @@ export default function InstructorStudentsPage() {
   }, [])
 
   const loadStudents = async () => {
-    const supabase = createClient()
-    
     const { data } = await supabase
       .from('student_progress_summary')
       .select('*')
@@ -114,6 +112,14 @@ export default function InstructorStudentsPage() {
       case 'submitted': return 'text-yellow-600 bg-yellow-100'
       default: return 'text-gray-600 bg-gray-100'
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
   }
 
   return (
@@ -211,7 +217,7 @@ export default function InstructorStudentsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Points</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Active</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
-              </tr>
+               </tr>
             </thead>
             <tbody className="divide-y">
               {filteredStudents.map((student) => (
