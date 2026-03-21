@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import DashboardHeader from '@/components/dashboard/Header'
 import DashboardSidebar from '@/components/dashboard/Sidebar'
 
@@ -13,7 +13,6 @@ export default function DashboardLayout({
 }) {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
-  const supabase = createClient()
 
   useEffect(() => {
     const getUser = async () => {
@@ -22,7 +21,7 @@ export default function DashboardLayout({
       setLoading(false)
     }
     getUser()
-  }, [supabase])
+  }, [])
 
   if (loading) {
     return (
