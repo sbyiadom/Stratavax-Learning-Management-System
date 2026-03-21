@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { supabaseServer } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
     const body = await request.json()
     
     // Verify webhook signature (implement based on your webhook provider)
@@ -37,10 +36,8 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleUserCreated(data: any) {
-  const supabase = await createClient()
-  
   // Create user profile - with type assertion on the insert object
-  const { error } = await supabase
+  const { error } = await supabaseServer
     .from('profiles')
     .insert({
       id: data.id,
@@ -57,10 +54,8 @@ async function handleUserCreated(data: any) {
 }
 
 async function handlePaymentSucceeded(data: any) {
-  const supabase = await createClient()
-  
   // Update enrollment - with type assertion on the update object
-  const { error } = await supabase
+  const { error } = await supabaseServer
     .from('enrollments')
     .update({
       status: 'paid',
