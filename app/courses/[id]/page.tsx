@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase-server'
+import { supabaseServer } from '@/lib/supabase-server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { BookOpen, Clock, Users, ChevronLeft, PlayCircle, Award, Star, Calendar } from 'lucide-react'
@@ -51,13 +51,11 @@ export default async function CourseDetailPage({
 }: {
   params: { id: string }
 }) {
-  const supabase = await createClient()
-  
   // Check if user is authenticated
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await supabaseServer.auth.getUser()
   
   // Get course details by ID
-  const { data: course, error: courseError } = await supabase
+  const { data: course, error: courseError } = await supabaseServer
     .from('courses')
     .select('*')
     .eq('id', params.id)
@@ -75,7 +73,7 @@ export default async function CourseDetailPage({
   }
 
   // Check if user is already enrolled
-  const { data: existingEnrollment } = await supabase
+  const { data: existingEnrollment } = await supabaseServer
     .from('enrollments')
     .select('id')
     .eq('user_id', user?.id)
@@ -85,7 +83,7 @@ export default async function CourseDetailPage({
   const isEnrolled = !!existingEnrollment
 
   // Get modules for this course with lesson counts
-  const { data: modules } = await supabase
+  const { data: modules } = await supabaseServer
     .from('modules')
     .select(`
       id,
@@ -113,9 +111,7 @@ export default async function CourseDetailPage({
       redirect('/login')
     }
 
-    const supabase = await createClient()
-
-    const { error } = await supabase
+    const { error } = await supabaseServer
       .from('enrollments')
       .insert({
         user_id: user.id,
