@@ -1,12 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 export default function DashboardNoAuth() {
   const [sessionInfo, setSessionInfo] = useState<any>(null)
   const [cookies, setCookies] = useState('')
-  const supabase = createClient()
 
   useEffect(() => {
     const checkSession = async () => {
