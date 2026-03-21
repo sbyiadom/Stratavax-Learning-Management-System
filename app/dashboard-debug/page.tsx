@@ -1,14 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
 export default function DashboardDebug() {
   const [sessionInfo, setSessionInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [cookies, setCookies] = useState('')
-  const supabase = createClient()
 
   useEffect(() => {
     const checkSession = async () => {
