@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { supabaseServer } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
     const { courseId } = await request.json()
 
     // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabaseServer.auth.getUser()
     
     if (authError || !user) {
       return NextResponse.json(
@@ -19,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if already enrolled
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseServer
       .from('enrollments')
       .select()
       .eq('user_id', user.id)
@@ -34,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Enroll user in course
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServer
       .from('enrollments')
       .insert({
         user_id: user.id,
