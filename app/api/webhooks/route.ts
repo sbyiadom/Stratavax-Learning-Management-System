@@ -55,117 +55,125 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleUserCreated(data: any) {
-  // @ts-ignore - Bypass TypeScript for insert operation
-  const { error } = await supabaseServer
-    .from('profiles')
-    .insert({
-      id: data.id,
-      email: data.email,
-      first_name: data.first_name || data.full_name?.split(' ')[0] || '',
-      last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+  const profileData = {
+    id: data.id,
+    email: data.email,
+    first_name: data.first_name || data.full_name?.split(' ')[0] || '',
+    last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
 
-  if (error) {
-    console.error('Error creating user profile:', error)
+  // Use type assertion on the entire operation
+  const result = await (supabaseServer
+    .from('profiles')
+    .insert(profileData) as any)
+
+  if (result.error) {
+    console.error('Error creating user profile:', result.error)
   }
 }
 
 async function handleUserUpdated(data: any) {
-  // @ts-ignore - Bypass TypeScript for update operation
-  const { error } = await supabaseServer
-    .from('profiles')
-    .update({
-      email: data.email,
-      first_name: data.first_name || data.full_name?.split(' ')[0] || '',
-      last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', data.id)
+  const updateData = {
+    email: data.email,
+    first_name: data.first_name || data.full_name?.split(' ')[0] || '',
+    last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
+    updated_at: new Date().toISOString(),
+  }
 
-  if (error) {
-    console.error('Error updating user profile:', error)
+  const result = await (supabaseServer
+    .from('profiles')
+    .update(updateData)
+    .eq('id', data.id) as any)
+
+  if (result.error) {
+    console.error('Error updating user profile:', result.error)
   }
 }
 
 async function handleUserDeleted(data: any) {
-  // @ts-ignore - Bypass TypeScript for update operation
-  const { error } = await supabaseServer
-    .from('profiles')
-    .update({
-      first_name: '[deleted]',
-      last_name: '[deleted]',
-      email: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', data.id)
+  const updateData = {
+    first_name: '[deleted]',
+    last_name: '[deleted]',
+    email: null,
+    updated_at: new Date().toISOString(),
+  }
 
-  if (error) {
-    console.error('Error archiving user profile:', error)
+  const result = await (supabaseServer
+    .from('profiles')
+    .update(updateData)
+    .eq('id', data.id) as any)
+
+  if (result.error) {
+    console.error('Error archiving user profile:', result.error)
   }
 }
 
 async function handlePaymentSucceeded(data: any) {
-  // @ts-ignore - Bypass TypeScript for update operation
-  const { error } = await supabaseServer
-    .from('enrollments')
-    .update({
-      status: 'paid',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', data.enrollmentId)
+  const updateData = {
+    status: 'paid',
+    updated_at: new Date().toISOString(),
+  }
 
-  if (error) {
-    console.error('Error updating enrollment:', error)
+  const result = await (supabaseServer
+    .from('enrollments')
+    .update(updateData)
+    .eq('id', data.enrollmentId) as any)
+
+  if (result.error) {
+    console.error('Error updating enrollment:', result.error)
   }
 }
 
 async function handlePaymentFailed(data: any) {
-  // @ts-ignore - Bypass TypeScript for update operation
-  const { error } = await supabaseServer
-    .from('enrollments')
-    .update({
-      status: 'failed',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', data.enrollmentId)
+  const updateData = {
+    status: 'failed',
+    updated_at: new Date().toISOString(),
+  }
 
-  if (error) {
-    console.error('Error updating enrollment:', error)
+  const result = await (supabaseServer
+    .from('enrollments')
+    .update(updateData)
+    .eq('id', data.enrollmentId) as any)
+
+  if (result.error) {
+    console.error('Error updating enrollment:', result.error)
   }
 }
 
 async function handleCourseCompleted(data: any) {
-  // @ts-ignore - Bypass TypeScript for update operation
-  const { error: enrollmentError } = await supabaseServer
-    .from('enrollments')
-    .update({
-      progress_percentage: 100,
-      completed_at: new Date().toISOString(),
-      status: 'completed',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('user_id', data.userId)
-    .eq('course_id', data.courseId)
+  const enrollmentUpdate = {
+    progress_percentage: 100,
+    completed_at: new Date().toISOString(),
+    status: 'completed',
+    updated_at: new Date().toISOString(),
+  }
 
-  if (enrollmentError) {
-    console.error('Error updating enrollment:', enrollmentError)
+  const enrollmentResult = await (supabaseServer
+    .from('enrollments')
+    .update(enrollmentUpdate)
+    .eq('user_id', data.userId)
+    .eq('course_id', data.courseId) as any)
+
+  if (enrollmentResult.error) {
+    console.error('Error updating enrollment:', enrollmentResult.error)
   }
   
-  // @ts-ignore - Bypass TypeScript for insert operation
-  const { error: certError } = await supabaseServer
-    .from('certificates')
-    .insert({
-      user_id: data.userId,
-      course_id: data.courseId,
-      issue_date: new Date().toISOString(),
-      certificate_number: `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+  const certificateData = {
+    user_id: data.userId,
+    course_id: data.courseId,
+    issue_date: new Date().toISOString(),
+    certificate_number: `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
 
-  if (certError) {
-    console.error('Error creating certificate:', certError)
+  const certResult = await (supabaseServer
+    .from('certificates')
+    .insert(certificateData) as any)
+
+  if (certResult.error) {
+    console.error('Error creating certificate:', certResult.error)
   }
 }
