@@ -1,23 +1,47 @@
 // lib/supabase-server.ts
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import { Database } from './database.types'
 
-// Use service role key for server-side operations (admin privileges)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY_NEW!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW!
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase environment variables for server-side client. Please set NEXT_PUBLIC_SUPABASE_URL_NEW and SUPABASE_SERVICE_ROLE_KEY_NEW')
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables')
 }
 
-// Create a server-side Supabase client with admin privileges
-export const supabaseServer = createSupabaseClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
-
-// Export a createClient function for compatibility with existing imports
+// Create a server-side Supabase client
 export const createClient = async () => {
-  return supabaseServer
+  const cookieStore = await cookies()
+  
+  return createServerClient<Database>(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // Handle errors silently
+          }
+        },
+      },
+    }
+  )
+}
+
+// For convenience, export a singleton
+let serverInstance: Awaited<ReturnType<typeof createClient>> | null = null
+
+export const getSupabase = async () => {
+  if (!serverInstance) {
+    serverInstance = await createClient()
+  }
+  return serverInstance
 }
