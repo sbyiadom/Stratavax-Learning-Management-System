@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleUserCreated(data: any) {
+  // Cast the data to any before passing
   const profileData = {
     id: data.id,
     email: data.email,
@@ -64,13 +65,12 @@ async function handleUserCreated(data: any) {
     updated_at: new Date().toISOString(),
   }
 
-  // Use type assertion on the entire operation
-  const result = await (supabaseServer
+  const { error } = await supabaseServer
     .from('profiles')
-    .insert(profileData) as any)
+    .insert(profileData as any)
 
-  if (result.error) {
-    console.error('Error creating user profile:', result.error)
+  if (error) {
+    console.error('Error creating user profile:', error)
   }
 }
 
@@ -82,13 +82,13 @@ async function handleUserUpdated(data: any) {
     updated_at: new Date().toISOString(),
   }
 
-  const result = await (supabaseServer
+  const { error } = await supabaseServer
     .from('profiles')
-    .update(updateData)
-    .eq('id', data.id) as any)
+    .update(updateData as any)
+    .eq('id', data.id)
 
-  if (result.error) {
-    console.error('Error updating user profile:', result.error)
+  if (error) {
+    console.error('Error updating user profile:', error)
   }
 }
 
@@ -100,13 +100,13 @@ async function handleUserDeleted(data: any) {
     updated_at: new Date().toISOString(),
   }
 
-  const result = await (supabaseServer
+  const { error } = await supabaseServer
     .from('profiles')
-    .update(updateData)
-    .eq('id', data.id) as any)
+    .update(updateData as any)
+    .eq('id', data.id)
 
-  if (result.error) {
-    console.error('Error archiving user profile:', result.error)
+  if (error) {
+    console.error('Error archiving user profile:', error)
   }
 }
 
@@ -116,13 +116,13 @@ async function handlePaymentSucceeded(data: any) {
     updated_at: new Date().toISOString(),
   }
 
-  const result = await (supabaseServer
+  const { error } = await supabaseServer
     .from('enrollments')
-    .update(updateData)
-    .eq('id', data.enrollmentId) as any)
+    .update(updateData as any)
+    .eq('id', data.enrollmentId)
 
-  if (result.error) {
-    console.error('Error updating enrollment:', result.error)
+  if (error) {
+    console.error('Error updating enrollment:', error)
   }
 }
 
@@ -132,13 +132,13 @@ async function handlePaymentFailed(data: any) {
     updated_at: new Date().toISOString(),
   }
 
-  const result = await (supabaseServer
+  const { error } = await supabaseServer
     .from('enrollments')
-    .update(updateData)
-    .eq('id', data.enrollmentId) as any)
+    .update(updateData as any)
+    .eq('id', data.enrollmentId)
 
-  if (result.error) {
-    console.error('Error updating enrollment:', result.error)
+  if (error) {
+    console.error('Error updating enrollment:', error)
   }
 }
 
@@ -150,14 +150,14 @@ async function handleCourseCompleted(data: any) {
     updated_at: new Date().toISOString(),
   }
 
-  const enrollmentResult = await (supabaseServer
+  const { error: enrollmentError } = await supabaseServer
     .from('enrollments')
-    .update(enrollmentUpdate)
+    .update(enrollmentUpdate as any)
     .eq('user_id', data.userId)
-    .eq('course_id', data.courseId) as any)
+    .eq('course_id', data.courseId)
 
-  if (enrollmentResult.error) {
-    console.error('Error updating enrollment:', enrollmentResult.error)
+  if (enrollmentError) {
+    console.error('Error updating enrollment:', enrollmentError)
   }
   
   const certificateData = {
@@ -169,11 +169,11 @@ async function handleCourseCompleted(data: any) {
     updated_at: new Date().toISOString(),
   }
 
-  const certResult = await (supabaseServer
+  const { error: certError } = await supabaseServer
     .from('certificates')
-    .insert(certificateData) as any)
+    .insert(certificateData as any)
 
-  if (certResult.error) {
-    console.error('Error creating certificate:', certResult.error)
+  if (certError) {
+    console.error('Error creating certificate:', certError)
   }
 }
