@@ -54,9 +54,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// @ts-ignore
 async function handleUserCreated(data: any) {
-  // @ts-ignore
+  // @ts-ignore - Bypass TypeScript for insert operation
   const { error } = await supabaseServer
     .from('profiles')
     .insert({
@@ -73,9 +72,8 @@ async function handleUserCreated(data: any) {
   }
 }
 
-// @ts-ignore
 async function handleUserUpdated(data: any) {
-  // @ts-ignore
+  // @ts-ignore - Bypass TypeScript for update operation
   const { error } = await supabaseServer
     .from('profiles')
     .update({
@@ -91,9 +89,8 @@ async function handleUserUpdated(data: any) {
   }
 }
 
-// @ts-ignore
 async function handleUserDeleted(data: any) {
-  // @ts-ignore
+  // @ts-ignore - Bypass TypeScript for update operation
   const { error } = await supabaseServer
     .from('profiles')
     .update({
@@ -109,9 +106,8 @@ async function handleUserDeleted(data: any) {
   }
 }
 
-// @ts-ignore
 async function handlePaymentSucceeded(data: any) {
-  // @ts-ignore
+  // @ts-ignore - Bypass TypeScript for update operation
   const { error } = await supabaseServer
     .from('enrollments')
     .update({
@@ -125,9 +121,8 @@ async function handlePaymentSucceeded(data: any) {
   }
 }
 
-// @ts-ignore
 async function handlePaymentFailed(data: any) {
-  // @ts-ignore
+  // @ts-ignore - Bypass TypeScript for update operation
   const { error } = await supabaseServer
     .from('enrollments')
     .update({
@@ -141,9 +136,8 @@ async function handlePaymentFailed(data: any) {
   }
 }
 
-// @ts-ignore
 async function handleCourseCompleted(data: any) {
-  // @ts-ignore
+  // @ts-ignore - Bypass TypeScript for update operation
   const { error: enrollmentError } = await supabaseServer
     .from('enrollments')
     .update({
@@ -159,7 +153,7 @@ async function handleCourseCompleted(data: any) {
     console.error('Error updating enrollment:', enrollmentError)
   }
   
-  // @ts-ignore
+  // @ts-ignore - Bypass TypeScript for insert operation
   const { error: certError } = await supabaseServer
     .from('certificates')
     .insert({
