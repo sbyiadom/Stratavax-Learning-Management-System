@@ -2,25 +2,21 @@
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import { BookOpen, Clock, Award, TrendingUp, PlayCircle, ChevronRight } from 'lucide-react'
+import { redirect } from 'next/navigation'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   
-  // Get current user
-  const { data: { user } } = await supabase.auth.getUser()
+  // Get current user - this works in server components
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
   
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Please sign in</h2>
-          <Link href="/login" className="text-blue-600 hover:underline">
-            Go to Login
-          </Link>
-        </div>
-      </div>
-    )
+  // If not authenticated, redirect to login
+  if (authError || !user) {
+    console.log('Auth error or no user:', authError)
+    redirect('/login')
   }
+  
+  console.log('User authenticated:', user.email)
   
   // Get user's profile
   const { data: profile } = await supabase
@@ -41,7 +37,10 @@ export default async function DashboardPage() {
         thumbnail_url,
         duration_hours,
         difficulty_level,
-        category
+        category,
+        description,
+        short_description,
+        is_featured
       )
     `)
     .eq('user_id', user.id)
@@ -63,29 +62,6 @@ export default async function DashboardPage() {
     .eq('user_id', user.id)
   
   const firstName = profile?.first_name || user.email?.split('@')[0] || 'Learner'
-  
-  // Get recently accessed lessons
-  const { data: recentProgress } = await supabase
-    .from('lesson_progress')
-    .select(`
-      *,
-      lessons:lesson_id (
-        id,
-        title,
-        module_id,
-        modules:module_id (
-          course_id,
-          courses:course_id (
-            id,
-            title,
-            slug
-          )
-        )
-      )
-    `)
-    .eq('user_id', user.id)
-    .order('updated_at', { ascending: false })
-    .limit(5)
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -147,57 +123,12 @@ export default async function DashboardPage() {
           </div>
         </div>
         
-        {/* Continue Learning Section */}
-        {recentProgress && recentProgress.length > 0 && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">Continue Learning</h2>
-              <Link href="/dashboard/learn" className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1">
-                View All <ChevronRight size={16} />
-              </Link>
-            </div>
-            
-            <div className="space-y-3">
-              {recentProgress.map((progress: any) => {
-                const course = progress.lessons?.modules?.courses
-                if (!course) return null
-                
-                return (
-                  <Link
-                    key={progress.id}
-                    href={`/dashboard/learn/${course.slug}/${progress.lesson_id}`}
-                    className="block bg-white rounded-xl shadow-sm p-4 border border-gray-100 hover:shadow-md transition hover:border-blue-200"
-                  >
-                    <div className="flex items-center justify-between flex-wrap gap-4">
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <div className="p-2 bg-blue-50 rounded-lg">
-                          <PlayCircle className="text-blue-600" size={20} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-500">{course.title}</p>
-                          <p className="font-medium text-gray-900 truncate">{progress.lessons?.title}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400">
-                          {progress.completed ? 'Completed' : 'In Progress'}
-                        </span>
-                        <ChevronRight size={18} className="text-gray-400" />
-                      </div>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
-        )}
-        
         {/* My Courses Section */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900">My Courses</h2>
             <Link href="/dashboard/courses" className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1">
-              Browse All <ChevronRight size={16} />
+              Browse All Courses <ChevronRight size={16} />
             </Link>
           </div>
           
@@ -265,27 +196,22 @@ export default async function DashboardPage() {
           )}
         </div>
         
-        {/* Recent Achievements */}
-        {certificates && certificates.length > 0 && (
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Achievements</h2>
-            <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl p-6 border border-yellow-200">
-              <div className="flex items-center gap-4 flex-wrap">
-                <Award className="text-yellow-600" size={32} />
-                <div>
-                  <p className="font-semibold text-gray-900">You've earned {certificates.length} certificate{certificates.length !== 1 ? 's' : ''}!</p>
-                  <p className="text-sm text-gray-600">Keep up the great work and continue learning</p>
-                </div>
-                <Link
-                  href="/dashboard/certificates"
-                  className="ml-auto text-yellow-700 hover:text-yellow-800 text-sm font-medium"
-                >
-                  View Certificates →
-                </Link>
+        {/* Recommended Courses - Show even if no enrolled courses */}
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Recommended for You</h2>
+          <Link
+            href="/dashboard/courses"
+            className="block bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200 hover:shadow-md transition"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-gray-900">Explore our course catalog</p>
+                <p className="text-sm text-gray-600 mt-1">Find courses to start your learning journey</p>
               </div>
+              <ChevronRight size={24} className="text-blue-600" />
             </div>
-          </div>
-        )}
+          </Link>
+        </div>
       </div>
     </div>
   )
