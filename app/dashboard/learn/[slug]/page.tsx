@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, BookOpen, Clock, CheckCircle, Lock, Film, FileText, Code } from 'lucide-react'
+import { ChevronLeft, ChevronRight, BookOpen, Clock, CheckCircle, Lock, Film, FileText, Code } from 'lucide-react'
 import CourseImage from '@/components/shared/CourseImage'
 
 // Approved course slugs from your Excel file (all 15 courses)
@@ -123,8 +123,6 @@ async function enrollInCourse(formData: FormData) {
       code: error.code
     })
     
-    // Instead of returning an error, we can throw or handle differently
-    // For now, we'll just log and not redirect
     return
   }
 
@@ -214,7 +212,6 @@ export default async function CoursePage({
     }
 
     console.log('7. Checking enrollment for user:', user.id, 'course:', course.id)
-    console.log('Course ID for enrollment:', course.id)
 
     // Check if user is enrolled
     const { data: enrollment, error: enrollmentError } = await supabase
@@ -355,11 +352,15 @@ export default async function CoursePage({
       ? Math.round((completedLessons / totalLessonsWithContent) * 100) 
       : 0
 
+    // Find the first lesson with content to use for the "Start" button
+    const firstLesson = modulesWithLessons.flatMap(m => m.lessons).find(l => l.content_url)
+
     console.log('16. Final stats:', { 
       totalLessonsWithContent, 
       completedLessons, 
       overallProgressPercentage,
-      isEnrolled 
+      isEnrolled,
+      hasFirstLesson: !!firstLesson
     })
     console.log('=== COURSE PAGE DEBUG END ===')
 
@@ -441,7 +442,7 @@ export default async function CoursePage({
 
                 {/* Progress Bar (only shows if enrolled) */}
                 {isEnrolled && totalLessonsWithContent > 0 && (
-                  <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                  <div className="bg-white bg-opacity-20 rounded-lg p-4 mb-4">
                     <div className="flex justify-between text-sm mb-2">
                       <span>Your progress</span>
                       <span>{overallProgressPercentage}% complete ({completedLessons}/{totalLessonsWithContent})</span>
@@ -459,8 +460,17 @@ export default async function CoursePage({
                     )}
                   </div>
                 )}
-                
-                {!isEnrolled && (
+
+                {/* Action Buttons */}
+                {isEnrolled && firstLesson ? (
+                  <Link
+                    href={`/dashboard/learn/${params.slug}/${firstLesson.id}`}
+                    className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition inline-flex items-center gap-2"
+                  >
+                    {overallProgressPercentage > 0 ? 'Continue Learning' : 'Start Course'}
+                    <ChevronRight size={18} />
+                  </Link>
+                ) : !isEnrolled ? (
                   <form action={enrollInCourse}>
                     <input type="hidden" name="courseId" value={course.id} />
                     <input type="hidden" name="slug" value={params.slug} />
@@ -471,7 +481,7 @@ export default async function CoursePage({
                       Enroll Now
                     </button>
                   </form>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
@@ -551,7 +561,6 @@ export default async function CoursePage({
                         {lessonsWithContent.map((lesson) => {
                           const progress = lessonProgress.find(p => p.lesson_id === lesson.id)
                           const isCompleted = progress?.completed || false
-                          const isLocked = !isEnrolled
                           const isVideo = lesson.content_type === 'video'
                           const isHtml = lesson.content_type === 'html' || lesson.content_type === 'interactive'
 
