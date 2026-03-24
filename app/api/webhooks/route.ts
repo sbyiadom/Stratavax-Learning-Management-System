@@ -55,19 +55,16 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleUserCreated(data: any) {
-  // Cast the data to any before passing
-  const profileData = {
-    id: data.id,
-    email: data.email,
-    first_name: data.first_name || data.full_name?.split(' ')[0] || '',
-    last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }
-
   const { error } = await supabaseServer
     .from('profiles')
-    .insert(profileData as any)
+    .insert({
+      id: data.id,
+      email: data.email,
+      first_name: data.first_name || data.full_name?.split(' ')[0] || '',
+      last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
 
   if (error) {
     console.error('Error creating user profile:', error)
@@ -75,16 +72,14 @@ async function handleUserCreated(data: any) {
 }
 
 async function handleUserUpdated(data: any) {
-  const updateData = {
-    email: data.email,
-    first_name: data.first_name || data.full_name?.split(' ')[0] || '',
-    last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
-    updated_at: new Date().toISOString(),
-  }
-
   const { error } = await supabaseServer
     .from('profiles')
-    .update(updateData as any)
+    .update({
+      email: data.email,
+      first_name: data.first_name || data.full_name?.split(' ')[0] || '',
+      last_name: data.last_name || data.full_name?.split(' ').slice(1).join(' ') || '',
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', data.id)
 
   if (error) {
@@ -93,16 +88,14 @@ async function handleUserUpdated(data: any) {
 }
 
 async function handleUserDeleted(data: any) {
-  const updateData = {
-    first_name: '[deleted]',
-    last_name: '[deleted]',
-    email: null,
-    updated_at: new Date().toISOString(),
-  }
-
   const { error } = await supabaseServer
     .from('profiles')
-    .update(updateData as any)
+    .update({
+      first_name: '[deleted]',
+      last_name: '[deleted]',
+      email: null,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', data.id)
 
   if (error) {
@@ -111,14 +104,12 @@ async function handleUserDeleted(data: any) {
 }
 
 async function handlePaymentSucceeded(data: any) {
-  const updateData = {
-    status: 'paid',
-    updated_at: new Date().toISOString(),
-  }
-
   const { error } = await supabaseServer
     .from('enrollments')
-    .update(updateData as any)
+    .update({
+      status: 'paid',
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', data.enrollmentId)
 
   if (error) {
@@ -127,14 +118,12 @@ async function handlePaymentSucceeded(data: any) {
 }
 
 async function handlePaymentFailed(data: any) {
-  const updateData = {
-    status: 'failed',
-    updated_at: new Date().toISOString(),
-  }
-
   const { error } = await supabaseServer
     .from('enrollments')
-    .update(updateData as any)
+    .update({
+      status: 'failed',
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', data.enrollmentId)
 
   if (error) {
@@ -143,16 +132,14 @@ async function handlePaymentFailed(data: any) {
 }
 
 async function handleCourseCompleted(data: any) {
-  const enrollmentUpdate = {
-    progress_percentage: 100,
-    completed_at: new Date().toISOString(),
-    status: 'completed',
-    updated_at: new Date().toISOString(),
-  }
-
   const { error: enrollmentError } = await supabaseServer
     .from('enrollments')
-    .update(enrollmentUpdate as any)
+    .update({
+      progress_percentage: 100,
+      completed_at: new Date().toISOString(),
+      status: 'completed',
+      updated_at: new Date().toISOString(),
+    })
     .eq('user_id', data.userId)
     .eq('course_id', data.courseId)
 
@@ -160,18 +147,16 @@ async function handleCourseCompleted(data: any) {
     console.error('Error updating enrollment:', enrollmentError)
   }
   
-  const certificateData = {
-    user_id: data.userId,
-    course_id: data.courseId,
-    issue_date: new Date().toISOString(),
-    certificate_number: `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }
-
   const { error: certError } = await supabaseServer
     .from('certificates')
-    .insert(certificateData as any)
+    .insert({
+      user_id: data.userId,
+      course_id: data.courseId,
+      issue_date: new Date().toISOString(),
+      certificate_number: `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
 
   if (certError) {
     console.error('Error creating certificate:', certError)
