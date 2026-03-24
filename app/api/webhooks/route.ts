@@ -4,10 +4,8 @@ import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
-// Verify webhook signature (customize based on your provider)
 function verifySignature(signature: string | null, body: string, secret: string): boolean {
   if (!signature) return false
-  
   const hmac = crypto.createHmac('sha256', secret)
   const digest = hmac.update(body).digest('hex')
   return signature === digest
@@ -20,15 +18,10 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get('x-webhook-signature')
     const webhookSecret = process.env.WEBHOOK_SECRET
 
-    // Verify webhook signature if secret is configured
     if (webhookSecret && !verifySignature(signature, bodyText, webhookSecret)) {
-      return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
-    // Process different webhook events (support both 'event' and 'type' formats)
     const eventType = body.event || body.type
     
     switch (eventType) {
@@ -57,15 +50,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error('Error processing webhook:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
+// @ts-ignore
 async function handleUserCreated(data: any) {
-  // @ts-ignore - Bypass TypeScript for insert operation
+  // @ts-ignore
   const { error } = await supabaseServer
     .from('profiles')
     .insert({
@@ -82,8 +73,9 @@ async function handleUserCreated(data: any) {
   }
 }
 
+// @ts-ignore
 async function handleUserUpdated(data: any) {
-  // @ts-ignore - Bypass TypeScript for update operation
+  // @ts-ignore
   const { error } = await supabaseServer
     .from('profiles')
     .update({
@@ -99,8 +91,9 @@ async function handleUserUpdated(data: any) {
   }
 }
 
+// @ts-ignore
 async function handleUserDeleted(data: any) {
-  // @ts-ignore - Bypass TypeScript for update operation
+  // @ts-ignore
   const { error } = await supabaseServer
     .from('profiles')
     .update({
@@ -116,8 +109,9 @@ async function handleUserDeleted(data: any) {
   }
 }
 
+// @ts-ignore
 async function handlePaymentSucceeded(data: any) {
-  // @ts-ignore - Bypass TypeScript for update operation
+  // @ts-ignore
   const { error } = await supabaseServer
     .from('enrollments')
     .update({
@@ -131,8 +125,9 @@ async function handlePaymentSucceeded(data: any) {
   }
 }
 
+// @ts-ignore
 async function handlePaymentFailed(data: any) {
-  // @ts-ignore - Bypass TypeScript for update operation
+  // @ts-ignore
   const { error } = await supabaseServer
     .from('enrollments')
     .update({
@@ -146,8 +141,9 @@ async function handlePaymentFailed(data: any) {
   }
 }
 
+// @ts-ignore
 async function handleCourseCompleted(data: any) {
-  // @ts-ignore - Bypass TypeScript for update operation
+  // @ts-ignore
   const { error: enrollmentError } = await supabaseServer
     .from('enrollments')
     .update({
@@ -163,7 +159,7 @@ async function handleCourseCompleted(data: any) {
     console.error('Error updating enrollment:', enrollmentError)
   }
   
-  // @ts-ignore - Bypass TypeScript for insert operation
+  // @ts-ignore
   const { error: certError } = await supabaseServer
     .from('certificates')
     .insert({
