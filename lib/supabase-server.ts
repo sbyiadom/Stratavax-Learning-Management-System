@@ -1,5 +1,5 @@
 // lib/supabase-server.ts
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 // Use service role key for server-side operations (admin privileges)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!
@@ -10,9 +10,14 @@ if (!supabaseUrl || !supabaseServiceKey) {
 }
 
 // Create a server-side Supabase client with admin privileges
-export const supabaseServer = createClient(supabaseUrl, supabaseServiceKey, {
+export const supabaseServer = createSupabaseClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
   },
 })
+
+// Export a createClient function for compatibility with existing imports
+export const createClient = async () => {
+  return supabaseServer
+}
