@@ -1,12 +1,12 @@
 // app/dashboard/page.tsx
-import { getSupabase } from '@/lib/supabase-server'
+import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
-import { BookOpen, Clock, Award, TrendingUp, PlayCircle, ChevronRight } from 'lucide-react'
+import { BookOpen, Clock, Award, TrendingUp, ChevronRight } from 'lucide-react'
 import { redirect } from 'next/navigation'
 
 export default async function DashboardPage() {
   try {
-    const supabase = await getSupabase()
+    const supabase = await createClient()
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -139,7 +139,7 @@ export default async function DashboardPage() {
             
             {validEnrollments.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {validEnrollments.map((enrollment) => {
+                {validEnrollments.map((enrollment: any) => {
                   const course = enrollment.courses
                   return (
                     <Link
