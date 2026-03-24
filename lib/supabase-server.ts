@@ -36,7 +36,25 @@ export const createClient = async () => {
   )
 }
 
-// For convenience, export a singleton
+// Create a singleton instance for admin operations (using service role)
+let adminInstance: ReturnType<typeof createServerClient<Database>> | null = null
+
+export const supabaseServer = createServerClient<Database>(
+  supabaseUrl,
+  supabaseAnonKey,
+  {
+    cookies: {
+      getAll() {
+        return []
+      },
+      setAll() {
+        // Admin client doesn't need cookie handling
+      },
+    },
+  }
+)
+
+// For convenience, export a singleton for regular operations
 let serverInstance: Awaited<ReturnType<typeof createClient>> | null = null
 
 export const getSupabase = async () => {
