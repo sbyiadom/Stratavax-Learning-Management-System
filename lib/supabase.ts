@@ -13,12 +13,12 @@ export const createClient = () => {
   return createBrowserClient(supabaseUrl, supabaseAnonKey)
 }
 
-// Export a default client instance (singleton)
+// For backward compatibility - create a singleton instance
 let clientInstance: ReturnType<typeof createBrowserClient> | null = null
 
-export const supabase = () => {
+export const supabase = (() => {
   if (!clientInstance) {
     clientInstance = createBrowserClient(supabaseUrl, supabaseAnonKey)
   }
   return clientInstance
-}
+})()
