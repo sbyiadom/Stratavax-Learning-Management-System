@@ -34,12 +34,3 @@ export const createClient = async () => {
     }
   )
 }
-
-// For backward compatibility, create a function that returns a client
-// This maintains the same usage pattern as before
-export const supabaseServer = {
-  from: async (table: string) => {
-    const client = await createClient()
-    return client.from(table)
-  }
-}
