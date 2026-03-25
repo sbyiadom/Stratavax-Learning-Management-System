@@ -140,8 +140,6 @@ export default async function LessonPage({
       redirect('/login')
     }
 
-    console.log('Loading lesson page for:', params)
-
     // First, verify the course exists and get its ID from the slug
     const { data: course, error: courseError } = await supabase
       .from('courses')
@@ -165,8 +163,6 @@ export default async function LessonPage({
       )
     }
 
-    console.log('Course found:', course.id)
-
     // Check if user is enrolled
     const { data: enrollment, error: enrollmentError } = await supabase
       .from('enrollments')
@@ -181,11 +177,8 @@ export default async function LessonPage({
 
     // If not enrolled, redirect to course page
     if (!enrollment) {
-      console.log('User not enrolled, redirecting to course page')
       redirect(`/dashboard/learn/${params.slug}`)
     }
-
-    console.log('User is enrolled')
 
     // Get the current lesson
     const { data: lesson, error: lessonError } = await supabase
@@ -209,15 +202,13 @@ export default async function LessonPage({
           <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
             <h1 className="text-2xl font-bold text-red-600 mb-4">Lesson Not Found</h1>
             <p className="text-gray-600 mb-4">The lesson could not be found.</p>
-            <Link href={`/dashboard/learn/${params.slug}`} className="text-blue-600 hover:underline">
+            <a href={`/dashboard/learn/${params.slug}`} className="text-blue-600 hover:underline">
               Back to Course
-            </Link>
+            </a>
           </div>
         </div>
       )
     }
-
-    console.log('Lesson found:', lesson.id)
 
     // Get the module for this lesson
     const { data: module, error: moduleError } = await supabase
@@ -233,15 +224,13 @@ export default async function LessonPage({
           <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
             <h1 className="text-2xl font-bold text-red-600 mb-4">Module Not Found</h1>
             <p className="text-gray-600 mb-4">The module for this lesson could not be found.</p>
-            <Link href={`/dashboard/learn/${params.slug}`} className="text-blue-600 hover:underline">
+            <a href={`/dashboard/learn/${params.slug}`} className="text-blue-600 hover:underline">
               Back to Course
-            </Link>
+            </a>
           </div>
         </div>
       )
     }
-
-    console.log('Module found:', module.id)
 
     // Verify this lesson belongs to the correct course
     if (module.course_id !== course.id) {
@@ -251,9 +240,9 @@ export default async function LessonPage({
           <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
             <h1 className="text-2xl font-bold text-red-600 mb-4">Course Mismatch</h1>
             <p className="text-gray-600 mb-4">This lesson does not belong to the specified course.</p>
-            <Link href={`/dashboard/learn/${params.slug}`} className="text-blue-600 hover:underline">
+            <a href={`/dashboard/learn/${params.slug}`} className="text-blue-600 hover:underline">
               Back to Course
-            </Link>
+            </a>
           </div>
         </div>
       )
@@ -266,8 +255,6 @@ export default async function LessonPage({
       .eq('user_id', user.id)
       .eq('lesson_id', params.lessonId)
       .maybeSingle()
-
-    console.log('Progress:', progress)
 
     // Get all modules for this course
     const { data: courseModules, error: modulesError } = await supabase
@@ -332,13 +319,14 @@ export default async function LessonPage({
         <div className="bg-white border-b sticky top-0 z-10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
-              <Link
+              {/* Back to Course - Changed to <a> tag */}
+              <a
                 href={`/dashboard/learn/${params.slug}`}
                 className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
               >
                 <ChevronLeft size={20} />
                 <span>Back to Course</span>
-              </Link>
+              </a>
               <div className="flex items-center gap-4">
                 {lesson.duration_minutes && (
                   <span className="text-sm text-gray-500 flex items-center gap-1">
@@ -483,9 +471,9 @@ export default async function LessonPage({
           <pre className="bg-gray-100 p-4 rounded text-xs mb-4 overflow-auto">
             {error instanceof Error ? error.message : String(error)}
           </pre>
-          <Link href="/dashboard" className="text-blue-600 hover:underline">
+          <a href="/dashboard" className="text-blue-600 hover:underline">
             Return to Dashboard
-          </Link>
+          </a>
         </div>
       </div>
     )
