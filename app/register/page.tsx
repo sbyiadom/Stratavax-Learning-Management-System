@@ -69,6 +69,7 @@ export default function RegisterPage() {
 
       if (data.user) {
         // Manually create profile after successful signup
+        // created_at and updated_at have defaults, so we don't need to include them
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
@@ -76,6 +77,7 @@ export default function RegisterPage() {
             email: email,
             first_name: firstName,
             last_name: lastName,
+            role: 'user'
           })
 
         if (profileError) {
