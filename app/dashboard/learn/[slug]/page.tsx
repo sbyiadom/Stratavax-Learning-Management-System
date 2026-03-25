@@ -311,20 +311,23 @@ export default async function CoursePage({
                 </div>
               )}
 
-              {/* Start Button */}
+              {/* Start Button - Using <a> tag for reliable navigation */}
               {isEnrolled && firstLesson ? (
-                <Link
+                <a
                   href={`/dashboard/learn/${params.slug}/${firstLesson.id}`}
                   className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition inline-flex items-center gap-2"
                 >
                   {overallProgressPercentage > 0 ? 'Continue Learning' : 'Start Course'}
                   <ChevronRight size={18} />
-                </Link>
+                </a>
               ) : !isEnrolled ? (
                 <form action={enrollInCourse}>
                   <input type="hidden" name="courseId" value={course.id} />
                   <input type="hidden" name="slug" value={params.slug} />
-                  <button type="submit" className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition">
+                  <button
+                    type="submit"
+                    className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
+                  >
                     Enroll Now
                   </button>
                 </form>
