@@ -35,32 +35,11 @@ export const createClient = async () => {
   )
 }
 
-// Export a singleton instance for direct imports (backward compatibility)
-let serverInstance: ReturnType<typeof createServerClient> | null = null
-
-export const supabaseServer = (async () => {
-  if (!serverInstance) {
-    const cookieStore = await cookies()
-    serverInstance = createServerClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet: any) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }: any) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Handle errors silently
-            }
-          },
-        },
-      }
-    )
+// For backward compatibility, create a function that returns a client
+// This maintains the same usage pattern as before
+export const supabaseServer = {
+  from: async (table: string) => {
+    const client = await createClient()
+    return client.from(table)
   }
-  return serverInstance
-})()
+}
