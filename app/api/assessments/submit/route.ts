@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseServer } from '@/lib/supabase-server'
+import { createClient } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const supabase = await createClient()
 
     // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabaseServer.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
       return NextResponse.json(
@@ -26,8 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save assessment submission - using 'as any' to bypass TypeScript type checking
-    // The table 'assessment_submissions' exists in your database (confirmed from your table list)
-    const { data, error } = await supabaseServer
+    const { data, error } = await supabase
       .from('assessment_submissions')
       .insert({
         user_id: user.id,
