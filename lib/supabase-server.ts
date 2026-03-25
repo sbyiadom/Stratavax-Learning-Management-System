@@ -1,5 +1,6 @@
-// lib/supabase.ts
-import { createBrowserClient } from '@supabase/ssr'
+// lib/supabase-server.ts
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW!
@@ -8,17 +9,58 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-// Create a browser client for client-side usage
-export const createClient = () => {
-  return createBrowserClient(supabaseUrl, supabaseAnonKey)
+// Create a server-side Supabase client
+export const createClient = async () => {
+  const cookieStore = await cookies()
+  
+  return createServerClient(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet: any) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }: any) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // Handle errors silently
+          }
+        },
+      },
+    }
+  )
 }
 
-// For backward compatibility - create a singleton instance
-let clientInstance: ReturnType<typeof createBrowserClient> | null = null
+// Export a singleton instance for direct imports (backward compatibility)
+let serverInstance: ReturnType<typeof createServerClient> | null = null
 
-export const supabase = () => {
-  if (!clientInstance) {
-    clientInstance = createBrowserClient(supabaseUrl, supabaseAnonKey)
+export const supabaseServer = (async () => {
+  if (!serverInstance) {
+    const cookieStore = await cookies()
+    serverInstance = createServerClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet: any) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }: any) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // Handle errors silently
+            }
+          },
+        },
+      }
+    )
   }
-  return clientInstance
-}
+  return serverInstance
+})()
