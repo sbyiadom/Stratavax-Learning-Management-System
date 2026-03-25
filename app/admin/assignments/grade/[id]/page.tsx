@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'  // Changed from createClient
+import { createClient } from '@/lib/supabase'  // Changed from supabase
 import { useRouter } from 'next/navigation'
 import { CheckCircle, Download, Eye, ChevronLeft } from 'lucide-react'
 
@@ -47,7 +47,7 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   
-  // Removed: const supabase = createClient()
+  const supabase = createClient()  // Create the client instance
   const router = useRouter()
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
   }, [])
 
   const loadSubmission = async () => {
-    const { data } = await supabase  // Use supabase directly
+    const { data } = await supabase  // Now supabase is the client
       .from('user_assignments')
       .select(`
         *,
@@ -106,7 +106,7 @@ export default function GradeAssignmentPage({ params }: { params: { id: string }
     const total = calculateTotal()
     const passed = total >= (submission.assignments.passing_score || 70)
 
-    await supabase  // Use supabase directly
+    await supabase
       .from('user_assignments')
       .update({
         grade: total,
