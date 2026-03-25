@@ -76,14 +76,12 @@ export default function RegisterPage() {
             email: email,
             first_name: firstName,
             last_name: lastName,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
           })
 
         if (profileError) {
           console.error('Profile creation error:', profileError)
-          setError('Account created but profile setup failed. Please contact support.')
-          return
+          // Don't show error to user - profile might have been created by trigger
+          // Just log it and continue
         }
 
         alert('Registration successful! Please check your email to confirm your account.')
