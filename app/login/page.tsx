@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { GraduationCap, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
 
@@ -13,25 +12,28 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const supabase = createClient()
-  const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithPassword({
+    console.log('Attempting login with:', email)
+
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
+
+    console.log('Login response:', { data, error })
 
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
-      // Use Next.js router instead of window.location
-      router.push('/dashboard')
-      router.refresh() // Refresh to update server components
+      console.log('Login successful, redirecting...')
+      // Use window.location for a full page reload
+      window.location.href = '/dashboard'
     }
   }
 
