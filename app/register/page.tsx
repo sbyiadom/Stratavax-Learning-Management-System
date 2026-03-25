@@ -47,12 +47,19 @@ export default function RegisterPage() {
     }
 
     try {
+      // Split full name into first and last name
+      const nameParts = fullName.trim().split(' ')
+      const firstName = nameParts[0] || ''
+      const lastName = nameParts.slice(1).join(' ') || ''
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName,
+            first_name: firstName,
+            last_name: lastName,
           },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         }
@@ -61,6 +68,24 @@ export default function RegisterPage() {
       if (signUpError) throw signUpError
 
       if (data.user) {
+        // Manually create profile after successful signup
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            email: email,
+            first_name: firstName,
+            last_name: lastName,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError)
+          setError('Account created but profile setup failed. Please contact support.')
+          return
+        }
+
         alert('Registration successful! Please check your email to confirm your account.')
         router.push('/login')
       }
