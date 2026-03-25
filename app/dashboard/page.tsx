@@ -6,21 +6,30 @@ import { redirect } from 'next/navigation'
 export default async function DashboardPage() {
   const supabase = await createClient()
   
-  // Get current user
-  const { data: { user } } = await supabase.auth.getUser()
+  // Get current user with better error handling
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
   
-  if (!user) {
+  // Log for debugging
+  console.log('Dashboard - User:', user?.email)
+  console.log('Dashboard - Auth Error:', userError)
+  
+  // If no user, redirect to login
+  if (!user || userError) {
+    console.log('No user found, redirecting to login')
     redirect('/login')
   }
   
-  // Get user's profile to get their name
-  const { data: profile } = await supabase
+  // Get user's profile
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('first_name, last_name, email')
+    .select('first_name, last_name')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
   
-  // Get user's enrolled courses (filtered by user_id)
+  console.log('Dashboard - Profile:', profile)
+  console.log('Dashboard - Profile Error:', profileError)
+  
+  // Get user's enrolled courses
   const { data: enrollments } = await supabase
     .from('enrollments')
     .select(`
@@ -31,47 +40,47 @@ export default async function DashboardPage() {
         id,
         title,
         slug,
-        duration_hours,
-        category,
-        thumbnail_url
+        duration_hours
       )
     `)
-    .eq('user_id', user.id)  // IMPORTANT: Filter by the current user
+    .eq('user_id', user.id)
   
-  // Get certificates earned (filtered by user_id)
-  const { data: certificates } = await supabase
-    .from('certificates')
-    .select('*')
-    .eq('user_id', user.id)  // IMPORTANT: Filter by the current user
-  
-  // Get lesson progress (filtered by user_id)
+  // Get lesson progress
   const { data: lessonProgress } = await supabase
     .from('lesson_progress')
     .select('completed')
-    .eq('user_id', user.id)  // IMPORTANT: Filter by the current user
+    .eq('user_id', user.id)
   
   const completedLessons = lessonProgress?.filter(p => p.completed).length || 0
   const totalLessons = lessonProgress?.length || 0
   const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
   
-  // Get the user's name from profile
-  const firstName = profile?.first_name || user.email?.split('@')[0] || 'Learner'
+  // Get user's name
+  let displayName = 'Learner'
+  if (profile) {
+    if (profile.first_name) {
+      displayName = profile.first_name
+    }
+  } else {
+    displayName = user.email?.split('@')[0] || 'Learner'
+  }
   
-  // Filter valid enrollments (with course data)
+  console.log('Dashboard - Display Name:', displayName)
+  
   const validEnrollments = enrollments?.filter(e => e.courses) || []
   
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Header - Shows the actual user's name */}
+        {/* Welcome Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {firstName}!
+            Welcome back, {displayName}!
           </h1>
           <p className="text-gray-600 mt-1">Continue your learning journey where you left off</p>
         </div>
         
-        {/* Stats Cards - Based on actual user data */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm p-6">
             <div className="flex items-center gap-4">
@@ -103,7 +112,7 @@ export default async function DashboardPage() {
                 <Award className="text-purple-600" size={24} />
               </div>
               <div>
-                <p className="text-2xl font-bold">{certificates?.length || 0}</p>
+                <p className="text-2xl font-bold">0</p>
                 <p className="text-sm text-gray-500">Certificates Earned</p>
               </div>
             </div>
@@ -122,7 +131,7 @@ export default async function DashboardPage() {
           </div>
         </div>
         
-        {/* My Courses - Shows only the current user's enrolled courses */}
+        {/* My Courses */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">My Courses</h2>
