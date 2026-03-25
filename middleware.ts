@@ -29,23 +29,27 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // IMPORTANT: Use getUser() instead of getSession() for better auth
+  // Do not run code between createServerClient and supabase.auth.getUser() for cookies to work
   const { data: { user } } = await supabase.auth.getUser()
   
   const pathname = request.nextUrl.pathname
 
-  // Public routes
-  const publicRoutes = ['/', '/login', '/register', '/auth/callback']
-  const isPublicRoute = publicRoutes.includes(pathname)
+  // Define protected and public routes
+  const isAuthPage = pathname === '/login' || pathname === '/register'
+  const isProtectedRoute = pathname.startsWith('/dashboard') || 
+                           pathname.startsWith('/profile') ||
+                           pathname.startsWith('/courses') ||
+                           pathname.startsWith('/learn')
+  const isPublicRoute = pathname === '/' || pathname === '/auth/callback'
 
-  // If user is logged in and trying to access login/register, redirect to dashboard
-  if (user && (pathname === '/login' || pathname === '/register')) {
+  // If user is logged in and trying to access auth pages, redirect to dashboard
+  if (user && isAuthPage) {
     const redirectUrl = new URL('/dashboard', request.url)
     return NextResponse.redirect(redirectUrl)
   }
 
   // If user is not logged in and trying to access protected routes, redirect to login
-  if (!user && !isPublicRoute) {
+  if (!user && isProtectedRoute) {
     const redirectUrl = new URL('/login', request.url)
     return NextResponse.redirect(redirectUrl)
   }
@@ -55,6 +59,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - images (public images)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|images/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
