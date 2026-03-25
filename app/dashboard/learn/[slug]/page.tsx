@@ -360,7 +360,9 @@ export default async function CoursePage({
       completedLessons, 
       overallProgressPercentage,
       isEnrolled,
-      hasFirstLesson: !!firstLesson
+      hasFirstLesson: !!firstLesson,
+      firstLessonId: firstLesson?.id,
+      firstLessonTitle: firstLesson?.title
     })
     console.log('=== COURSE PAGE DEBUG END ===')
 
@@ -461,27 +463,48 @@ export default async function CoursePage({
                   </div>
                 )}
 
-                {/* Action Buttons */}
-                {isEnrolled && firstLesson ? (
-                  <Link
-                    href={`/dashboard/learn/${params.slug}/${firstLesson.id}`}
-                    className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition inline-flex items-center gap-2"
-                  >
-                    {overallProgressPercentage > 0 ? 'Continue Learning' : 'Start Course'}
-                    <ChevronRight size={18} />
-                  </Link>
-                ) : !isEnrolled ? (
-                  <form action={enrollInCourse}>
-                    <input type="hidden" name="courseId" value={course.id} />
-                    <input type="hidden" name="slug" value={params.slug} />
-                    <button
-                      type="submit"
-                      className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
-                    >
-                      Enroll Now
-                    </button>
-                  </form>
-                ) : null}
+                {/* Action Buttons - DEBUG VERSION */}
+                {(() => {
+                  console.log('=== START BUTTON DEBUG ===')
+                  console.log('isEnrolled:', isEnrolled)
+                  console.log('firstLesson:', firstLesson)
+                  console.log('firstLesson ID:', firstLesson?.id)
+                  console.log('course slug:', params.slug)
+                  console.log('overallProgressPercentage:', overallProgressPercentage)
+                  console.log('full firstLesson object:', JSON.stringify(firstLesson, null, 2))
+                  console.log('=========================')
+                  
+                  if (isEnrolled && firstLesson) {
+                    const href = `/dashboard/learn/${params.slug}/${firstLesson.id}`
+                    console.log('Button href created:', href)
+                    return (
+                      <Link
+                        href={href}
+                        className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition inline-flex items-center gap-2"
+                        onClick={() => console.log('Button CLICKED! Navigating to:', href)}
+                      >
+                        {overallProgressPercentage > 0 ? 'Continue Learning' : 'Start Course'}
+                        <ChevronRight size={18} />
+                      </Link>
+                    )
+                  } else if (!isEnrolled) {
+                    console.log('Not enrolled, showing Enroll Now button')
+                    return (
+                      <form action={enrollInCourse}>
+                        <input type="hidden" name="courseId" value={course.id} />
+                        <input type="hidden" name="slug" value={params.slug} />
+                        <button
+                          type="submit"
+                          className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
+                        >
+                          Enroll Now
+                        </button>
+                      </form>
+                    )
+                  }
+                  console.log('No button condition met - isEnrolled:', isEnrolled, 'firstLesson exists:', !!firstLesson)
+                  return <div className="text-white text-sm">No lesson available</div>
+                })()}
               </div>
             </div>
           </div>
