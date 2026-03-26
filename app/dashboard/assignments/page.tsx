@@ -335,14 +335,6 @@ export default function AssignmentsPage() {
     }
   }
 
-  const getCourseTitle = (courses: Course | Course[] | null | undefined): string => {
-    if (!courses) return ''
-    if (Array.isArray(courses)) {
-      return courses[0]?.title || ''
-    }
-    return courses.title || ''
-  }
-
   // Calculate statistics
   const totalAssignments = assignments.length
   const completedAssignments = assignments.filter(a => a.user_assignment?.status === 'passed').length
@@ -353,6 +345,9 @@ export default function AssignmentsPage() {
   const averageScore = assignments.filter(a => a.user_assignment?.grade !== null)
     .reduce((acc, a) => acc + (a.user_assignment?.grade || 0), 0) / 
     (assignments.filter(a => a.user_assignment?.grade !== null).length || 1)
+
+  const completionRate = totalAssignments > 0 ? (completedAssignments / totalAssignments) * 100 : 0
+  const pendingRate = totalAssignments > 0 ? (pendingAssignments / totalAssignments) * 100 : 0
 
   // Group filtered assignments for display
   const filteredGroups = courseGroups.map(group => ({
@@ -379,45 +374,87 @@ export default function AssignmentsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
+        {/* Stats Cards with Gradients */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          {/* Total Assignments Card */}
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Assignments</p>
-                <p className="text-2xl font-bold text-gray-900">{totalAssignments}</p>
+                <p className="text-blue-100 text-sm font-medium">Total Assignments</p>
+                <p className="text-4xl font-bold mt-1">{totalAssignments}</p>
               </div>
-              <FileText size={28} className="text-blue-500" />
+              <div className="bg-white/20 rounded-full p-3">
+                <FileText size={28} className="text-white" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="w-full bg-white/20 rounded-full h-1.5">
+                <div className="bg-white rounded-full h-1.5" style={{ width: '100%' }} />
+              </div>
+              <p className="text-xs text-blue-100 mt-2">All course assignments</p>
             </div>
           </div>
           
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          {/* Completed Assignments Card */}
+          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Completed</p>
-                <p className="text-2xl font-bold text-green-600">{completedAssignments}</p>
+                <p className="text-green-100 text-sm font-medium">Completed</p>
+                <p className="text-4xl font-bold mt-1">{completedAssignments}</p>
               </div>
-              <CheckCircle size={28} className="text-green-500" />
+              <div className="bg-white/20 rounded-full p-3">
+                <CheckCircle size={28} className="text-white" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="w-full bg-white/20 rounded-full h-1.5">
+                <div className="bg-white rounded-full h-1.5" style={{ width: `${completionRate}%` }} />
+              </div>
+              <p className="text-xs text-green-100 mt-2">
+                {Math.round(completionRate)}% completion rate
+              </p>
             </div>
           </div>
           
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          {/* Pending Assignments Card */}
+          <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">{pendingAssignments}</p>
+                <p className="text-yellow-100 text-sm font-medium">Pending</p>
+                <p className="text-4xl font-bold mt-1">{pendingAssignments}</p>
               </div>
-              <Clock size={28} className="text-yellow-500" />
+              <div className="bg-white/20 rounded-full p-3">
+                <Clock size={28} className="text-white" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="w-full bg-white/20 rounded-full h-1.5">
+                <div className="bg-white rounded-full h-1.5" style={{ width: `${pendingRate}%` }} />
+              </div>
+              <p className="text-xs text-yellow-100 mt-2">
+                {Math.round(pendingRate)}% awaiting completion
+              </p>
             </div>
           </div>
           
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          {/* Average Score Card */}
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Avg. Score</p>
-                <p className="text-2xl font-bold text-purple-600">{Math.round(averageScore)}%</p>
+                <p className="text-purple-100 text-sm font-medium">Average Score</p>
+                <p className="text-4xl font-bold mt-1">{Math.round(averageScore)}%</p>
               </div>
-              <Award size={28} className="text-purple-500" />
+              <div className="bg-white/20 rounded-full p-3">
+                <Award size={28} className="text-white" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="w-full bg-white/20 rounded-full h-1.5">
+                <div className="bg-white rounded-full h-1.5" style={{ width: `${averageScore}%` }} />
+              </div>
+              <p className="text-xs text-purple-100 mt-2">
+                {averageScore >= 70 ? 'Above average' : 'Keep improving!'}
+              </p>
             </div>
           </div>
         </div>
