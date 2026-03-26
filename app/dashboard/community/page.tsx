@@ -2,23 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  // Core icons
   Users, MessageCircle, Calendar, Plus, Search, Settings,
   LogIn, LogOut, Download, Github, Loader2, X, Send,
-  
-  // Content icons
   BookOpen, Video, FileText, Link as LinkIcon, Clock,
-  
-  // Status icons
   CheckCircle, AlertCircle, Star, Award, TrendingUp,
-  
-  // Navigation icons
-  Home, Compass, BarChart, Award as Certificate, User,
-  
-  // Action icons
+  Home, Compass, BarChart, Certificate, User,
   Edit, Trash2, Flag, Share2, Bookmark, Bell,
-  
-  // Brand icon
   GraduationCap
 } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -63,51 +52,6 @@ interface StudyGroup {
   lastActivity: string;
 }
 
-interface DiscussionTopic {
-  id: string;
-  title: string;
-  content: string;
-  author: {
-    id: string;
-    name: string;
-    avatar?: string;
-    role: string;
-  };
-  createdAt: string;
-  stats: {
-    replies: number;
-    views: number;
-    likes: number;
-    lastReply: string;
-  };
-  isPinned: boolean;
-  isResolved: boolean;
-  tags: string[];
-}
-
-interface Resource {
-  id: string;
-  title: string;
-  type: 'video' | 'document' | 'link' | 'presentation' | 'code';
-  url: string;
-  description: string;
-  author: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-  createdAt: string;
-  stats: {
-    downloads: number;
-    likes: number;
-    views: number;
-  };
-  tags: string[];
-  thumbnail?: string;
-  size?: string;
-  duration?: string;
-}
-
 interface Event {
   id: string;
   title: string;
@@ -136,9 +80,10 @@ interface Event {
 
 // ==================== MAIN COMPONENT ====================
 export default function CommunityPage() {
+  // Initialize Supabase with correct environment variables
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW!
   );
 
   // ==================== STATE MANAGEMENT ====================
@@ -159,32 +104,22 @@ export default function CommunityPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'recent' | 'popular' | 'active'>('recent');
-  const [showFilters, setShowFilters] = useState(false);
   
   // Modals
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
-  const [showDiscussionModal, setShowDiscussionModal] = useState(false);
-  const [showResourceModal, setShowResourceModal] = useState(false);
   
   // Forms
   const [newGroup, setNewGroup] = useState({ name: '', description: '', course: '', tags: '' });
-  const [newDiscussion, setNewDiscussion] = useState({ title: '', content: '', tags: '' });
-  const [newResource, setNewResource] = useState({ title: '', type: 'link', url: '', description: '', tags: '' });
   
   // Notifications
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   
-  // Reply state
-  const [replyText, setReplyText] = useState('');
-  const [replyTopicId, setReplyTopicId] = useState<string | null>(null);
-
   // ==================== AVAILABLE TAGS ====================
   const availableTags = [
     'Web Development', 'Data Science', 'UI/UX Design', 'Mobile Development',
     'DevOps', 'Machine Learning', 'Cloud Computing', 'Cybersecurity',
-    'Blockchain', 'IoT', 'AR/VR', 'Game Development', 'Python', 'JavaScript',
-    'React', 'Node.js', 'TypeScript', 'GraphQL', 'AWS', 'Docker', 'Kubernetes'
+    'Blockchain', 'IoT', 'Python', 'JavaScript', 'React', 'Node.js'
   ];
 
   // ==================== INITIALIZATION ====================
@@ -195,14 +130,26 @@ export default function CommunityPage() {
   // ==================== USER FUNCTIONS ====================
   const loadUser = async () => {
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        console.error('Auth error:', authError);
+        setLoading(prev => ({ ...prev, initial: false }));
+        return;
+      }
       
       if (authUser) {
-        const { data: profile } = await supabase
+        console.log('User loaded:', authUser.email);
+        
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', authUser.id)
           .maybeSingle();
+
+        if (profileError) {
+          console.error('Profile error:', profileError);
+        }
 
         // Get user stats
         const { count: groupsJoined } = await supabase
@@ -227,7 +174,7 @@ export default function CommunityPage() {
 
         setUser({
           id: authUser.id,
-          name: profile?.name || authUser.email?.split('@')[0] || 'Learner',
+          name: profile?.first_name || profile?.full_name || authUser.email?.split('@')[0] || 'Learner',
           email: authUser.email || '',
           role: profile?.role || 'learner',
           joinedAt: profile?.created_at || new Date().toISOString(),
@@ -261,19 +208,26 @@ export default function CommunityPage() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-
-      if (!groups || groups.length === 0) {
+      if (error) {
+        console.error('Error fetching study groups:', error);
         setStudyGroups([]);
+        setLoading(prev => ({ ...prev, groups: false }));
         return;
       }
 
-      // Get user's joined groups and favorites
+      if (!groups || groups.length === 0) {
+        setStudyGroups([]);
+        setLoading(prev => ({ ...prev, groups: false }));
+        return;
+      }
+
+      // Get user's joined groups
       const { data: userGroups } = await supabase
         .from('study_group_members')
         .select('group_id')
         .eq('user_id', user.id);
 
+      // Get user's favorites
       const { data: favorites } = await supabase
         .from('user_favorites')
         .select('item_id')
@@ -302,7 +256,7 @@ export default function CommunityPage() {
           .select('*', { count: 'exact', head: true })
           .eq('group_id', group.id);
 
-        // Get weekly active count (last 7 days)
+        // Get weekly active count
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
         
@@ -338,7 +292,7 @@ export default function CommunityPage() {
           course: group.course,
           createdBy: {
             id: group.created_by,
-            name: group.created_by_name
+            name: group.created_by_name || 'Instructor'
           },
           createdAt: new Date(group.created_at).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -364,7 +318,7 @@ export default function CommunityPage() {
 
       setStudyGroups(groupsWithDetails);
     } catch (error) {
-      console.error('Error loading study groups:', error);
+      console.error('Error in loadStudyGroups:', error);
       showNotification('Failed to load study groups', 'error');
     } finally {
       setLoading(prev => ({ ...prev, groups: false }));
@@ -382,10 +336,16 @@ export default function CommunityPage() {
         .gte('date', new Date().toISOString().split('T')[0])
         .order('date', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading events:', error);
+        setEvents([]);
+        setLoading(prev => ({ ...prev, events: false }));
+        return;
+      }
 
       if (!data || data.length === 0) {
         setEvents([]);
+        setLoading(prev => ({ ...prev, events: false }));
         return;
       }
 
@@ -416,8 +376,8 @@ export default function CommunityPage() {
           link: event.link,
           host: {
             id: event.host_id,
-            name: event.host_name,
-            title: event.host_title
+            name: event.host_name || 'Stratavax',
+            title: event.host_title || 'Instructor'
           },
           stats: {
             attendees: event.attendees || 0,
@@ -434,7 +394,7 @@ export default function CommunityPage() {
         setEvents(data);
       }
     } catch (error) {
-      console.error('Error loading events:', error);
+      console.error('Error in loadEvents:', error);
       setEvents([]);
     } finally {
       setLoading(prev => ({ ...prev, events: false }));
@@ -444,21 +404,15 @@ export default function CommunityPage() {
   // ==================== FILTERS AND SORT ====================
   const filteredGroups = studyGroups
     .filter(group => {
-      // Filter by tab
       if (activeTab === 'my-groups' && !group.isJoined) return false;
       if (activeTab === 'saved' && !group.isFavorite) return false;
-      
-      // Filter by search
       if (searchQuery && !group.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
           !group.description.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false;
       }
-      
-      // Filter by tags
       if (selectedTags.length > 0 && !selectedTags.some(tag => group.tags.includes(tag))) {
         return false;
       }
-      
       return true;
     })
     .sort((a, b) => {
@@ -479,6 +433,8 @@ export default function CommunityPage() {
 
   // ==================== EXPORT FUNCTION ====================
   const handleExport = () => {
+    if (studyGroups.length === 0) return;
+    
     const data = studyGroups.map(g => ({
       'Group Name': g.name,
       'Course': g.course,
@@ -486,7 +442,6 @@ export default function CommunityPage() {
       'Discussions': g.stats.discussions,
       'Resources': g.stats.resources,
       'Weekly Active': g.stats.weeklyActive,
-      'Created By': g.createdBy.name,
       'Created At': g.createdAt,
       'Last Activity': g.lastActivity
     }));
@@ -502,6 +457,7 @@ export default function CommunityPage() {
     a.href = url;
     a.download = `stratavax-groups-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   // ==================== LOADING STATE ====================
@@ -510,8 +466,8 @@ export default function CommunityPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
-            <div className="w-20 h-20 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-            <GraduationCap className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-primary" size={32} />
+            <div className="w-20 h-20 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+            <GraduationCap className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-blue-500" size={32} />
           </div>
           <p className="mt-4 text-slate-600 font-medium">Loading Stratavax Community...</p>
         </div>
@@ -529,7 +485,7 @@ export default function CommunityPage() {
             {/* Logo and Brand */}
             <div className="flex items-center space-x-3">
               <div className="relative">
-                <div className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
                   <GraduationCap className="text-white" size={24} />
                 </div>
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
@@ -545,30 +501,28 @@ export default function CommunityPage() {
             {/* User Menu */}
             {user && (
               <div className="flex items-center space-x-4">
-                {/* Stats Badge */}
                 <div className="hidden md:flex items-center space-x-3">
                   <div className="flex items-center space-x-1 px-3 py-1 bg-blue-50 rounded-full">
-                    <Users size={14} className="text-primary" />
-                    <span className="text-xs font-medium text-primary">{user.stats.groupsJoined}</span>
+                    <Users size={14} className="text-blue-600" />
+                    <span className="text-xs font-medium text-blue-600">{user.stats.groupsJoined}</span>
                   </div>
                   <div className="flex items-center space-x-1 px-3 py-1 bg-purple-50 rounded-full">
-                    <MessageCircle size={14} className="text-secondary" />
-                    <span className="text-xs font-medium text-secondary">{user.stats.discussionsCreated}</span>
+                    <MessageCircle size={14} className="text-purple-600" />
+                    <span className="text-xs font-medium text-purple-600">{user.stats.discussionsCreated}</span>
                   </div>
                   <div className="flex items-center space-x-1 px-3 py-1 bg-emerald-50 rounded-full">
-                    <Award size={14} className="text-success" />
-                    <span className="text-xs font-medium text-success">{user.stats.eventsAttended}</span>
+                    <Award size={14} className="text-emerald-600" />
+                    <span className="text-xs font-medium text-emerald-600">{user.stats.eventsAttended}</span>
                   </div>
                 </div>
 
-                {/* User Profile */}
                 <div className="flex items-center space-x-3">
                   <div className="text-right hidden md:block">
                     <p className="text-sm font-semibold text-slate-800">{user.name}</p>
                     <p className="text-xs text-slate-500 capitalize">{user.role}</p>
                   </div>
                   <div className="relative">
-                    <div className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white font-bold text-lg">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
                       {user.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
@@ -596,10 +550,9 @@ export default function CommunityPage() {
               <div>
                 <p className="text-sm text-slate-600">Study Groups</p>
                 <p className="text-2xl font-bold text-slate-900">{studyGroups.length}</p>
-                <p className="text-xs text-green-600 mt-1">↑ 12% this week</p>
               </div>
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Users className="text-primary" size={24} />
+              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                <Users className="text-blue-600" size={24} />
               </div>
             </div>
           </div>
@@ -608,11 +561,12 @@ export default function CommunityPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600">Active Discussions</p>
-                <p className="text-2xl font-bold text-slate-900">156</p>
-                <p className="text-xs text-green-600 mt-1">↑ 8% this week</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {studyGroups.reduce((acc, g) => acc + g.stats.discussions, 0)}
+                </p>
               </div>
-              <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
-                <MessageCircle className="text-secondary" size={24} />
+              <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
+                <MessageCircle className="text-purple-600" size={24} />
               </div>
             </div>
           </div>
@@ -621,8 +575,9 @@ export default function CommunityPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600">Resources Shared</p>
-                <p className="text-2xl font-bold text-slate-900">342</p>
-                <p className="text-xs text-green-600 mt-1">↑ 24% this week</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {studyGroups.reduce((acc, g) => acc + g.stats.resources, 0)}
+                </p>
               </div>
               <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center">
                 <FileText className="text-emerald-600" size={24} />
@@ -635,7 +590,6 @@ export default function CommunityPage() {
               <div>
                 <p className="text-sm text-slate-600">Upcoming Events</p>
                 <p className="text-2xl font-bold text-slate-900">{events.length}</p>
-                <p className="text-xs text-orange-600 mt-1">3 this week</p>
               </div>
               <div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center">
                 <Calendar className="text-orange-600" size={24} />
@@ -650,7 +604,8 @@ export default function CommunityPage() {
             <div className="flex items-center space-x-2">
               <button
                 onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 transition-all"
+                disabled={studyGroups.length === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download size={18} />
                 Export Data
@@ -667,7 +622,7 @@ export default function CommunityPage() {
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setActiveView('grid')}
-                className={`p-2 rounded-lg transition-all ${activeView === 'grid' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`p-2 rounded-lg transition-all ${activeView === 'grid' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -675,7 +630,7 @@ export default function CommunityPage() {
               </button>
               <button
                 onClick={() => setActiveView('list')}
-                className={`p-2 rounded-lg transition-all ${activeView === 'list' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`p-2 rounded-lg transition-all ${activeView === 'list' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -692,12 +647,11 @@ export default function CommunityPage() {
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sticky top-24">
               <h3 className="font-semibold text-slate-900 mb-4">Filters</h3>
               
-              {/* Tabs */}
               <div className="space-y-2 mb-6">
                 <button
                   onClick={() => setActiveTab('discover')}
                   className={`w-full text-left px-4 py-2 rounded-lg transition-all ${
-                    activeTab === 'discover' ? 'bg-primary text-white' : 'hover:bg-slate-100 text-slate-700'
+                    activeTab === 'discover' ? 'bg-blue-600 text-white' : 'hover:bg-slate-100 text-slate-700'
                   }`}
                 >
                   <Users size={18} className="inline mr-2" />
@@ -706,7 +660,7 @@ export default function CommunityPage() {
                 <button
                   onClick={() => setActiveTab('my-groups')}
                   className={`w-full text-left px-4 py-2 rounded-lg transition-all ${
-                    activeTab === 'my-groups' ? 'bg-primary text-white' : 'hover:bg-slate-100 text-slate-700'
+                    activeTab === 'my-groups' ? 'bg-blue-600 text-white' : 'hover:bg-slate-100 text-slate-700'
                   }`}
                 >
                   <BookOpen size={18} className="inline mr-2" />
@@ -715,7 +669,7 @@ export default function CommunityPage() {
                 <button
                   onClick={() => setActiveTab('saved')}
                   className={`w-full text-left px-4 py-2 rounded-lg transition-all ${
-                    activeTab === 'saved' ? 'bg-primary text-white' : 'hover:bg-slate-100 text-slate-700'
+                    activeTab === 'saved' ? 'bg-blue-600 text-white' : 'hover:bg-slate-100 text-slate-700'
                   }`}
                 >
                   <Star size={18} className="inline mr-2" />
@@ -723,13 +677,12 @@ export default function CommunityPage() {
                 </button>
               </div>
 
-              {/* Sort Options */}
               <div className="mb-6">
                 <label className="text-sm font-medium text-slate-700 mb-2 block">Sort by</label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 >
                   <option value="recent">Most Recent</option>
                   <option value="popular">Most Popular</option>
@@ -737,11 +690,10 @@ export default function CommunityPage() {
                 </select>
               </div>
 
-              {/* Tags */}
               <div>
                 <label className="text-sm font-medium text-slate-700 mb-2 block">Topics</label>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {availableTags.slice(0, 10).map(tag => (
+                  {availableTags.map(tag => (
                     <label key={tag} className="flex items-center space-x-2">
                       <input
                         type="checkbox"
@@ -753,7 +705,7 @@ export default function CommunityPage() {
                             setSelectedTags(selectedTags.filter(t => t !== tag));
                           }
                         }}
-                        className="rounded border-slate-300 text-primary focus:ring-primary/20"
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500/20"
                       />
                       <span className="text-sm text-slate-600">{tag}</span>
                     </label>
@@ -761,11 +713,10 @@ export default function CommunityPage() {
                 </div>
               </div>
 
-              {/* Create Group Button */}
               {user && (
                 <button
                   onClick={() => setShowCreateGroup(true)}
-                  className="w-full mt-6 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/20 transition-all font-medium"
+                  className="w-full mt-6 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg hover:shadow-blue-500/20 transition-all font-medium"
                 >
                   <Plus size={18} />
                   Create New Group
@@ -785,7 +736,7 @@ export default function CommunityPage() {
                   placeholder="Search groups by name, description, or topics..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
                 />
                 {searchQuery && (
                   <button
@@ -798,208 +749,191 @@ export default function CommunityPage() {
               </div>
             </div>
 
-            {/* Groups Grid/List */}
+            {/* Groups Display */}
             {loading.groups ? (
               <div className="text-center py-12">
-                <Loader2 size={40} className="animate-spin mx-auto text-primary mb-4" />
+                <Loader2 size={40} className="animate-spin mx-auto text-blue-600 mb-4" />
                 <p className="text-slate-600">Loading study groups...</p>
               </div>
+            ) : filteredGroups.length === 0 ? (
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
+                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="text-slate-400" size={32} />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">No Groups Found</h3>
+                <p className="text-slate-600 mb-6">
+                  {searchQuery || selectedTags.length > 0
+                    ? 'Try adjusting your filters'
+                    : activeTab === 'my-groups'
+                    ? "You haven't joined any groups yet"
+                    : activeTab === 'saved'
+                    ? "You haven't saved any groups yet"
+                    : 'Be the first to create a study group!'}
+                </p>
+                {user && !searchQuery && selectedTags.length === 0 && activeTab === 'discover' && (
+                  <button
+                    onClick={() => setShowCreateGroup(true)}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
+                  >
+                    <Plus size={18} />
+                    Create Your First Group
+                  </button>
+                )}
+              </div>
             ) : (
-              <>
-                {filteredGroups.length === 0 ? (
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
-                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Users className="text-slate-400" size={32} />
-                    </div>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No Groups Found</h3>
-                    <p className="text-slate-600 mb-6">
-                      {searchQuery || selectedTags.length > 0
-                        ? 'Try adjusting your filters'
-                        : activeTab === 'my-groups'
-                        ? "You haven't joined any groups yet"
-                        : activeTab === 'saved'
-                        ? "You haven't saved any groups yet"
-                        : 'Be the first to create a study group!'}
-                    </p>
-                    {user && !searchQuery && selectedTags.length === 0 && activeTab === 'discover' && (
-                      <button
-                        onClick={() => setShowCreateGroup(true)}
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all font-medium"
-                      >
-                        <Plus size={18} />
-                        Create Your First Group
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className={`grid ${activeView === 'grid' ? 'grid-cols-1 md:grid-cols-2 gap-6' : 'grid-cols-1 gap-4'}`}>
-                    {filteredGroups.map((group) => (
-                      <div
-                        key={group.id}
-                        className={`bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all ${
-                          activeView === 'list' ? 'flex' : ''
-                        }`}
-                      >
-                        {activeView === 'grid' ? (
-                          // Grid View
-                          <div className="p-6">
-                            <div className="flex justify-between items-start mb-4">
-                              <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="text-lg font-semibold text-slate-900">{group.name}</h3>
-                                  {group.isJoined && (
-                                    <span className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full flex items-center gap-1">
-                                      <CheckCircle size={12} />
-                                      Joined
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-sm text-primary font-medium">{group.course}</p>
-                              </div>
-                              <button
-                                onClick={() => {/* Toggle favorite */}}
-                                className={`p-2 rounded-lg transition-all ${
-                                  group.isFavorite ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-500'
-                                }`}
-                              >
-                                <Star size={18} fill={group.isFavorite ? 'currentColor' : 'none'} />
-                              </button>
-                            </div>
-
-                            <p className="text-slate-600 text-sm mb-4 line-clamp-2">{group.description}</p>
-
-                            {/* Tags */}
-                            <div className="flex flex-wrap gap-2 mb-4">
-                              {group.tags.slice(0, 3).map(tag => (
-                                <span
-                                  key={tag}
-                                  className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                              {group.tags.length > 3 && (
-                                <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full">
-                                  +{group.tags.length - 3}
+              <div className={`grid ${activeView === 'grid' ? 'grid-cols-1 md:grid-cols-2 gap-6' : 'grid-cols-1 gap-4'}`}>
+                {filteredGroups.map((group) => (
+                  <div
+                    key={group.id}
+                    className={`bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all ${
+                      activeView === 'list' ? 'flex' : ''
+                    }`}
+                  >
+                    {activeView === 'grid' ? (
+                      // Grid View
+                      <div className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="text-lg font-semibold text-slate-900">{group.name}</h3>
+                              {group.isJoined && (
+                                <span className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full flex items-center gap-1">
+                                  <CheckCircle size={12} />
+                                  Joined
                                 </span>
                               )}
                             </div>
-
-                            {/* Stats */}
-                            <div className="grid grid-cols-3 gap-4 mb-4">
-                              <div className="text-center">
-                                <p className="text-sm font-semibold text-slate-900">{group.stats.members}</p>
-                                <p className="text-xs text-slate-500">Members</p>
-                              </div>
-                              <div className="text-center">
-                                <p className="text-sm font-semibold text-slate-900">{group.stats.discussions}</p>
-                                <p className="text-xs text-slate-500">Discussions</p>
-                              </div>
-                              <div className="text-center">
-                                <p className="text-sm font-semibold text-slate-900">{group.stats.resources}</p>
-                                <p className="text-xs text-slate-500">Resources</p>
-                              </div>
-                            </div>
-
-                            {/* Footer */}
-                            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                              <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <Clock size={14} />
-                                <span>Active {group.lastActivity}</span>
-                              </div>
-                              <div className="flex gap-2">
-                                {group.isJoined ? (
-                                  <button
-                                    onClick={() => {/* View group */}}
-                                    className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary-dark transition-all"
-                                  >
-                                    View Group
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => {
-                                      setSelectedGroup(group);
-                                      setShowJoinModal(true);
-                                    }}
-                                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-all flex items-center gap-2"
-                                  >
-                                    <LogIn size={16} />
-                                    Join
-                                  </button>
-                                )}
-                              </div>
-                            </div>
+                            <p className="text-sm text-blue-600 font-medium">{group.course}</p>
                           </div>
-                        ) : (
-                          // List View
-                          <div className="flex-1 p-6">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <h3 className="text-lg font-semibold text-slate-900">{group.name}</h3>
-                                  {group.isJoined && (
-                                    <span className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full">
-                                      Joined
-                                    </span>
-                                  )}
-                                  <span className="text-sm text-primary">{group.course}</span>
-                                </div>
-                                <p className="text-slate-600 text-sm mb-3">{group.description}</p>
-                                <div className="flex items-center gap-4 text-sm text-slate-500">
-                                  <span className="flex items-center gap-1"><Users size={14} /> {group.stats.members}</span>
-                                  <span className="flex items-center gap-1"><MessageCircle size={14} /> {group.stats.discussions}</span>
-                                  <span className="flex items-center gap-1"><FileText size={14} /> {group.stats.resources}</span>
-                                  <span className="flex items-center gap-1"><Clock size={14} /> {group.lastActivity}</span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 ml-4">
-                                <button className="p-2 text-slate-400 hover:text-yellow-500">
-                                  <Star size={18} />
-                                </button>
-                                {group.isJoined ? (
-                                  <button className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-dark">
-                                    View
-                                  </button>
-                                ) : (
-                                  <button className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
-                                    Join
-                                  </button>
-                                )}
-                              </div>
-                            </div>
+                          <button
+                            className={`p-2 rounded-lg transition-all ${
+                              group.isFavorite ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-500'
+                            }`}
+                          >
+                            <Star size={18} fill={group.isFavorite ? 'currentColor' : 'none'} />
+                          </button>
+                        </div>
+
+                        <p className="text-slate-600 text-sm mb-4 line-clamp-2">{group.description}</p>
+
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {group.tags.slice(0, 3).map(tag => (
+                            <span key={tag} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full">
+                              {tag}
+                            </span>
+                          ))}
+                          {group.tags.length > 3 && (
+                            <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full">
+                              +{group.tags.length - 3}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 mb-4">
+                          <div className="text-center">
+                            <p className="text-sm font-semibold text-slate-900">{group.stats.members}</p>
+                            <p className="text-xs text-slate-500">Members</p>
                           </div>
-                        )}
+                          <div className="text-center">
+                            <p className="text-sm font-semibold text-slate-900">{group.stats.discussions}</p>
+                            <p className="text-xs text-slate-500">Discussions</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-semibold text-slate-900">{group.stats.resources}</p>
+                            <p className="text-xs text-slate-500">Resources</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <Clock size={14} />
+                            <span>Active {group.lastActivity}</span>
+                          </div>
+                          <div className="flex gap-2">
+                            {group.isJoined ? (
+                              <button
+                                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-all"
+                              >
+                                View Group
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setSelectedGroup(group);
+                                  setShowJoinModal(true);
+                                }}
+                                className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-all flex items-center gap-2"
+                              >
+                                <LogIn size={16} />
+                                Join
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    ))}
+                    ) : (
+                      // List View
+                      <div className="flex-1 p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-lg font-semibold text-slate-900">{group.name}</h3>
+                              {group.isJoined && (
+                                <span className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full">
+                                  Joined
+                                </span>
+                              )}
+                              <span className="text-sm text-blue-600">{group.course}</span>
+                            </div>
+                            <p className="text-slate-600 text-sm mb-3">{group.description}</p>
+                            <div className="flex items-center gap-4 text-sm text-slate-500">
+                              <span className="flex items-center gap-1"><Users size={14} /> {group.stats.members}</span>
+                              <span className="flex items-center gap-1"><MessageCircle size={14} /> {group.stats.discussions}</span>
+                              <span className="flex items-center gap-1"><FileText size={14} /> {group.stats.resources}</span>
+                              <span className="flex items-center gap-1"><Clock size={14} /> {group.lastActivity}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            <button className="p-2 text-slate-400 hover:text-yellow-500">
+                              <Star size={18} />
+                            </button>
+                            {group.isJoined ? (
+                              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+                                View
+                              </button>
+                            ) : (
+                              <button className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
+                                Join
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </>
+                ))}
+              </div>
             )}
 
             {/* Events Section */}
-            <div className="mt-12">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-slate-900">Upcoming Events</h2>
-                <button className="text-primary hover:text-primary-dark font-medium text-sm">
-                  View All →
-                </button>
-              </div>
-
-              {loading.events ? (
-                <div className="text-center py-8">
-                  <Loader2 size={32} className="animate-spin mx-auto text-primary" />
+            {events.length > 0 && (
+              <div className="mt-12">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-slate-900">Upcoming Events</h2>
+                  <button className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+                    View All →
+                  </button>
                 </div>
-              ) : (
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {events.slice(0, 3).map((event) => (
                     <div
                       key={event.id}
                       className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
                     >
-                      {/* Event Type Banner */}
                       <div className={`h-2 ${
-                        event.type === 'webinar' ? 'bg-primary' :
-                        event.type === 'workshop' ? 'bg-secondary' :
+                        event.type === 'webinar' ? 'bg-blue-600' :
+                        event.type === 'workshop' ? 'bg-purple-600' :
                         event.type === 'hackathon' ? 'bg-purple-500' :
                         event.type === 'meetup' ? 'bg-emerald-500' : 'bg-orange-500'
                       }`}></div>
@@ -1008,15 +942,15 @@ export default function CommunityPage() {
                         <div className="flex items-start justify-between mb-4">
                           <div>
                             <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mb-2 ${
-                              event.type === 'webinar' ? 'bg-blue-100 text-primary' :
-                              event.type === 'workshop' ? 'bg-purple-100 text-secondary' :
+                              event.type === 'webinar' ? 'bg-blue-100 text-blue-600' :
+                              event.type === 'workshop' ? 'bg-purple-100 text-purple-600' :
                               event.type === 'hackathon' ? 'bg-purple-100 text-purple-600' :
                               event.type === 'meetup' ? 'bg-emerald-100 text-emerald-600' :
                               'bg-orange-100 text-orange-600'
                             }`}>
                               {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
                             </span>
-                            <h3 className="text-lg font-semibold text-slate-900">{event.title}</h3>
+                            <h3 className="text-lg font-semibold text-slate-900 mt-2">{event.title}</h3>
                           </div>
                           <button className={`p-2 rounded-lg transition-all ${
                             event.isSaved ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-500'
@@ -1027,7 +961,6 @@ export default function CommunityPage() {
 
                         <p className="text-sm text-slate-600 mb-4 line-clamp-2">{event.description}</p>
 
-                        {/* Event Details */}
                         <div className="space-y-2 mb-4">
                           <div className="flex items-center gap-2 text-sm text-slate-600">
                             <Calendar size={16} className="text-slate-400" />
@@ -1052,9 +985,8 @@ export default function CommunityPage() {
                           </div>
                         </div>
 
-                        {/* Host Info */}
                         <div className="flex items-center gap-3 mb-4">
-                          <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white text-xs font-bold">
+                          <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                             {event.host.name.charAt(0)}
                           </div>
                           <div>
@@ -1063,56 +995,41 @@ export default function CommunityPage() {
                           </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => {/* Register */}}
-                            disabled={event.isRegistered}
-                            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                              event.isRegistered
-                                ? 'bg-green-100 text-green-600 cursor-default'
-                                : 'bg-primary text-white hover:bg-primary-dark'
-                            }`}
-                          >
-                            {event.isRegistered ? 'Registered' : 'Register'}
-                          </button>
-                          {event.location === 'online' && event.link && (
-                            <a
-                              href={event.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"
-                            >
-                              Join
-                            </a>
-                          )}
-                        </div>
+                        <button
+                          className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            event.isRegistered
+                              ? 'bg-green-100 text-green-600 cursor-default'
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                        >
+                          {event.isRegistered ? 'Registered' : 'Register'}
+                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Admin Panel */}
             {user?.role === 'admin' && (
               <div className="mt-12 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-6">
-                  <Settings size={20} className="text-primary" />
+                  <Settings size={20} className="text-blue-600" />
                   Admin Dashboard
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <button className="p-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-primary hover:bg-primary/5 transition-all text-left group">
-                    <FileText className="text-primary mb-3" size={24} />
+                  <button className="p-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all text-left group">
+                    <FileText className="text-blue-600 mb-3" size={24} />
                     <h3 className="font-semibold text-slate-900 mb-1">Manage Resources</h3>
                     <p className="text-sm text-slate-600">Review and moderate shared resources</p>
                   </button>
-                  <button className="p-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-secondary hover:bg-secondary/5 transition-all text-left group">
-                    <Users className="text-secondary mb-3" size={24} />
+                  <button className="p-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group">
+                    <Users className="text-purple-600 mb-3" size={24} />
                     <h3 className="font-semibold text-slate-900 mb-1">Manage Groups</h3>
                     <p className="text-sm text-slate-600">Monitor and moderate study groups</p>
                   </button>
-                  <button className="p-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-emerald-500 hover:bg-emerald-500/5 transition-all text-left group">
+                  <button className="p-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-emerald-500 hover:bg-emerald-50 transition-all text-left group">
                     <Calendar className="text-emerald-600 mb-3" size={24} />
                     <h3 className="font-semibold text-slate-900 mb-1">Create Events</h3>
                     <p className="text-sm text-slate-600">Schedule webinars and workshops</p>
@@ -1139,22 +1056,22 @@ export default function CommunityPage() {
             
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Group Name</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Group Name *</label>
                 <input
                   type="text"
                   value={newGroup.name}
                   onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
-                  className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   placeholder="e.g., Advanced JavaScript Study Group"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Course</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Course *</label>
                 <select
                   value={newGroup.course}
                   onChange={(e) => setNewGroup({ ...newGroup, course: e.target.value })}
-                  className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 >
                   <option value="">Select a course</option>
                   <option value="Web Development">Web Development</option>
@@ -1162,16 +1079,17 @@ export default function CommunityPage() {
                   <option value="UI/UX Design">UI/UX Design</option>
                   <option value="Mobile Development">Mobile Development</option>
                   <option value="DevOps">DevOps</option>
+                  <option value="Machine Learning">Machine Learning</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Description *</label>
                 <textarea
                   value={newGroup.description}
                   onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
                   rows={4}
-                  className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   placeholder="What will this group study? Goals? Prerequisites?"
                 />
               </div>
@@ -1182,7 +1100,7 @@ export default function CommunityPage() {
                   type="text"
                   value={newGroup.tags}
                   onChange={(e) => setNewGroup({ ...newGroup, tags: e.target.value })}
-                  className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   placeholder="e.g., javascript, react, beginners"
                 />
               </div>
@@ -1197,8 +1115,7 @@ export default function CommunityPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => {/* Create group */}}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all flex items-center gap-2"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2"
                 >
                   <Plus size={18} />
                   Create Group
@@ -1224,8 +1141,8 @@ export default function CommunityPage() {
               <h4 className="font-semibold text-lg mb-2">{selectedGroup.name}</h4>
               <p className="text-slate-600 mb-4">{selectedGroup.description}</p>
 
-              <div className="bg-primary/5 border border-primary/10 rounded-lg p-4">
-                <p className="text-sm text-primary font-medium mb-2">By joining, you'll get:</p>
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                <p className="text-sm text-blue-700 font-medium mb-2">By joining, you'll get:</p>
                 <ul className="text-sm text-slate-600 space-y-2">
                   <li className="flex items-center gap-2">
                     <CheckCircle size={16} className="text-green-600" />
@@ -1251,7 +1168,6 @@ export default function CommunityPage() {
                 Cancel
               </button>
               <button
-                onClick={() => {/* Join group */}}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all flex items-center gap-2"
               >
                 <LogIn size={18} />
@@ -1265,9 +1181,9 @@ export default function CommunityPage() {
       {/* Notification */}
       {notification && (
         <div
-          className={`fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg z-50 flex items-center gap-3 animate-slideIn ${
+          className={`fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-lg z-50 flex items-center gap-3 animate-slideIn ${
             notification.type === 'success' ? 'bg-green-600' :
-            notification.type === 'error' ? 'bg-red-600' : 'bg-primary'
+            notification.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
           } text-white`}
         >
           {notification.type === 'success' && <CheckCircle size={20} />}
