@@ -7,9 +7,9 @@ import * as XLSX from 'xlsx'
 import {
   BarChart3, Download, ChevronRight, ChevronLeft,
   Users, BookOpen, CheckCircle, Clock, Award, TrendingUp,
-  FileText, Menu, X, Home, LogOut, Upload, RefreshCw,
-  Building, FileSpreadsheet, Activity, Star, Database,
-  FileDown, FileUp, Trash2, AlertCircle, Plus, Edit, Save
+  Menu, X, Home, LogOut, Upload, RefreshCw,
+  Building, FileSpreadsheet, Activity, Star,
+  FileDown, FileUp, Trash2, AlertCircle, Plus, Edit
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line,
@@ -321,25 +321,23 @@ export default function AdminReportsPage() {
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Training Template')
     
-    // Add instructions sheet
     const instructions = [
       { 'Instructions': '=== STRATAVAX TRAINING DATA IMPORT TEMPLATE ===' },
       { 'Instructions': '' },
-      { 'Instructions': 'HOW TO USE THIS TEMPLATE:' },
-      { 'Instructions': '1. Do NOT modify the column headers (Row 1)' },
+      { 'Instructions': 'HOW TO USE:' },
+      { 'Instructions': '1. Do NOT modify column headers' },
       { 'Instructions': '2. Enter your classroom training data starting from Row 2' },
-      { 'Instructions': '3. Save the file as Excel (.xlsx) or CSV (.csv)' },
-      { 'Instructions': '4. Go to the Reports page and click "Import Excel"' },
-      { 'Instructions': '5. Select your file and confirm import' },
+      { 'Instructions': '3. Save as Excel (.xlsx) or CSV (.csv)' },
+      { 'Instructions': '4. Click "Import Excel" on the Reports page' },
       { 'Instructions': '' },
-      { 'Instructions': 'COLUMN DESCRIPTIONS:' },
-      { 'Instructions': '- Training Date: Format as YYYY-MM-DD (e.g., 2024-03-15)' },
-      { 'Instructions': '- Attendee Name: Full name of the participant' },
-      { 'Instructions': '- Course: Name of the training course' },
-      { 'Instructions': '- Facilitator: Name of the trainer/facilitator' },
-      { 'Instructions': '- Supervisor: Name of attendee\'s supervisor (optional)' },
-      { 'Instructions': '- Department: Department of the attendee' },
-      { 'Instructions': '- Duration Hours: Number of training hours (e.g., 4, 6.5, 8)' }
+      { 'Instructions': 'Column Descriptions:' },
+      { 'Instructions': '- Training Date: YYYY-MM-DD format' },
+      { 'Instructions': '- Attendee Name: Full name of participant' },
+      { 'Instructions': '- Course: Training course name' },
+      { 'Instructions': '- Facilitator: Trainer name' },
+      { 'Instructions': '- Supervisor: Attendee supervisor (optional)' },
+      { 'Instructions': '- Department: Attendee department' },
+      { 'Instructions': '- Duration Hours: Training hours (e.g., 4, 6.5)' }
     ]
     const instructionsSheet = XLSX.utils.json_to_sheet(instructions)
     XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions')
@@ -369,7 +367,7 @@ export default function AdminReportsPage() {
     let successCount = 0
     let errorCount = 0
     for (const row of importData) {
-      const newRecord = {
+      const newRecordData = {
         training_date: row['Training Date'] || row['training_date'] || row['Date'] || new Date().toISOString().split('T')[0],
         attendee_name: row['Attendee Name'] || row['attendee_name'] || row['Name'] || row['Attendee'] || '',
         course: row['Course'] || row['course'] || '',
@@ -378,7 +376,7 @@ export default function AdminReportsPage() {
         department: row['Department'] || row['department'] || '',
         duration_hours: parseFloat(row['Duration Hours'] || row['duration_hours'] || row['Hours'] || 0)
       }
-      const { error } = await supabase.from('training_records').insert(newRecord)
+      const { error } = await supabase.from('training_records').insert(newRecordData)
       if (error) errorCount++
       else successCount++
     }
@@ -430,7 +428,7 @@ export default function AdminReportsPage() {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <BarChart3 className="text-white" size={18} />
               </div>
-              <span className="font-semibold">Stratavax Training Analytics</span>
+              <span className="font-semibold">Stratavax Analytics</span>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -510,7 +508,7 @@ export default function AdminReportsPage() {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-6">Training Analytics Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900 mb-6">Analytics Dashboard</h1>
               
               {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -519,28 +517,24 @@ export default function AdminReportsPage() {
                     <div><p className="text-sm text-gray-500">Total Training Hours</p><p className="text-2xl font-bold">{stats.totalTrainingHours}</p></div>
                     <Clock size={32} className="text-blue-500" />
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">Across all sessions</div>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
                     <div><p className="text-sm text-gray-500">Training Sessions</p><p className="text-2xl font-bold">{stats.totalTrainingSessions}</p></div>
                     <FileSpreadsheet size={32} className="text-green-500" />
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">Classroom & workshops</div>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
                     <div><p className="text-sm text-gray-500">Departments</p><p className="text-2xl font-bold">{departmentData.length}</p></div>
                     <Building size={32} className="text-purple-500" />
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">With training records</div>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
                     <div><p className="text-sm text-gray-500">Facilitators</p><p className="text-2xl font-bold">{facilitatorData.length}</p></div>
                     <Star size={32} className="text-yellow-500" />
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">Active trainers</div>
                 </div>
               </div>
 
@@ -549,9 +543,9 @@ export default function AdminReportsPage() {
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <h3 className="text-lg font-semibold mb-4">Course Progress Distribution</h3>
                   <div className="space-y-4">
-                    <div><div className="flex justify-between text-sm mb-1"><span>Completed</span><span>{stats.completedCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.completedCourses / stats.totalEnrollments) * 100 : 0}%` }}></div></div></div>
-                    <div><div className="flex justify-between text-sm mb-1"><span>In Progress</span><span>{stats.inProgressCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.inProgressCourses / stats.totalEnrollments) * 100 : 0}%` }}></div></div></div>
-                    <div><div className="flex justify-between text-sm mb-1"><span>Not Started</span><span>{stats.notStartedCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-gray-400 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.notStartedCourses / stats.totalEnrollments) * 100 : 0}%` }}></div></div></div>
+                    <div><div className="flex justify-between text-sm mb-1"><span>Completed</span><span>{stats.completedCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.completedCourses / stats.totalEnrollments) * 100 : 0}%` }} /></div></div>
+                    <div><div className="flex justify-between text-sm mb-1"><span>In Progress</span><span>{stats.inProgressCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.inProgressCourses / stats.totalEnrollments) * 100 : 0}%` }} /></div></div>
+                    <div><div className="flex justify-between text-sm mb-1"><span>Not Started</span><span>{stats.notStartedCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-gray-400 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.notStartedCourses / stats.totalEnrollments) * 100 : 0}%` }} /></div></div>
                   </div>
                   <div className="mt-4 pt-4 border-t"><div className="flex justify-between text-sm"><span>Average Progress</span><span className="font-bold">{stats.averageProgress}%</span></div></div>
                 </div>
@@ -592,9 +586,9 @@ export default function AdminReportsPage() {
                 <div className="p-6 border-b"><h3 className="text-lg font-semibold">Top Facilitators</h3></div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Sessions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th> </thead>
-                    <tbody className="divide-y">{facilitatorData.map((fac) => (<tr key={fac.name} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{fac.name} </td><td className="px-6 py-4 text-sm">{fac.sessions} </td><td className="px-6 py-4 text-sm">{fac.hours} </td></tr>))}</tbody>
-                   </table>
+                    <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Sessions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th></tr></thead>
+                    <tbody className="divide-y">{facilitatorData.map((fac) => (<tr key={fac.name} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{fac.name}</td><td className="px-6 py-4 text-sm">{fac.sessions}</td><td className="px-6 py-4 text-sm">{fac.hours}</td></tr>))}</tbody>
+                  </table>
                 </div>
               </div>
             </>
@@ -606,8 +600,8 @@ export default function AdminReportsPage() {
               <div className="p-6 border-b"><h2 className="text-xl font-bold">Course Performance</h2><p className="text-sm text-gray-500">Enrollments, completions, and progress rates</p></div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50"><td><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avg Progress</th> </thead>
-                  <tbody className="divide-y">{courseStats.map((course) => (<tr key={course.id} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{course.title}</td><td className="px-6 py-4 text-sm">{course.enrollments}</td><td className="px-6 py-4 text-sm">{course.completions}</td><td className="px-6 py-4"><span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">{course.completionRate}%</span></td><td className="px-6 py-4"><div className="w-24 bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{ width: `${course.averageProgress}%` }}></div></div></td></tr>))}</tbody>
+                  <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avg Progress</th></tr></thead>
+                  <tbody className="divide-y">{courseStats.map((course) => (<tr key={course.id} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{course.title}</td><td className="px-6 py-4 text-sm">{course.enrollments}</td><td className="px-6 py-4 text-sm">{course.completions}</td><td className="px-6 py-4"><span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">{course.completionRate}%</span></td><td className="px-6 py-4"><div className="w-24 bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{ width: `${course.averageProgress}%` }} /></div></td></tr>))}</tbody>
                 </table>
               </div>
             </div>
@@ -626,26 +620,25 @@ export default function AdminReportsPage() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Date</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Department</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Actions</th> </thead>
+                  <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Date</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Department</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Actions</th> </thead>
                   <tbody className="divide-y">
                     {trainingRecords.map((record) => (
                       <tr key={record.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm">{new Date(record.training_date).toLocaleDateString()} </td>
-                        <td className="px-6 py-4 text-sm">{record.attendee_name} </td>
-                        <td className="px-6 py-4 text-sm">{record.course} </td>
-                        <td className="px-6 py-4 text-sm">{record.facilitator} </td>
-                        <td className="px-6 py-4 text-sm">{record.department} </td>
-                        <td className="px-6 py-4 text-sm">{record.duration_hours} </td>
+                        <td className="px-6 py-4 text-sm">{new Date(record.training_date).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-sm">{record.attendee_name}</td>
+                        <td className="px-6 py-4 text-sm">{record.course}</td>
+                        <td className="px-6 py-4 text-sm">{record.facilitator}</td>
+                        <td className="px-6 py-4 text-sm">{record.department}</td>
+                        <td className="px-6 py-4 text-sm">{record.duration_hours}</td>
                         <td className="px-6 py-4 text-sm">
                           <button onClick={() => setEditingRecord(record)} className="text-blue-600 hover:text-blue-800 mr-2"><Edit size={16} /></button>
                           <button onClick={() => handleDeleteRecord(record.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
                         </td>
                       </tr>
                     ))}
-                    {trainingRecords.length === 0 && (<tr><td colSpan={7} className="px-6 py-8 text-center text-gray-500">No training records. Click "Add Record" or "Import Excel" to add data.</td></tr>)}
+                    {trainingRecords.length === 0 && ( ga<tr><td colSpan={7} className="px-6 py-8 text-center text-gray-500">No training records. Click "Add Record" or "Import Excel" to add data.</td></tr>)}
                   </tbody>
-                 </table>
+                </table>
               </div>
             </div>
           )}
@@ -699,7 +692,11 @@ export default function AdminReportsPage() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                 <p className="text-sm text-blue-700">📋 Need a template? Click the Excel icon in the top bar to download the template.</p>
               </div>
-              {importPreview.length > 0 && (<div><p className="text-sm mb-3">Preview of {importData.length} records:</p><div className="overflow-x-auto"><table className="w-full text-sm border"><thead className="bg-gray-50"> <tr>{Object.keys(importPreview[0]).slice(0, 6).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))}</tr></thead><tbody>{importPreview.map((row, idx) => (<tr key={idx}>{Object.values(row).slice(0, 6).map((value: any, i) => (<td key={i} className="px-3 py-2 border">{String(value).slice(0, 30)}</td>))}</tr>))}</tbody></table></div></div>)}
+              {importPreview.length > 0 && (
+                <div><p className="text-sm mb-3">Preview of {importData.length} records:</p>
+                <div className="overflow-x-auto"><table className="w-full text-sm border"><thead className="bg-gray-50"> <tr>{Object.keys(importPreview[0]).slice(0, 6).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))}</tr></thead>
+                <tbody>{importPreview.map((row, idx) => (<tr key={idx}>{Object.values(row).slice(0, 6).map((value: any, i) => (<td key={i} className="px-3 py-2 border">{String(value).slice(0, 30)}</td>))}</tr>))}</tbody></table></div></div>
+              )}
             </div>
             <div className="flex justify-end gap-3 p-4 border-t"><button onClick={() => setShowImportModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button><button onClick={confirmImport} className="px-4 py-2 bg-green-600 text-white rounded-lg">Import {importData.length} Records</button></div>
           </div>
