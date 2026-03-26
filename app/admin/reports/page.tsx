@@ -8,11 +8,10 @@ import * as XLSX from 'xlsx'
 import {
   BarChart3, Download, Calendar, ChevronRight, ChevronLeft,
   Users, BookOpen, CheckCircle, Clock, Award, TrendingUp,
-  PieChart, FileText, Filter, Search, Bell, HelpCircle,
+  FileText, Filter, Search, Bell, HelpCircle,
   ChevronDown, LogOut, Settings, Home, GraduationCap,
   Upload, RefreshCw, Building, Briefcase, FileSpreadsheet,
-  Database, Activity, BarChart, LineChart as LineChartIcon,
-  PieChart as PieChartIcon, TrendingDown, Star, UserCheck, Menu, X,
+  Database, Activity, TrendingDown, Star, UserCheck, Menu, X,
   FileDown, FileUp, Trash2, AlertCircle
 } from 'lucide-react'
 import {
@@ -20,6 +19,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   AreaChart, Area, ComposedChart
 } from 'recharts'
+import ExcelEditor from './excel-editor'
 
 // Types
 interface TrainingRecord {
@@ -299,7 +299,6 @@ export default function AdminReportsPage() {
     if (data) {
       setTrainingRecords(data as TrainingRecord[])
       
-      // Update stats with training data
       const totalHours = data.reduce((sum, record) => sum + (record.duration_hours || 0), 0)
       setStats(prev => ({
         ...prev,
@@ -370,7 +369,6 @@ export default function AdminReportsPage() {
       const month = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const monthStr = month.toLocaleString('default', { month: 'short' })
       
-      // Get actual training hours for this month
       const monthTrainingHours = trainingRecords
         .filter(r => {
           const recordDate = new Date(r.training_date)
@@ -424,24 +422,6 @@ export default function AdminReportsPage() {
         'Supervisor': 'Jane Manager',
         'Department': 'Human Resources',
         'Duration Hours': 4
-      },
-      {
-        'Training Date': '2024-03-16',
-        'Attendee Name': 'Jane Smith',
-        'Course': 'Advanced Excel',
-        'Facilitator': 'Prof. Michael Brown',
-        'Supervisor': 'Mike Lead',
-        'Department': 'Finance',
-        'Duration Hours': 6
-      },
-      {
-        'Training Date': '2024-03-17',
-        'Attendee Name': 'Bob Wilson',
-        'Course': 'Project Management',
-        'Facilitator': 'Dr. Emily Chen',
-        'Supervisor': 'Sarah Director',
-        'Department': 'Operations',
-        'Duration Hours': 8
       }
     ]
     
@@ -449,26 +429,14 @@ export default function AdminReportsPage() {
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Training Template')
     
-    // Add instructions sheet
     const instructions = [
       { 'Instruction': '=== STRATAVAX TRAINING DATA IMPORT TEMPLATE ===' },
       { 'Instruction': '' },
       { 'Instruction': 'INSTRUCTIONS:' },
       { 'Instruction': '1. Do NOT modify the column headers' },
-      { 'Instruction': '2. Enter training date in YYYY-MM-DD format (e.g., 2024-03-15)' },
+      { 'Instruction': '2. Enter training date in YYYY-MM-DD format' },
       { 'Instruction': '3. All fields are required except where noted' },
-      { 'Instruction': '4. Duration Hours should be a number (e.g., 4, 6.5, 8)' },
-      { 'Instruction': '5. Save as Excel file (.xlsx) and upload to the platform' },
-      { 'Instruction': '6. Data will be added to your existing records' },
-      { 'Instruction': '' },
-      { 'Instruction': 'COLUMN DESCRIPTIONS:' },
-      { 'Instruction': '- Training Date: The date the training took place' },
-      { 'Instruction': '- Attendee Name: Full name of the participant' },
-      { 'Instruction': '- Course: Name of the training course' },
-      { 'Instruction': '- Facilitator: Name of the trainer/facilitator' },
-      { 'Instruction': '- Supervisor: Name of attendee\'s supervisor' },
-      { 'Instruction': '- Department: Department of the attendee' },
-      { 'Instruction': '- Duration Hours: Length of training in hours' }
+      { 'Instruction': '4. Duration Hours should be a number' }
     ]
     const instructionsSheet = XLSX.utils.json_to_sheet(instructions)
     XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions')
@@ -489,7 +457,6 @@ export default function AdminReportsPage() {
       const worksheet = workbook.Sheets[sheetName]
       const jsonData = XLSX.utils.sheet_to_json(worksheet)
       
-      // Validate data structure
       if (jsonData.length === 0) {
         setImportError('File is empty')
         return
@@ -569,7 +536,6 @@ export default function AdminReportsPage() {
     router.push('/login')
   }
 
-  // Get unique filter options
   const departments = ['all', ...new Set(trainingRecords.map(r => r.department).filter(Boolean))]
   const courses = ['all', ...new Set(trainingRecords.map(r => r.course).filter(Boolean))]
   const facilitators = ['all', ...new Set(trainingRecords.map(r => r.facilitator).filter(Boolean))]
@@ -625,7 +591,7 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Sidebar - same as before */}
+      {/* Sidebar */}
       <div className={`fixed left-0 top-14 bottom-0 bg-white border-r border-gray-200 transition-all duration-300 z-40 ${sidebarCollapsed ? 'w-20' : 'w-64'} hidden lg:block`}>
         <div className="flex flex-col h-full">
           <div className="p-4 flex justify-end">
@@ -679,168 +645,269 @@ export default function AdminReportsPage() {
             <span className="text-gray-900">Reports Dashboard</span>
           </div>
 
-          {/* Training Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm text-gray-500">Total Training Hours</p><p className="text-2xl font-bold">{stats.totalTrainingHours}</p></div>
-                <Clock size={32} className="text-blue-500" />
-              </div>
-              <div className="mt-2 text-xs text-gray-500">Across all training sessions</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm text-gray-500">Training Sessions</p><p className="text-2xl font-bold">{stats.totalTrainingSessions}</p></div>
-                <FileText size={32} className="text-green-500" />
-              </div>
-              <div className="mt-2 text-xs text-gray-500">Classroom & online trainings</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm text-gray-500">Departments</p><p className="text-2xl font-bold">{departmentStats.length}</p></div>
-                <Building size={32} className="text-purple-500" />
-              </div>
-              <div className="mt-2 text-xs text-gray-500">With training records</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm text-gray-500">Facilitators</p><p className="text-2xl font-bold">{facilitatorStats.length}</p></div>
-                <Briefcase size={32} className="text-orange-500" />
-              </div>
-              <div className="mt-2 text-xs text-gray-500">Active trainers</div>
-            </div>
+          {/* Report Tabs */}
+          <div className="border-b border-gray-200 mb-6">
+            <nav className="flex space-x-8">
+              <button
+                onClick={() => setSelectedReport('overview')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition ${
+                  selectedReport === 'overview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => setSelectedReport('courses')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition ${
+                  selectedReport === 'courses' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Course Reports
+              </button>
+              <button
+                onClick={() => setSelectedReport('departments')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition ${
+                  selectedReport === 'departments' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Departments
+              </button>
+              <button
+                onClick={() => setSelectedReport('facilitators')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition ${
+                  selectedReport === 'facilitators' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Facilitators
+              </button>
+              <button
+                onClick={() => setSelectedReport('trends')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition ${
+                  selectedReport === 'trends' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Trends
+              </button>
+              <button
+                onClick={() => setSelectedReport('excel')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition ${
+                  selectedReport === 'excel' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                📊 Excel Editor
+              </button>
+            </nav>
           </div>
 
-          {/* Training Records Section */}
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Training Records</h2>
-                  <p className="text-sm text-gray-500">Manage classroom and offline training data</p>
+          {/* Overview Report */}
+          {selectedReport === 'overview' && (
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div><p className="text-sm text-gray-500">Total Users</p><p className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</p></div>
+                    <Users size={32} className="text-blue-500" />
+                  </div>
+                  <div className="mt-2 text-xs"><span className="text-green-600">+{stats.newUsersThisMonth} this month</span></div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowImportModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    <Upload size={16} />
-                    Import Excel
-                  </button>
-                  <button
-                    onClick={exportTrainingData}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    <Download size={16} />
-                    Export
-                  </button>
+                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div><p className="text-sm text-gray-500">Active Users</p><p className="text-2xl font-bold">{stats.activeUsers.toLocaleString()}</p></div>
+                    <Activity size={32} className="text-green-500" />
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500">{Math.round((stats.activeUsers / stats.totalUsers) * 100)}% engagement</div>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div><p className="text-sm text-gray-500">Total Enrollments</p><p className="text-2xl font-bold">{stats.totalEnrollments.toLocaleString()}</p></div>
+                    <BookOpen size={32} className="text-purple-500" />
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500">{stats.completionRate}% completion rate</div>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div><p className="text-sm text-gray-500">Training Hours</p><p className="text-2xl font-bold">{stats.totalTrainingHours}</p></div>
+                    <Clock size={32} className="text-orange-500" />
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500">{stats.totalTrainingSessions} sessions</div>
                 </div>
               </div>
-            </div>
 
-            {/* Filters */}
-            <div className="p-4 border-b border-gray-100 bg-gray-50">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                <input
-                  type="date"
-                  placeholder="Start Date"
-                  value={dateFilter.start}
-                  onChange={(e) => setDateFilter({ ...dateFilter, start: e.target.value })}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-                <input
-                  type="date"
-                  placeholder="End Date"
-                  value={dateFilter.end}
-                  onChange={(e) => setDateFilter({ ...dateFilter, end: e.target.value })}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-                <select
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  {departments.map(dept => (
-                    <option key={dept} value={dept}>{dept === 'all' ? 'All Departments' : dept}</option>
-                  ))}
-                </select>
-                <select
-                  value={courseFilter}
-                  onChange={(e) => setCourseFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  {courses.map(course => (
-                    <option key={course} value={course}>{course === 'all' ? 'All Courses' : course}</option>
-                  ))}
-                </select>
-                <select
-                  value={facilitatorFilter}
-                  onChange={(e) => setFacilitatorFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  {facilitators.map(fac => (
-                    <option key={fac} value={fac}>{fac === 'all' ? 'All Facilitators' : fac}</option>
-                  ))}
-                </select>
+              {/* User Growth Chart */}
+              <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+                <h3 className="text-lg font-semibold mb-4">User Growth (Last 6 Months)</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <AreaChart data={stats.userGrowth}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="count" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
-              <div className="flex justify-end mt-3">
-                <button
-                  onClick={() => {
-                    setDateFilter({ start: '', end: '' })
-                    setDepartmentFilter('all')
-                    setCourseFilter('all')
-                    setFacilitatorFilter('all')
-                  }}
-                  className="text-sm text-blue-600 hover:text-blue-700"
-                >
-                  Clear Filters
-                </button>
-              </div>
-            </div>
 
-            {/* Training Records Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attendee</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Facilitator</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supervisor</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hours</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredRecords.length === 0 ? (
+              {/* Department Training Chart */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="text-lg font-semibold mb-4">Training Hours by Department</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={departmentStats.slice(0, 6)}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="trainingHours" fill="#10b981" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          )}
+
+          {/* Courses Report */}
+          {selectedReport === 'courses' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="p-6 border-b">
+                <h3 className="text-lg font-semibold">Course Performance</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                        No training records found. Click "Import Excel" to add data.
-                      </td>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Category</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Difficulty</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th>
                     </tr>
-                  ) : (
-                    filteredRecords.map((record) => (
-                      <tr key={record.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm text-gray-900">{new Date(record.training_date).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{record.attendee_name}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{record.course}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{record.facilitator}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{record.supervisor || '-'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{record.department}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{record.duration_hours}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {filteredRecords.length > 0 && (
-              <div className="px-6 py-4 bg-gray-50 border-t text-sm text-gray-500">
-                Showing {filteredRecords.length} of {trainingRecords.length} records
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {courseAnalytics.map((course) => (
+                      <tr key={course.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{course.title}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{course.category}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            course.difficulty === 'beginner' ? 'bg-green-100 text-green-700' :
+                            course.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>{course.difficulty}</span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{course.enrollments}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{course.completions}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{course.completionRate}%</span>
+                            <div className="w-16 h-1.5 bg-gray-100 rounded-full">
+                              <div className="h-1.5 bg-green-500 rounded-full" style={{ width: `${course.completionRate}%` }} />
+                            </div>
+                          </div>
+                         </td>
+                       </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Departments Report */}
+          {selectedReport === 'departments' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="p-6 border-b">
+                <h3 className="text-lg font-semibold">Department Training Summary</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Department</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Total Employees</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Trained Employees</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Training Hours</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Coverage</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {departmentStats.map((dept) => (
+                      <tr key={dept.name} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{dept.name}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{dept.totalEmployees}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{dept.trainedEmployees}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{dept.trainingHours}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <span className="font-medium">{Math.round((dept.trainedEmployees / dept.totalEmployees) * 100)}%</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Facilitators Report */}
+          {selectedReport === 'facilitators' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="p-6 border-b">
+                <h3 className="text-lg font-semibold">Facilitator Performance</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Sessions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Total Hours</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Students Trained</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Rating</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {facilitatorStats.map((fac) => (
+                      <tr key={fac.name} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{fac.name}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{fac.sessionsConducted}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{fac.totalHours}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{fac.studentsTrained}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium text-yellow-600">{fac.averageRating}</span>
+                            <Star size={14} className="fill-yellow-400 text-yellow-400" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Trends Report */}
+          {selectedReport === 'trends' && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold mb-4">Monthly Trends</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={monthlyTrends}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="enrollments" stroke="#3b82f6" name="Enrollments" />
+                  <Line type="monotone" dataKey="completions" stroke="#10b981" name="Completions" />
+                  <Line type="monotone" dataKey="trainingHours" stroke="#f59e0b" name="Training Hours" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Excel Editor */}
+          {selectedReport === 'excel' && (
+            <ExcelEditor />
+          )}
         </div>
       </div>
 
