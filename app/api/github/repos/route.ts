@@ -39,32 +39,34 @@ export async function GET(request: NextRequest) {
     })
 
     // Get user's repositories
-    const { data: repos, error: reposError } = await octokit.repos.listForAuthenticatedUser({
-      sort: 'updated',
-      per_page: 100
-    })
+    try {
+      const response = await octokit.repos.listForAuthenticatedUser({
+        sort: 'updated',
+        per_page: 100
+      })
 
-    if (reposError) {
-      console.error('Error fetching repos:', reposError)
+      const repos = response.data
+
+      return NextResponse.json({
+        success: true,
+        repos: repos.map(repo => ({
+          id: repo.id,
+          name: repo.name,
+          full_name: repo.full_name,
+          description: repo.description,
+          html_url: repo.html_url,
+          language: repo.language,
+          stargazers_count: repo.stargazers_count,
+          updated_at: repo.updated_at
+        }))
+      })
+    } catch (githubError: any) {
+      console.error('Error fetching repos from GitHub:', githubError)
       return NextResponse.json(
-        { error: 'Failed to fetch repositories' },
+        { error: githubError.message || 'Failed to fetch repositories' },
         { status: 500 }
       )
     }
-
-    return NextResponse.json({
-      success: true,
-      repos: repos.map(repo => ({
-        id: repo.id,
-        name: repo.name,
-        full_name: repo.full_name,
-        description: repo.description,
-        html_url: repo.html_url,
-        language: repo.language,
-        stargazers_count: repo.stargazers_count,
-        updated_at: repo.updated_at
-      }))
-    })
   } catch (error) {
     console.error('Error in GitHub repos:', error)
     return NextResponse.json(
