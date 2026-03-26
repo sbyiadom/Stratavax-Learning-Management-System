@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, Clock, Users, ChevronLeft, PlayCircle, Award, Star, Calendar } from 'lucide-react'
+import { BookOpen, Clock, Users, ChevronLeft, PlayCircle, Award, Star } from 'lucide-react'
 import CourseImage from '@/components/shared/CourseImage'
 
 // Approved course slugs
@@ -107,6 +107,12 @@ export default async function CourseDetailPage({
     'use server'
     
     if (!user) redirect('/login')
+    
+    // Course is guaranteed to exist here because we already checked above
+    if (!course) {
+      console.error('Course not found')
+      return
+    }
     
     const supabase = await createClient()
     
