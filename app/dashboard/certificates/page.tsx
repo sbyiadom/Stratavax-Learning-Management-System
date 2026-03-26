@@ -16,9 +16,7 @@ import {
   Twitter,
   Linkedin,
   Loader2,
-  GraduationCap,
-  Clock,
-  Star
+  Clock
 } from 'lucide-react'
 
 interface Certificate {
@@ -123,7 +121,16 @@ export default function CertificatesPage() {
         .eq('user_id', authUser.id)
         .eq('progress_percentage', 100)
       
-      setCompletedCourses(enrollmentsData || [])
+      // Transform the data to handle array vs object
+      const transformedEnrollments: CompletedCourse[] = (enrollmentsData || []).map((item: any) => ({
+        id: item.id,
+        course_id: item.course_id,
+        progress_percentage: item.progress_percentage,
+        completed_at: item.completed_at,
+        courses: Array.isArray(item.courses) ? item.courses[0] : item.courses
+      }))
+      
+      setCompletedCourses(transformedEnrollments)
       
     } catch (error) {
       console.error('Error loading certificates:', error)
