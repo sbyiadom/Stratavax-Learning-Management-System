@@ -7,9 +7,9 @@ import * as XLSX from 'xlsx'
 import {
   BarChart3, Download, ChevronRight, ChevronLeft,
   Users, BookOpen, CheckCircle, Clock, Award, TrendingUp,
-  Menu, X, Home, LogOut, Upload, RefreshCw,
+  Menu, X, LogOut, Upload,
   Building, FileSpreadsheet, Activity, Star,
-  FileDown, FileUp, Trash2, AlertCircle, Plus, Edit
+  FileDown, FileUp, Trash2, Plus, Edit
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line,
@@ -142,7 +142,7 @@ export default function AdminReportsPage() {
   const loadCourseStats = async () => {
     const { data: courses } = await supabase.from('courses').select('id, title, enrollments (completed_at, progress_percentage)').eq('is_published', true)
     if (courses) {
-      const stats = courses.map(course => {
+      const statsList = courses.map((course: any) => {
         const enrollments = course.enrollments || []
         const completions = enrollments.filter((e: any) => e.completed_at).length
         const total = enrollments.length
@@ -157,7 +157,7 @@ export default function AdminReportsPage() {
           averageProgress: avgProgress
         }
       })
-      setCourseStats(stats.sort((a, b) => b.enrollments - a.enrollments))
+      setCourseStats(statsList.sort((a, b) => b.enrollments - a.enrollments))
     }
   }
 
@@ -188,7 +188,7 @@ export default function AdminReportsPage() {
     const { data: records } = await supabase.from('training_records').select('department, duration_hours')
     if (records && records.length > 0) {
       const deptMap = new Map()
-      records.forEach(record => {
+      records.forEach((record: any) => {
         if (!record.department) return
         const existing = deptMap.get(record.department)
         if (existing) {
@@ -207,7 +207,7 @@ export default function AdminReportsPage() {
     const { data: records } = await supabase.from('training_records').select('facilitator, duration_hours')
     if (records && records.length > 0) {
       const facMap = new Map()
-      records.forEach(record => {
+      records.forEach((record: any) => {
         if (!record.facilitator) return
         const existing = facMap.get(record.facilitator)
         if (existing) {
@@ -348,7 +348,7 @@ export default function AdminReportsPage() {
   }
 
   const exportToExcel = () => {
-    const exportData = records.map(r => ({
+    const exportData = records.map((r: any) => ({
       'Training Date': r.training_date,
       'Attendee Name': r.attendee_name,
       'Course': r.course,
@@ -378,7 +378,6 @@ export default function AdminReportsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
       <div className="bg-white border-b fixed top-0 left-0 right-0 z-50 h-14">
         <div className="flex items-center justify-between h-full px-4">
           <div className="flex items-center gap-4">
@@ -411,7 +410,6 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Sidebar */}
       <div className={`fixed left-0 top-14 bottom-0 bg-white border-r transition-all duration-300 z-40 ${sidebarCollapsed ? 'w-20' : 'w-64'} hidden lg:block`}>
         <div className="p-4 flex justify-end">
           <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 hover:bg-gray-100 rounded">
@@ -436,7 +434,6 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden" onClick={() => setMobileMenuOpen(false)}>
           <div className="fixed left-0 top-14 bottom-0 w-64 bg-white">
@@ -459,15 +456,11 @@ export default function AdminReportsPage() {
         </div>
       )}
 
-      {/* Main Content */}
       <div className={`pt-14 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <div className="p-6">
-          {/* Overview Tab */}
           {activeTab === 'overview' && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-6">Analytics Dashboard</h1>
-              
-              {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
@@ -499,27 +492,16 @@ export default function AdminReportsPage() {
                 </div>
               </div>
 
-              {/* Progress Distribution */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <h3 className="text-lg font-semibold mb-4">Course Progress Distribution</h3>
                   <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1"><span>Completed</span><span>{stats.completedCourses}</span></div>
-                      <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: stats.totalEnrollments > 0 ? (stats.completedCourses / stats.totalEnrollments) * 100 + '%' : '0%' }} /></div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1"><span>In Progress</span><span>{stats.inProgressCourses}</span></div>
-                      <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{ width: stats.totalEnrollments > 0 ? (stats.inProgressCourses / stats.totalEnrollments) * 100 + '%' : '0%' }} /></div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1"><span>Not Started</span><span>{stats.totalEnrollments - stats.completedCourses - stats.inProgressCourses}</span></div>
-                      <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-gray-400 h-2 rounded-full" style={{ width: stats.totalEnrollments > 0 ? ((stats.totalEnrollments - stats.completedCourses - stats.inProgressCourses) / stats.totalEnrollments) * 100 + '%' : '0%' }} /></div>
-                    </div>
+                    <div><div className="flex justify-between text-sm mb-1"><span>Completed</span><span>{stats.completedCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: stats.totalEnrollments > 0 ? (stats.completedCourses / stats.totalEnrollments) * 100 + '%' : '0%' }} /></div></div>
+                    <div><div className="flex justify-between text-sm mb-1"><span>In Progress</span><span>{stats.inProgressCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{ width: stats.totalEnrollments > 0 ? (stats.inProgressCourses / stats.totalEnrollments) * 100 + '%' : '0%' }} /></div></div>
+                    <div><div className="flex justify-between text-sm mb-1"><span>Not Started</span><span>{stats.totalEnrollments - stats.completedCourses - stats.inProgressCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-gray-400 h-2 rounded-full" style={{ width: stats.totalEnrollments > 0 ? ((stats.totalEnrollments - stats.completedCourses - stats.inProgressCourses) / stats.totalEnrollments) * 100 + '%' : '0%' }} /></div></div>
                   </div>
                   <div className="mt-4 pt-4 border-t"><div className="flex justify-between text-sm"><span>Average Progress</span><span className="font-bold">{stats.averageProgress}%</span></div></div>
                 </div>
-
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <h3 className="text-lg font-semibold mb-4">Training Hours by Department</h3>
                   <ResponsiveContainer width="100%" height={250}>
@@ -534,7 +516,6 @@ export default function AdminReportsPage() {
                 </div>
               </div>
 
-              {/* Monthly Trends */}
               <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
                 <h3 className="text-lg font-semibold mb-4">Monthly Trends</h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -551,7 +532,6 @@ export default function AdminReportsPage() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Top Facilitators */}
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <div className="p-6 border-b"><h3 className="text-lg font-semibold">Top Facilitators</h3></div>
                 <div className="overflow-x-auto">
@@ -573,7 +553,6 @@ export default function AdminReportsPage() {
             </>
           )}
 
-          {/* Courses Tab */}
           {activeTab === 'courses' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="p-6 border-b"><h2 className="text-xl font-bold">Course Performance</h2><p className="text-sm text-gray-500">Enrollments, completions, and progress rates</p></div>
@@ -583,7 +562,7 @@ export default function AdminReportsPage() {
                     <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avg Progress</th></tr>
                   </thead>
                   <tbody className="divide-y">
-                    {courseStats.map((course) => (
+                    {courseStats.map((course: any) => (
                       <tr key={course.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 text-sm font-medium">{course.title}</td>
                         <td className="px-6 py-4 text-sm">{course.enrollments}</td>
@@ -598,7 +577,6 @@ export default function AdminReportsPage() {
             </div>
           )}
 
-          {/* Training Records Tab */}
           {activeTab === 'training' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="p-4 border-b flex justify-between items-center">
@@ -615,7 +593,7 @@ export default function AdminReportsPage() {
                     <tr><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Date</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Attendee</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Department</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Hours</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Actions</th></tr>
                   </thead>
                   <tbody className="divide-y">
-                    {records.map((record) => (
+                    {records.map((record: any) => (
                       <tr key={record.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-sm">{new Date(record.training_date).toLocaleDateString()}</td>
                         <td className="px-4 py-3 text-sm">{record.attendee_name}</td>
@@ -640,7 +618,6 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Add Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full">
@@ -659,7 +636,6 @@ export default function AdminReportsPage() {
         </div>
       )}
 
-      {/* Edit Modal */}
       {editingRecord && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full">
@@ -678,7 +654,6 @@ export default function AdminReportsPage() {
         </div>
       )}
 
-      {/* Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full">
@@ -691,8 +666,13 @@ export default function AdminReportsPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm border">
                       <thead className="bg-gray-50">
-                        <tr>{Object.keys(importPreview[0]).slice(0, 5).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))} </thead>
-                      <tbody>{importPreview.map((row, idx) => (<tr key={idx}>{Object.values(row).slice(0, 5).map((val: any, i) => (<td key={i} className="px-3 py-2 border">{String(val).slice(0, 30)}</td>))}</tr>))}</tbody>
+                        <tr>{Object.keys(importPreview[0]).slice(0, 5).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))}</tr>
+                      </thead>
+                      <tbody>
+                        {importPreview.map((row, idx) => (
+                          <tr key={idx}>{Object.values(row).slice(0, 5).map((val: any, i) => (<td key={i} className="px-3 py-2 border">{String(val).slice(0, 30)}</td>))}</tr>
+                        ))}
+                      </tbody>
                     </table>
                   </div>
                 </div>
