@@ -108,7 +108,6 @@ export default async function CourseDetailPage({
     
     if (!user) redirect('/login')
     
-    // Course is guaranteed to exist here because we already checked above
     if (!course) {
       console.error('Course not found')
       return
@@ -116,6 +115,7 @@ export default async function CourseDetailPage({
     
     const supabase = await createClient()
     
+    // Use correct column names for enrollments table
     const enrollment = {
       user_id: user.id,
       course_id: course.id,
