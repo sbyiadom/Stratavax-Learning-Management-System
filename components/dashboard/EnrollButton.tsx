@@ -43,14 +43,14 @@ export default function EnrollButton({ courseId, courseSlug }: EnrollButtonProps
         return
       }
 
-      // Create enrollment
+      // Create enrollment - FIXED: progress -> progress_percentage
       const { error: enrollError } = await supabase
         .from('enrollments')
         .insert({
           user_id: user.id,
           course_id: courseId,
           enrolled_at: new Date().toISOString(),
-          progress: 0,
+          progress_percentage: 0,  // Fixed column name
           last_accessed_at: new Date().toISOString(),
         })
 
