@@ -3,19 +3,17 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import * as XLSX from 'xlsx'
 import {
-  BarChart3, Download, Calendar, ChevronRight, ChevronLeft,
+  BarChart3, Download, ChevronRight, ChevronLeft,
   Users, BookOpen, CheckCircle, Clock, Award, TrendingUp,
   FileText, Menu, X, Home, LogOut, Upload, RefreshCw,
-  Building, Briefcase, FileSpreadsheet, Activity, Star, UserCheck,
+  Building, FileSpreadsheet, Activity, Star,
   FileDown, FileUp, Trash2, AlertCircle
 } from 'lucide-react'
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  AreaChart, Area, ComposedChart
+  BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 
 interface TrainingRecord {
@@ -69,18 +67,10 @@ export default function AdminReportsPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
   const [stats, setStats] = useState<DashboardStats>({
-    totalUsers: 0,
-    totalCourses: 0,
-    totalEnrollments: 0,
-    completedCourses: 0,
-    inProgressCourses: 0,
-    notStartedCourses: 0,
-    averageProgress: 0,
-    completionRate: 0,
-    totalTrainingHours: 0,
-    totalTrainingSessions: 0,
-    activeUsers: 0,
-    newUsersThisMonth: 0,
+    totalUsers: 0, totalCourses: 0, totalEnrollments: 0,
+    completedCourses: 0, inProgressCourses: 0, notStartedCourses: 0,
+    averageProgress: 0, completionRate: 0, totalTrainingHours: 0,
+    totalTrainingSessions: 0, activeUsers: 0, newUsersThisMonth: 0,
     certificatesIssued: 0
   })
   const [courseStats, setCourseStats] = useState<CourseStat[]>([])
@@ -94,8 +84,6 @@ export default function AdminReportsPage() {
   
   const supabase = createClient()
   const router = useRouter()
-
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec489a', '#06b6d4', '#84cc16']
 
   useEffect(() => {
     const init = async () => {
@@ -123,259 +111,111 @@ export default function AdminReportsPage() {
   }
 
   const loadDashboardStats = async () => {
-    // Get users
-    const { count: totalUsers } = await supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-
-    // Get courses
-    const { count: totalCourses } = await supabase
-      .from('courses')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_published', true)
-
-    // Get enrollments with all needed fields
-    const { data: enrollments } = await supabase
-      .from('enrollments')
-      .select('progress_percentage, completed_at, user_id, enrolled_at')
+    const { count: totalUsers } = await supabase.from('profiles').select('*', { count: 'exact', head: true })
+    const { count: totalCourses } = await supabase.from('courses').select('*', { count: 'exact', head: true }).eq('is_published', true)
+    const { data: enrollments } = await supabase.from('enrollments').select('progress_percentage, completed_at, user_id, enrolled_at')
 
     const totalEnrollments = enrollments?.length || 0
     const completedCourses = enrollments?.filter(e => e.completed_at).length || 0
     const inProgressCourses = enrollments?.filter(e => !e.completed_at && e.progress_percentage > 0).length || 0
     const notStartedCourses = enrollments?.filter(e => e.progress_percentage === 0).length || 0
-    
-    const avgProgress = totalEnrollments > 0 
-      ? Math.round(enrollments!.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) / totalEnrollments)
-      : 0
+    const avgProgress = totalEnrollments > 0 ? Math.round(enrollments!.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) / totalEnrollments) : 0
     const completionRate = totalEnrollments > 0 ? Math.round((completedCourses / totalEnrollments) * 100) : 0
 
-    // Active users (last 30 days)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const activeUsersList = enrollments?.filter(e => {
-      if (!e.enrolled_at) return false
-      return new Date(e.enrolled_at) > thirtyDaysAgo
-    }).map(e => e.user_id) || []
+    const activeUsersList = enrollments?.filter(e => e.enrolled_at && new Date(e.enrolled_at) > thirtyDaysAgo).map(e => e.user_id) || []
     const uniqueActiveUsers = new Set(activeUsersList).size || 0
 
-    // New users this month
     const firstDayOfMonth = new Date()
     firstDayOfMonth.setDate(1)
-    const { count: newUsers } = await supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', firstDayOfMonth.toISOString())
-
-    // Certificates
-    const { count: certificates } = await supabase
-      .from('certificates')
-      .select('*', { count: 'exact', head: true })
+    const { count: newUsers } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', firstDayOfMonth.toISOString())
+    const { count: certificates } = await supabase.from('certificates').select('*', { count: 'exact', head: true })
 
     setStats({
-      totalUsers: totalUsers || 0,
-      totalCourses: totalCourses || 0,
-      totalEnrollments,
-      completedCourses,
-      inProgressCourses,
-      notStartedCourses,
-      averageProgress: avgProgress,
-      completionRate,
-      totalTrainingHours: 0,
-      totalTrainingSessions: 0,
-      activeUsers: uniqueActiveUsers,
-      newUsersThisMonth: newUsers || 0,
-      certificatesIssued: certificates || 0
+      totalUsers: totalUsers || 0, totalCourses: totalCourses || 0, totalEnrollments,
+      completedCourses, inProgressCourses, notStartedCourses, averageProgress: avgProgress,
+      completionRate, totalTrainingHours: 0, totalTrainingSessions: 0,
+      activeUsers: uniqueActiveUsers, newUsersThisMonth: newUsers || 0, certificatesIssued: certificates || 0
     })
   }
 
   const loadCourseStats = async () => {
-    const { data: courses } = await supabase
-      .from('courses')
-      .select(`
-        id,
-        title,
-        enrollments (
-          completed_at,
-          progress_percentage
-        )
-      `)
-      .eq('is_published', true)
-
+    const { data: courses } = await supabase.from('courses').select('id, title, enrollments (completed_at, progress_percentage)').eq('is_published', true)
     if (courses) {
       const stats: CourseStat[] = courses.map(course => {
         const enrollments = course.enrollments || []
         const completions = enrollments.filter((e: any) => e.completed_at).length
         const total = enrollments.length
         const completionRate = total > 0 ? Math.round((completions / total) * 100) : 0
-        const avgProgress = total > 0
-          ? Math.round(enrollments.reduce((acc: number, e: any) => acc + (e.progress_percentage || 0), 0) / total)
-          : 0
-
-        return {
-          id: course.id,
-          title: course.title,
-          enrollments: total,
-          completions,
-          completionRate,
-          averageProgress: avgProgress
-        }
+        const avgProgress = total > 0 ? Math.round(enrollments.reduce((acc: number, e: any) => acc + (e.progress_percentage || 0), 0) / total) : 0
+        return { id: course.id, title: course.title, enrollments: total, completions, completionRate, averageProgress: avgProgress }
       })
       setCourseStats(stats.sort((a, b) => b.enrollments - a.enrollments))
     }
   }
 
   const loadMonthlyTrends = async () => {
-    // Get actual data from the database
-    const { data: enrollments } = await supabase
-      .from('enrollments')
-      .select('enrolled_at, completed_at')
-    
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('created_at')
-    
-    const { data: trainingRecords } = await supabase
-      .from('training_records')
-      .select('training_date, duration_hours')
+    const { data: enrollments } = await supabase.from('enrollments').select('enrolled_at, completed_at')
+    const { data: profiles } = await supabase.from('profiles').select('created_at')
+    const { data: trainingRecords } = await supabase.from('training_records').select('training_date, duration_hours')
     
     const months = []
     const now = new Date()
-    
     for (let i = 5; i >= 0; i--) {
       const month = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
       const monthStr = month.toLocaleString('default', { month: 'short' })
       
-      const monthlyEnrollments = enrollments?.filter(e => {
-        if (!e.enrolled_at) return false
-        const date = new Date(e.enrolled_at)
-        return date >= month && date < nextMonth
-      }).length || 0
-      
-      const monthlyCompletions = enrollments?.filter(e => {
-        if (!e.completed_at) return false
-        const date = new Date(e.completed_at)
-        return date >= month && date < nextMonth
-      }).length || 0
-      
-      const monthlyNewUsers = profiles?.filter(p => {
-        if (!p.created_at) return false
-        const date = new Date(p.created_at)
-        return date >= month && date < nextMonth
-      }).length || 0
-      
-      const monthlyTrainingHours = trainingRecords?.filter(r => {
-        if (!r.training_date) return false
-        const date = new Date(r.training_date)
-        return date >= month && date < nextMonth
-      }).reduce((sum, r) => sum + (r.duration_hours || 0), 0) || 0
-      
       months.push({
         month: monthStr,
-        enrollments: monthlyEnrollments,
-        completions: monthlyCompletions,
-        newUsers: monthlyNewUsers,
-        trainingHours: monthlyTrainingHours
+        enrollments: enrollments?.filter(e => e.enrolled_at && new Date(e.enrolled_at) >= month && new Date(e.enrolled_at) < nextMonth).length || 0,
+        completions: enrollments?.filter(e => e.completed_at && new Date(e.completed_at) >= month && new Date(e.completed_at) < nextMonth).length || 0,
+        newUsers: profiles?.filter(p => p.created_at && new Date(p.created_at) >= month && new Date(p.created_at) < nextMonth).length || 0,
+        trainingHours: trainingRecords?.filter(r => r.training_date && new Date(r.training_date) >= month && new Date(r.training_date) < nextMonth).reduce((sum, r) => sum + (r.duration_hours || 0), 0) || 0
       })
     }
-    
     setMonthlyData(months)
   }
 
   const loadDepartmentData = async () => {
-    // Get actual department data from training_records
-    const { data: records } = await supabase
-      .from('training_records')
-      .select('department, duration_hours, attendee_name')
-    
+    const { data: records } = await supabase.from('training_records').select('department, duration_hours, attendee_name')
     if (records && records.length > 0) {
       const deptMap = new Map<string, { hours: number; count: number }>()
-      
       records.forEach(record => {
         if (!record.department) return
-        
         const existing = deptMap.get(record.department)
-        if (existing) {
-          existing.hours += record.duration_hours || 0
-          existing.count += 1
-        } else {
-          deptMap.set(record.department, {
-            hours: record.duration_hours || 0,
-            count: 1
-          })
-        }
+        if (existing) { existing.hours += record.duration_hours || 0; existing.count += 1 }
+        else { deptMap.set(record.department, { hours: record.duration_hours || 0, count: 1 }) }
       })
-      
-      const departmentData = Array.from(deptMap.entries()).map(([name, data]) => ({
-        name,
-        hours: data.hours,
-        count: data.count
-      }))
-      
-      setDepartmentData(departmentData)
-    } else {
-      setDepartmentData([])
-    }
+      setDepartmentData(Array.from(deptMap.entries()).map(([name, data]) => ({ name, hours: data.hours, count: data.count })))
+    } else { setDepartmentData([]) }
   }
 
   const loadFacilitatorData = async () => {
-    // Get actual facilitator data from training_records
-    const { data: records } = await supabase
-      .from('training_records')
-      .select('facilitator, duration_hours, attendee_name')
-    
+    const { data: records } = await supabase.from('training_records').select('facilitator, duration_hours, attendee_name')
     if (records && records.length > 0) {
       const facMap = new Map<string, { sessions: number; hours: number }>()
-      
       records.forEach(record => {
         if (!record.facilitator) return
-        
         const existing = facMap.get(record.facilitator)
-        if (existing) {
-          existing.sessions += 1
-          existing.hours += record.duration_hours || 0
-        } else {
-          facMap.set(record.facilitator, {
-            sessions: 1,
-            hours: record.duration_hours || 0
-          })
-        }
+        if (existing) { existing.sessions += 1; existing.hours += record.duration_hours || 0 }
+        else { facMap.set(record.facilitator, { sessions: 1, hours: record.duration_hours || 0 }) }
       })
-      
-      const facilitatorData = Array.from(facMap.entries())
-        .map(([name, data]) => ({
-          name,
-          sessions: data.sessions,
-          hours: data.hours
-        }))
-        .sort((a, b) => b.sessions - a.sessions)
-        .slice(0, 10)
-      
-      setFacilitatorData(facilitatorData)
-    } else {
-      setFacilitatorData([])
-    }
+      setFacilitatorData(Array.from(facMap.entries()).map(([name, data]) => ({ name, sessions: data.sessions, hours: data.hours })).sort((a, b) => b.sessions - a.sessions).slice(0, 10))
+    } else { setFacilitatorData([]) }
   }
 
   const loadTrainingRecords = async () => {
-    const { data } = await supabase
-      .from('training_records')
-      .select('*')
-      .order('training_date', { ascending: false })
+    const { data } = await supabase.from('training_records').select('*').order('training_date', { ascending: false })
     setTrainingRecords(data || [])
-    
     const totalHours = (data || []).reduce((sum, r) => sum + (r.duration_hours || 0), 0)
-    setStats(prev => ({
-      ...prev,
-      totalTrainingHours: totalHours,
-      totalTrainingSessions: data?.length || 0
-    }))
+    setStats(prev => ({ ...prev, totalTrainingHours: totalHours, totalTrainingSessions: data?.length || 0 }))
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
-
     const reader = new FileReader()
     reader.onload = (e) => {
       const data = e.target?.result
@@ -392,7 +232,6 @@ export default function AdminReportsPage() {
 
   const confirmImport = async () => {
     if (importData.length === 0) return
-    
     let successCount = 0
     for (const row of importData) {
       const newRecord = {
@@ -587,22 +426,11 @@ export default function AdminReportsPage() {
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <h3 className="text-lg font-semibold mb-4">Course Progress Distribution</h3>
                   <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1"><span>Completed</span><span>{stats.completedCourses}</span></div>
-                      <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.completedCourses / stats.totalEnrollments) * 100 : 0}%` }}></div></div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1"><span>In Progress</span><span>{stats.inProgressCourses}</span></div>
-                      <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.inProgressCourses / stats.totalEnrollments) * 100 : 0}%` }}></div></div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1"><span>Not Started</span><span>{stats.notStartedCourses}</span></div>
-                      <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-gray-400 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.notStartedCourses / stats.totalEnrollments) * 100 : 0}%` }}></div></div>
-                    </div>
+                    <div><div className="flex justify-between text-sm mb-1"><span>Completed</span><span>{stats.completedCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.completedCourses / stats.totalEnrollments) * 100 : 0}%` }}></div></div></div>
+                    <div><div className="flex justify-between text-sm mb-1"><span>In Progress</span><span>{stats.inProgressCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.inProgressCourses / stats.totalEnrollments) * 100 : 0}%` }}></div></div></div>
+                    <div><div className="flex justify-between text-sm mb-1"><span>Not Started</span><span>{stats.notStartedCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-gray-400 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.notStartedCourses / stats.totalEnrollments) * 100 : 0}%` }}></div></div></div>
                   </div>
-                  <div className="mt-4 pt-4 border-t">
-                    <div className="flex justify-between text-sm"><span>Average Progress</span><span className="font-bold">{stats.averageProgress}%</span></div>
-                  </div>
+                  <div className="mt-4 pt-4 border-t"><div className="flex justify-between text-sm"><span>Average Progress</span><span className="font-bold">{stats.averageProgress}%</span></div></div>
                 </div>
 
                 <div className="bg-white rounded-xl shadow-sm p-6">
@@ -641,12 +469,8 @@ export default function AdminReportsPage() {
                 <div className="p-6 border-b"><h3 className="text-lg font-semibold">Top Facilitators</h3></div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Sessions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th> </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {facilitatorData.map((fac) => (<tr key={fac.name} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{fac.name}</td><td className="px-6 py-4 text-sm">{fac.sessions}</td><td className="px-6 py-4 text-sm">{fac.hours}</td></tr>))}
-                    </tbody>
+                    <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Sessions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th></tr></thead>
+                    <tbody className="divide-y">{facilitatorData.map((fac) => (<tr key={fac.name} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{fac.name}</td><td className="px-6 py-4 text-sm">{fac.sessions}</td><td className="px-6 py-4 text-sm">{fac.hours}</td></tr>))}</tbody>
                   </table>
                 </div>
               </div>
@@ -659,12 +483,8 @@ export default function AdminReportsPage() {
               <div className="p-6 border-b"><h2 className="text-xl font-bold">Course Performance</h2><p className="text-sm text-gray-500">Enrollments, completions, and progress rates</p></div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avg Progress</th></tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {courseStats.map((course) => (<tr key={course.id} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{course.title}</td><td className="px-6 py-4 text-sm">{course.enrollments}</td><td className="px-6 py-4 text-sm">{course.completions}</td><td className="px-6 py-4"><span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">{course.completionRate}%</span></td><td className="px-6 py-4"><div className="w-24 bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{ width: `${course.averageProgress}%` }}></div></div></td></tr>))}
-                  </tbody>
+                  <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avg Progress</th></tr></thead>
+                  <tbody className="divide-y">{courseStats.map((course) => (<tr key={course.id} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{course.title}</td><td className="px-6 py-4 text-sm">{course.enrollments}</td><td className="px-6 py-4 text-sm">{course.completions}</td><td className="px-6 py-4"><span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">{course.completionRate}%</span></td><td className="px-6 py-4"><div className="w-24 bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{ width: `${course.averageProgress}%` }}></div></div></td></tr>))}</tbody>
                 </table>
               </div>
             </div>
@@ -682,12 +502,9 @@ export default function AdminReportsPage() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Date</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Department</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th></tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {trainingRecords.slice(0, 50).map((record) => (<tr key={record.id} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm">{new Date(record.training_date).toLocaleDateString()}</td><td className="px-6 py-4 text-sm">{record.attendee_name}</td><td className="px-6 py-4 text-sm">{record.course}</td><td className="px-6 py-4 text-sm">{record.facilitator}</td><td className="px-6 py-4 text-sm">{record.department}</td><td className="px-6 py-4 text-sm">{record.duration_hours}</td></tr>))}
-                    {trainingRecords.length === 0 && (<tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">No training records. Click "Import Excel" to add data.</td></tr>)}
+                  <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Date</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Department</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th></tr></thead>
+                  <tbody className="divide-y">{trainingRecords.slice(0, 50).map((record) => (<tr key={record.id} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm">{new Date(record.training_date).toLocaleDateString()}</td><td className="px-6 py-4 text-sm">{record.attendee_name}</td><td className="px-6 py-4 text-sm">{record.course}</td><td className="px-6 py-4 text-sm">{record.facilitator}</td><td className="px-6 py-4 text-sm">{record.department}</td><td className="px-6 py-4 text-sm">{record.duration_hours}</td></tr>))}
+                  {trainingRecords.length === 0 && (<tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">No training records. Click "Import Excel" to add data.</td></tr>)}
                   </tbody>
                 </table>
               </div>
@@ -702,7 +519,7 @@ export default function AdminReportsPage() {
           <div className="bg-white rounded-xl max-w-2xl w-full">
             <div className="flex justify-between items-center p-4 border-b"><h2 className="text-lg font-semibold">Import Excel Data</h2><button onClick={() => setShowImportModal(false)}><X size={20} /></button></div>
             <div className="p-4">
-              {importPreview.length > 0 && (<div><p className="text-sm mb-3">Preview of {importData.length} records:</p><div className="overflow-x-auto"><table className="w-full text-sm border"><thead className="bg-gray-50"><tr>{Object.keys(importPreview[0]).slice(0, 5).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))} </thead><tbody>{importPreview.map((row, idx) => (<tr key={idx}>{Object.values(row).slice(0, 5).map((value: any, i) => (<td key={i} className="px-3 py-2 border">{String(value).slice(0, 30)}</td>))}</tr>))}</tbody></table></div></div>)}
+              {importPreview.length > 0 && (<div><p className="text-sm mb-3">Preview of {importData.length} records:</p><div className="overflow-x-auto"><table className="w-full text-sm border"><thead className="bg-gray-50"><tr>{Object.keys(importPreview[0]).slice(0, 5).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))}</tr></thead><tbody>{importPreview.map((row, idx) => (<tr key={idx}>{Object.values(row).slice(0, 5).map((value: any, i) => (<td key={i} className="px-3 py-2 border">{String(value).slice(0, 30)}</td>))}</tr>))}</tbody></table></div></div>)}
             </div>
             <div className="flex justify-end gap-3 p-4 border-t"><button onClick={() => setShowImportModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button><button onClick={confirmImport} className="px-4 py-2 bg-green-600 text-white rounded-lg">Import {importData.length} Records</button></div>
           </div>
