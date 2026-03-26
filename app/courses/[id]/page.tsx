@@ -1,4 +1,4 @@
-import { supabaseServer } from '@/lib/supabase-server'
+import { createClient } from '@/lib/supabase-server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { BookOpen, Clock, Users, ChevronLeft, PlayCircle, Award, Star, Calendar } from 'lucide-react'
@@ -6,21 +6,11 @@ import CourseImage from '@/components/shared/CourseImage'
 
 // Approved course slugs
 const APPROVED_COURSE_SLUGS = [
-  'electrical-engineering',
-  'microsoft-office',
-  'programming-fundamentals',
-  'web-development',
-  'data-analysis',
-  'ai-fundamentals',
-  'entrepreneurship-pathway',
-  'financial-literacy',
-  'business-model-design',
-  'business-plan-development',
-  'marketing-sales',
-  'digital-marketing',
-  'business-growth-strategy',
-  'leadership',
-  'basic-mechanical-engineering'
+  'electrical-engineering', 'microsoft-office', 'programming-fundamentals',
+  'web-development', 'data-analysis', 'ai-fundamentals', 'entrepreneurship-pathway',
+  'financial-literacy', 'business-model-design', 'business-plan-development',
+  'marketing-sales', 'digital-marketing', 'business-growth-strategy',
+  'leadership', 'basic-mechanical-engineering'
 ]
 
 type Course = {
@@ -35,15 +25,9 @@ type Course = {
   duration_hours: number | null
   enrollment_count: number | null
   is_featured: boolean | null
+  is_published: boolean | null
   created_at: string | null
-}
-
-type Module = {
-  id: string
-  title: string
-  description: string | null
-  module_order: number
-  lesson_count: number
+  updated_at: string | null
 }
 
 export default async function CourseDetailPage({
@@ -51,16 +35,18 @@ export default async function CourseDetailPage({
 }: {
   params: { id: string }
 }) {
+  const supabase = await createClient()
+  
   // Check if user is authenticated
-  const { data: { user } } = await supabaseServer.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
   
   // Get course details by ID
-  const { data: course, error: courseError } = await supabaseServer
+  const { data: course, error: courseError } = await supabase
     .from('courses')
     .select('*')
     .eq('id', params.id)
     .eq('is_published', true)
-    .single()
+    .single() as { data: Course | null, error: any }
 
   if (courseError || !course) {
     console.error('Course error:', courseError)
@@ -72,57 +58,87 @@ export default async function CourseDetailPage({
     notFound()
   }
 
-  // Check if user is already enrolled
-  const { data: existingEnrollment } = await supabaseServer
-    .from('enrollments')
-    .select('id')
-    .eq('user_id', user?.id)
-    .eq('course_id', course.id)
-    .maybeSingle()
+  // Check if user is already enrolled (only if user is logged in)
+  let isEnrolled = false
+  
+  if (user?.id) {
+    const { data: enrollment } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('course_id', course.id)
+      .maybeSingle()
 
-  const isEnrolled = !!existingEnrollment
+    isEnrolled = !!enrollment
+  }
 
-  // Get modules for this course with lesson counts
-  const { data: modules } = await supabaseServer
+  // Get modules for this course
+  const { data: modules } = await supabase
     .from('modules')
-    .select(`
-      id,
-      title,
-      description,
-      module_order,
-      lessons(count)
-    `)
+    .select('id, title, description, module_order')
     .eq('course_id', course.id)
     .eq('is_published', true)
     .order('module_order', { ascending: true })
 
-  const modulesWithCount = modules?.map(module => ({
-    ...module,
-    lesson_count: module.lessons?.[0]?.count || 0
-  })) || []
+  // Get lesson counts
+  const modulesWithCount = []
+  if (modules) {
+    for (const module of modules) {
+      const { count } = await supabase
+        .from('lessons')
+        .select('*', { count: 'exact', head: true })
+        .eq('module_id', module.id)
+        .eq('is_published', true)
+      
+      modulesWithCount.push({
+        id: module.id,
+        title: module.title,
+        description: module.description,
+        module_order: module.module_order,
+        lesson_count: count || 0
+      })
+    }
+  }
 
   const totalLessons = modulesWithCount.reduce((acc, m) => acc + m.lesson_count, 0)
 
-  // Handle enrollment
+  // Enrollment action
   async function enrollInCourse() {
     'use server'
-
-    if (!user) {
-      redirect('/login')
+    
+    if (!user) redirect('/login')
+    
+    const supabase = await createClient()
+    
+    const enrollment = {
+      user_id: user.id,
+      course_id: course.id,
+      status: 'active',
+      progress_percentage: 0,
+      enrolled_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
 
-    const { error } = await supabaseServer
+    const { error: enrollError } = await supabase
       .from('enrollments')
-      .insert({
-        user_id: user.id,
-        course_id: course.id,
-        status: 'active',
-        progress_percentage: 0
-      })
+      .insert(enrollment as any)
 
-    if (!error) {
-      redirect(`/dashboard/learn/${course.slug}`)
+    if (enrollError) {
+      console.error('Error enrolling:', enrollError)
+      return
     }
+
+    const courseUpdate = {
+      enrollment_count: (course.enrollment_count || 0) + 1,
+      updated_at: new Date().toISOString()
+    }
+
+    await supabase
+      .from('courses')
+      .update(courseUpdate as any)
+      .eq('id', course.id)
+
+    redirect(`/dashboard/learn/${course.slug}`)
   }
 
   return (
@@ -130,10 +146,7 @@ export default async function CourseDetailPage({
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link
-            href="/dashboard/courses"
-            className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
-          >
+          <Link href="/dashboard/courses" className="text-gray-600 hover:text-gray-900 flex items-center gap-2">
             <ChevronLeft size={20} />
             <span>Back to Courses</span>
           </Link>
@@ -162,15 +175,12 @@ export default async function CourseDetailPage({
                 </span>
                 {course.is_featured && (
                   <span className="bg-yellow-500 text-white text-xs px-3 py-1 rounded-full flex items-center gap-1">
-                    <Star size={12} />
-                    Featured
+                    <Star size={12} /> Featured
                   </span>
                 )}
               </div>
               <h1 className="text-4xl font-bold mb-4">{course.title}</h1>
-              <p className="text-xl text-blue-100 mb-6">
-                {course.short_description || course.description}
-              </p>
+              <p className="text-xl text-blue-100 mb-6">{course.short_description || course.description}</p>
               
               <div className="flex flex-wrap gap-6 mb-6">
                 <div className="flex items-center gap-2">
@@ -193,21 +203,13 @@ export default async function CourseDetailPage({
 
               {/* Action Button */}
               {isEnrolled ? (
-                <Link
-                  href={`/dashboard/learn/${course.slug}`}
-                  className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
-                >
-                  <PlayCircle size={20} className="mr-2" />
-                  Continue Learning
+                <Link href={`/dashboard/learn/${course.slug}`} className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition">
+                  <PlayCircle size={20} className="mr-2" /> Continue Learning
                 </Link>
               ) : (
                 <form action={enrollInCourse}>
-                  <button
-                    type="submit"
-                    className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
-                  >
-                    <BookOpen size={20} className="mr-2" />
-                    Enroll Now
+                  <button type="submit" className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition">
+                    <BookOpen size={20} className="mr-2" /> Enroll Now
                   </button>
                 </form>
               )}
@@ -219,9 +221,7 @@ export default async function CourseDetailPage({
       {/* Course Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Course Details */}
           <div className="lg:col-span-2 space-y-8">
-            {/* About This Course */}
             {course.description && (
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">About This Course</h2>
@@ -229,34 +229,30 @@ export default async function CourseDetailPage({
               </div>
             )}
 
-            {/* Course Content */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Course Content</h2>
-              <div className="space-y-4">
-                {modulesWithCount.map((module) => (
-                  <div key={module.id} className="border border-gray-100 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium text-gray-900">
-                          Module {module.module_order}: {module.title}
-                        </h3>
-                        {module.description && (
-                          <p className="text-sm text-gray-500 mt-1">{module.description}</p>
-                        )}
+            {modulesWithCount.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Course Content</h2>
+                <div className="space-y-4">
+                  {modulesWithCount.map((module: any) => (
+                    <div key={module.id} className="border border-gray-100 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium text-gray-900">Module {module.module_order}: {module.title}</h3>
+                          {module.description && <p className="text-sm text-gray-500 mt-1">{module.description}</p>}
+                        </div>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                          {module.lesson_count} {module.lesson_count === 1 ? 'lesson' : 'lessons'}
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                        {module.lesson_count} lessons
-                      </span>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Right Column - Sidebar */}
+          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Instructor Info (Placeholder) */}
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
               <h3 className="font-semibold text-gray-900 mb-4">Instructor</h3>
               <div className="flex items-center gap-3">
@@ -270,30 +266,16 @@ export default async function CourseDetailPage({
               </div>
             </div>
 
-            {/* What You'll Learn */}
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
               <h3 className="font-semibold text-gray-900 mb-4">What You'll Learn</h3>
               <ul className="space-y-3">
-                <li className="flex items-start gap-2 text-sm text-gray-600">
-                  <span className="text-green-500 mt-0.5">✓</span>
-                  <span>Fundamental concepts and principles</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm text-gray-600">
-                  <span className="text-green-500 mt-0.5">✓</span>
-                  <span>Hands-on practical applications</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm text-gray-600">
-                  <span className="text-green-500 mt-0.5">✓</span>
-                  <span>Real-world examples and case studies</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm text-gray-600">
-                  <span className="text-green-500 mt-0.5">✓</span>
-                  <span>Industry best practices</span>
-                </li>
+                <li className="flex items-start gap-2 text-sm text-gray-600"><span className="text-green-500 mt-0.5">✓</span>Fundamental concepts and principles</li>
+                <li className="flex items-start gap-2 text-sm text-gray-600"><span className="text-green-500 mt-0.5">✓</span>Hands-on practical applications</li>
+                <li className="flex items-start gap-2 text-sm text-gray-600"><span className="text-green-500 mt-0.5">✓</span>Real-world examples and case studies</li>
+                <li className="flex items-start gap-2 text-sm text-gray-600"><span className="text-green-500 mt-0.5">✓</span>Industry best practices</li>
               </ul>
             </div>
 
-            {/* Requirements */}
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
               <h3 className="font-semibold text-gray-900 mb-4">Requirements</h3>
               <ul className="space-y-2 text-sm text-gray-600">
@@ -303,23 +285,16 @@ export default async function CourseDetailPage({
               </ul>
             </div>
 
-            {/* Enroll CTA */}
             <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-sm p-6 text-white">
               <h3 className="text-lg font-semibold mb-2">Ready to start?</h3>
               <p className="text-sm text-blue-100 mb-4">Join {course.enrollment_count || 0} other learners</p>
               {isEnrolled ? (
-                <Link
-                  href={`/dashboard/learn/${course.slug}`}
-                  className="block w-full px-4 py-3 bg-white text-blue-600 rounded-lg text-center font-medium hover:bg-gray-50 transition"
-                >
+                <Link href={`/dashboard/learn/${course.slug}`} className="block w-full px-4 py-3 bg-white text-blue-600 rounded-lg text-center font-medium hover:bg-gray-50 transition">
                   Continue Learning
                 </Link>
               ) : (
                 <form action={enrollInCourse}>
-                  <button
-                    type="submit"
-                    className="w-full px-4 py-3 bg-white text-blue-600 rounded-lg font-medium hover:bg-gray-50 transition"
-                  >
+                  <button type="submit" className="w-full px-4 py-3 bg-white text-blue-600 rounded-lg font-medium hover:bg-gray-50 transition">
                     Enroll Now
                   </button>
                 </form>
