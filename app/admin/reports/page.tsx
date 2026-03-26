@@ -225,40 +225,136 @@ export default function AdminReportsPage() {
   }
 
   const loadMonthlyTrends = async () => {
+    // Get actual data from the database
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select('enrolled_at, completed_at')
+    
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('created_at')
+    
+    const { data: trainingRecords } = await supabase
+      .from('training_records')
+      .select('training_date, duration_hours')
+    
     const months = []
     const now = new Date()
+    
     for (let i = 5; i >= 0; i--) {
       const month = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
       const monthStr = month.toLocaleString('default', { month: 'short' })
+      
+      const monthlyEnrollments = enrollments?.filter(e => {
+        if (!e.enrolled_at) return false
+        const date = new Date(e.enrolled_at)
+        return date >= month && date < nextMonth
+      }).length || 0
+      
+      const monthlyCompletions = enrollments?.filter(e => {
+        if (!e.completed_at) return false
+        const date = new Date(e.completed_at)
+        return date >= month && date < nextMonth
+      }).length || 0
+      
+      const monthlyNewUsers = profiles?.filter(p => {
+        if (!p.created_at) return false
+        const date = new Date(p.created_at)
+        return date >= month && date < nextMonth
+      }).length || 0
+      
+      const monthlyTrainingHours = trainingRecords?.filter(r => {
+        if (!r.training_date) return false
+        const date = new Date(r.training_date)
+        return date >= month && date < nextMonth
+      }).reduce((sum, r) => sum + (r.duration_hours || 0), 0) || 0
+      
       months.push({
         month: monthStr,
-        enrollments: Math.floor(Math.random() * 80) + 30,
-        completions: Math.floor(Math.random() * 50) + 20,
-        newUsers: Math.floor(Math.random() * 25) + 10,
-        trainingHours: 0
+        enrollments: monthlyEnrollments,
+        completions: monthlyCompletions,
+        newUsers: monthlyNewUsers,
+        trainingHours: monthlyTrainingHours
       })
     }
+    
     setMonthlyData(months)
   }
 
   const loadDepartmentData = async () => {
-    // Sample data - replace with actual data from training_records
-    setDepartmentData([
-      { name: 'Engineering', hours: 120, count: 45 },
-      { name: 'Sales', hours: 85, count: 32 },
-      { name: 'Marketing', hours: 62, count: 28 },
-      { name: 'HR', hours: 48, count: 22 },
-      { name: 'Finance', hours: 56, count: 24 }
-    ])
+    // Get actual department data from training_records
+    const { data: records } = await supabase
+      .from('training_records')
+      .select('department, duration_hours, attendee_name')
+    
+    if (records && records.length > 0) {
+      const deptMap = new Map<string, { hours: number; count: number }>()
+      
+      records.forEach(record => {
+        if (!record.department) return
+        
+        const existing = deptMap.get(record.department)
+        if (existing) {
+          existing.hours += record.duration_hours || 0
+          existing.count += 1
+        } else {
+          deptMap.set(record.department, {
+            hours: record.duration_hours || 0,
+            count: 1
+          })
+        }
+      })
+      
+      const departmentData = Array.from(deptMap.entries()).map(([name, data]) => ({
+        name,
+        hours: data.hours,
+        count: data.count
+      }))
+      
+      setDepartmentData(departmentData)
+    } else {
+      setDepartmentData([])
+    }
   }
 
   const loadFacilitatorData = async () => {
-    setFacilitatorData([
-      { name: 'Dr. Sarah Johnson', sessions: 12, hours: 48 },
-      { name: 'Prof. Michael Chen', sessions: 10, hours: 40 },
-      { name: 'Dr. Emily Brown', sessions: 8, hours: 32 },
-      { name: 'Prof. David Wilson', sessions: 7, hours: 28 }
-    ])
+    // Get actual facilitator data from training_records
+    const { data: records } = await supabase
+      .from('training_records')
+      .select('facilitator, duration_hours, attendee_name')
+    
+    if (records && records.length > 0) {
+      const facMap = new Map<string, { sessions: number; hours: number }>()
+      
+      records.forEach(record => {
+        if (!record.facilitator) return
+        
+        const existing = facMap.get(record.facilitator)
+        if (existing) {
+          existing.sessions += 1
+          existing.hours += record.duration_hours || 0
+        } else {
+          facMap.set(record.facilitator, {
+            sessions: 1,
+            hours: record.duration_hours || 0
+          })
+        }
+      })
+      
+      const facilitatorData = Array.from(facMap.entries())
+        .map(([name, data]) => ({
+          name,
+          sessions: data.sessions,
+          hours: data.hours
+        }))
+        .sort((a, b) => b.sessions - a.sessions)
+        .slice(0, 10)
+      
+      setFacilitatorData(facilitatorData)
+    } else {
+      setFacilitatorData([])
+    }
   }
 
   const loadTrainingRecords = async () => {
@@ -606,7 +702,7 @@ export default function AdminReportsPage() {
           <div className="bg-white rounded-xl max-w-2xl w-full">
             <div className="flex justify-between items-center p-4 border-b"><h2 className="text-lg font-semibold">Import Excel Data</h2><button onClick={() => setShowImportModal(false)}><X size={20} /></button></div>
             <div className="p-4">
-              {importPreview.length > 0 && (<div><p className="text-sm mb-3">Preview of {importData.length} records:</p><div className="overflow-x-auto"><table className="w-full text-sm border"><thead className="bg-gray-50"><tr>{Object.keys(importPreview[0]).slice(0, 5).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))}</tr></thead><tbody>{importPreview.map((row, idx) => (<tr key={idx}>{Object.values(row).slice(0, 5).map((value: any, i) => (<td key={i} className="px-3 py-2 border">{String(value).slice(0, 30)}</td>))}</tr>))}</tbody></table></div></div>)}
+              {importPreview.length > 0 && (<div><p className="text-sm mb-3">Preview of {importData.length} records:</p><div className="overflow-x-auto"><table className="w-full text-sm border"><thead className="bg-gray-50"><tr>{Object.keys(importPreview[0]).slice(0, 5).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))} </thead><tbody>{importPreview.map((row, idx) => (<tr key={idx}>{Object.values(row).slice(0, 5).map((value: any, i) => (<td key={i} className="px-3 py-2 border">{String(value).slice(0, 30)}</td>))}</tr>))}</tbody></table></div></div>)}
             </div>
             <div className="flex justify-end gap-3 p-4 border-t"><button onClick={() => setShowImportModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button><button onClick={confirmImport} className="px-4 py-2 bg-green-600 text-white rounded-lg">Import {importData.length} Records</button></div>
           </div>
