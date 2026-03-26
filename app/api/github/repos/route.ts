@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseServer } from '@/lib/supabase-server'
+import { createClient } from '@/lib/supabase-server'
+import { Octokit } from '@octokit/rest'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient()
+    
     // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabaseServer.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
       return NextResponse.json(
@@ -15,89 +18,55 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's GitHub token from your database - using 'as any' to bypass TypeScript type checking
-    const { data: githubToken, error: tokenError } = await supabaseServer
+    // Get user's GitHub token from user_connections
+    const { data: connection, error: connectionError } = await supabase
       .from('user_connections')
       .select('access_token')
       .eq('user_id', user.id)
       .eq('provider', 'github')
-      .single() as any
+      .maybeSingle()
 
-    if (tokenError || !githubToken) {
-      console.error('Token error:', tokenError)
+    if (connectionError || !connection) {
       return NextResponse.json(
-        { error: 'GitHub account not connected' },
+        { error: 'GitHub not connected' },
         { status: 400 }
       )
     }
 
-    // Validate that we have an access token
-    if (!githubToken.access_token) {
+    // Initialize Octokit with the user's token
+    const octokit = new Octokit({
+      auth: connection.access_token
+    })
+
+    // Get user's repositories
+    const { data: repos, error: reposError } = await octokit.repos.listForAuthenticatedUser({
+      sort: 'updated',
+      per_page: 100
+    })
+
+    if (reposError) {
+      console.error('Error fetching repos:', reposError)
       return NextResponse.json(
-        { error: 'Invalid GitHub token' },
-        { status: 400 }
+        { error: 'Failed to fetch repositories' },
+        { status: 500 }
       )
     }
 
-    // Fetch repos from GitHub
-    const response = await fetch('https://api.github.com/user/repos', {
-      headers: {
-        'Authorization': `Bearer ${githubToken.access_token}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
+    return NextResponse.json({
+      success: true,
+      repos: repos.map(repo => ({
+        id: repo.id,
+        name: repo.name,
+        full_name: repo.full_name,
+        description: repo.description,
+        html_url: repo.html_url,
+        language: repo.language,
+        stargazers_count: repo.stargazers_count,
+        updated_at: repo.updated_at
+      }))
     })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      console.error('GitHub API error:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorData
-      })
-
-      // If token is invalid, remove it from database
-      if (response.status === 401) {
-        await supabaseServer
-          .from('user_connections')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('provider', 'github') as any
-          
-        return NextResponse.json(
-          { error: 'GitHub token expired. Please reconnect your account.' },
-          { status: 401 }
-        )
-      }
-
-      return NextResponse.json(
-        { error: `Failed to fetch GitHub repos: ${response.statusText}` },
-        { status: response.status }
-      )
-    }
-
-    const repos = await response.json()
-
-    // Format the response to include only necessary fields
-    const formattedRepos = repos.map((repo: any) => ({
-      id: repo.id,
-      name: repo.name,
-      full_name: repo.full_name,
-      description: repo.description,
-      html_url: repo.html_url,
-      clone_url: repo.clone_url,
-      language: repo.language,
-      private: repo.private,
-      updated_at: repo.updated_at,
-    }))
-
-    return NextResponse.json({ 
-      success: true, 
-      repos: formattedRepos,
-      count: formattedRepos.length
-    })
-    
   } catch (error) {
-    console.error('Error fetching GitHub repos:', error)
+    console.error('Error in GitHub repos:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
