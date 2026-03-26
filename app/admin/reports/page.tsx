@@ -8,8 +8,8 @@ import {
   BarChart3, Download, ChevronRight, ChevronLeft,
   Users, BookOpen, CheckCircle, Clock, Award, TrendingUp,
   FileText, Menu, X, Home, LogOut, Upload, RefreshCw,
-  Building, FileSpreadsheet, Activity, Star,
-  FileDown, FileUp, Trash2, AlertCircle
+  Building, FileSpreadsheet, Activity, Star, Database,
+  FileDown, FileUp, Trash2, AlertCircle, Plus, Edit, Save
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line,
@@ -25,6 +25,7 @@ interface TrainingRecord {
   supervisor: string
   department: string
   duration_hours: number
+  created_at: string
 }
 
 interface DashboardStats {
@@ -79,8 +80,19 @@ export default function AdminReportsPage() {
   const [facilitatorData, setFacilitatorData] = useState<{ name: string; sessions: number; hours: number }[]>([])
   const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>([])
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
   const [importData, setImportData] = useState<any[]>([])
   const [importPreview, setImportPreview] = useState<any[]>([])
+  const [editingRecord, setEditingRecord] = useState<TrainingRecord | null>(null)
+  const [newRecord, setNewRecord] = useState({
+    training_date: new Date().toISOString().split('T')[0],
+    attendee_name: '',
+    course: '',
+    facilitator: '',
+    supervisor: '',
+    department: '',
+    duration_hours: 0
+  })
   
   const supabase = createClient()
   const router = useRouter()
@@ -213,6 +225,128 @@ export default function AdminReportsPage() {
     setStats(prev => ({ ...prev, totalTrainingHours: totalHours, totalTrainingSessions: data?.length || 0 }))
   }
 
+  const handleAddRecord = async () => {
+    if (!newRecord.attendee_name || !newRecord.course) {
+      alert('Please fill in attendee name and course')
+      return
+    }
+
+    const { error } = await supabase.from('training_records').insert({
+      training_date: newRecord.training_date,
+      attendee_name: newRecord.attendee_name,
+      course: newRecord.course,
+      facilitator: newRecord.facilitator,
+      supervisor: newRecord.supervisor,
+      department: newRecord.department,
+      duration_hours: newRecord.duration_hours
+    })
+
+    if (!error) {
+      await loadAllData()
+      setShowAddModal(false)
+      setNewRecord({
+        training_date: new Date().toISOString().split('T')[0],
+        attendee_name: '',
+        course: '',
+        facilitator: '',
+        supervisor: '',
+        department: '',
+        duration_hours: 0
+      })
+      alert('Record added successfully!')
+    } else {
+      alert('Error adding record')
+    }
+  }
+
+  const handleUpdateRecord = async () => {
+    if (!editingRecord) return
+
+    const { error } = await supabase
+      .from('training_records')
+      .update({
+        training_date: editingRecord.training_date,
+        attendee_name: editingRecord.attendee_name,
+        course: editingRecord.course,
+        facilitator: editingRecord.facilitator,
+        supervisor: editingRecord.supervisor,
+        department: editingRecord.department,
+        duration_hours: editingRecord.duration_hours
+      })
+      .eq('id', editingRecord.id)
+
+    if (!error) {
+      await loadAllData()
+      setEditingRecord(null)
+      alert('Record updated successfully!')
+    } else {
+      alert('Error updating record')
+    }
+  }
+
+  const handleDeleteRecord = async (id: string) => {
+    if (confirm('Are you sure you want to delete this record?')) {
+      const { error } = await supabase.from('training_records').delete().eq('id', id)
+      if (!error) {
+        await loadAllData()
+        alert('Record deleted successfully!')
+      } else {
+        alert('Error deleting record')
+      }
+    }
+  }
+
+  const downloadTemplate = () => {
+    const template = [
+      {
+        'Training Date': new Date().toISOString().split('T')[0],
+        'Attendee Name': 'John Doe',
+        'Course': 'Leadership 101',
+        'Facilitator': 'Dr. Sarah Johnson',
+        'Supervisor': 'Jane Manager',
+        'Department': 'Human Resources',
+        'Duration Hours': 4
+      },
+      {
+        'Training Date': new Date().toISOString().split('T')[0],
+        'Attendee Name': 'Jane Smith',
+        'Course': 'Advanced Excel',
+        'Facilitator': 'Prof. Michael Brown',
+        'Supervisor': 'Mike Lead',
+        'Department': 'Finance',
+        'Duration Hours': 6
+      }
+    ]
+    const worksheet = XLSX.utils.json_to_sheet(template)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Training Template')
+    
+    // Add instructions sheet
+    const instructions = [
+      { 'Instructions': '=== STRATAVAX TRAINING DATA IMPORT TEMPLATE ===' },
+      { 'Instructions': '' },
+      { 'Instructions': 'HOW TO USE THIS TEMPLATE:' },
+      { 'Instructions': '1. Do NOT modify the column headers (Row 1)' },
+      { 'Instructions': '2. Enter your classroom training data starting from Row 2' },
+      { 'Instructions': '3. Save the file as Excel (.xlsx) or CSV (.csv)' },
+      { 'Instructions': '4. Go to the Reports page and click "Import Excel"' },
+      { 'Instructions': '5. Select your file and confirm import' },
+      { 'Instructions': '' },
+      { 'Instructions': 'COLUMN DESCRIPTIONS:' },
+      { 'Instructions': '- Training Date: Format as YYYY-MM-DD (e.g., 2024-03-15)' },
+      { 'Instructions': '- Attendee Name: Full name of the participant' },
+      { 'Instructions': '- Course: Name of the training course' },
+      { 'Instructions': '- Facilitator: Name of the trainer/facilitator' },
+      { 'Instructions': '- Supervisor: Name of attendee\'s supervisor (optional)' },
+      { 'Instructions': '- Department: Department of the attendee' },
+      { 'Instructions': '- Duration Hours: Number of training hours (e.g., 4, 6.5, 8)' }
+    ]
+    const instructionsSheet = XLSX.utils.json_to_sheet(instructions)
+    XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions')
+    
+    XLSX.writeFile(workbook, 'stratavax-training-template.xlsx')
+  }
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -233,10 +367,11 @@ export default function AdminReportsPage() {
   const confirmImport = async () => {
     if (importData.length === 0) return
     let successCount = 0
+    let errorCount = 0
     for (const row of importData) {
       const newRecord = {
-        training_date: row['Training Date'] || row['training_date'] || new Date().toISOString().split('T')[0],
-        attendee_name: row['Attendee Name'] || row['attendee_name'] || row['Name'] || '',
+        training_date: row['Training Date'] || row['training_date'] || row['Date'] || new Date().toISOString().split('T')[0],
+        attendee_name: row['Attendee Name'] || row['attendee_name'] || row['Name'] || row['Attendee'] || '',
         course: row['Course'] || row['course'] || '',
         facilitator: row['Facilitator'] || row['facilitator'] || '',
         supervisor: row['Supervisor'] || row['supervisor'] || '',
@@ -244,12 +379,13 @@ export default function AdminReportsPage() {
         duration_hours: parseFloat(row['Duration Hours'] || row['duration_hours'] || row['Hours'] || 0)
       }
       const { error } = await supabase.from('training_records').insert(newRecord)
-      if (!error) successCount++
+      if (error) errorCount++
+      else successCount++
     }
     await loadAllData()
     setShowImportModal(false)
     setImportData([])
-    alert(`Imported ${successCount} records`)
+    alert(`Import completed: ${successCount} records added, ${errorCount} failed`)
   }
 
   const exportToExcel = () => {
@@ -258,7 +394,7 @@ export default function AdminReportsPage() {
       'Attendee Name': record.attendee_name,
       'Course': record.course,
       'Facilitator': record.facilitator,
-      'Supervisor': record.supervisor,
+      'Supervisor': record.supervisor || '',
       'Department': record.department,
       'Duration Hours': record.duration_hours
     }))
@@ -266,22 +402,6 @@ export default function AdminReportsPage() {
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Training Records')
     XLSX.writeFile(workbook, `training-records-${new Date().toISOString().split('T')[0]}.xlsx`)
-  }
-
-  const downloadTemplate = () => {
-    const template = [{
-      'Training Date': new Date().toISOString().split('T')[0],
-      'Attendee Name': 'John Doe',
-      'Course': 'Sample Course',
-      'Facilitator': 'Dr. Smith',
-      'Supervisor': 'Jane Manager',
-      'Department': 'HR',
-      'Duration Hours': 4
-    }]
-    const worksheet = XLSX.utils.json_to_sheet(template)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template')
-    XLSX.writeFile(workbook, 'training-template.xlsx')
   }
 
   const handleSignOut = async () => {
@@ -310,12 +430,15 @@ export default function AdminReportsPage() {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <BarChart3 className="text-white" size={18} />
               </div>
-              <span className="font-semibold">Stratavax Analytics</span>
+              <span className="font-semibold">Stratavax Training Analytics</span>
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <button onClick={downloadTemplate} className="p-2 hover:bg-gray-100 rounded" title="Download Template">
-              <FileDown size={18} className="text-gray-600" />
+            <button onClick={downloadTemplate} className="p-2 hover:bg-gray-100 rounded" title="Download Excel Template">
+              <FileSpreadsheet size={18} className="text-green-600" />
+            </button>
+            <button onClick={() => setShowAddModal(true)} className="p-2 hover:bg-gray-100 rounded" title="Add Record">
+              <Plus size={18} className="text-blue-600" />
             </button>
             <button onClick={() => setShowImportModal(true)} className="p-2 hover:bg-gray-100 rounded" title="Import Excel">
               <FileUp size={18} className="text-gray-600" />
@@ -387,37 +510,37 @@ export default function AdminReportsPage() {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-6">Analytics Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900 mb-6">Training Analytics Dashboard</h1>
               
               {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
-                    <div><p className="text-sm text-gray-500">Total Users</p><p className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</p></div>
-                    <Users size={32} className="text-blue-500" />
+                    <div><p className="text-sm text-gray-500">Total Training Hours</p><p className="text-2xl font-bold">{stats.totalTrainingHours}</p></div>
+                    <Clock size={32} className="text-blue-500" />
                   </div>
-                  <div className="mt-2 text-xs text-green-600">+{stats.newUsersThisMonth} this month</div>
+                  <div className="mt-2 text-xs text-gray-500">Across all sessions</div>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
-                    <div><p className="text-sm text-gray-500">Active Users</p><p className="text-2xl font-bold">{stats.activeUsers.toLocaleString()}</p></div>
-                    <Activity size={32} className="text-green-500" />
+                    <div><p className="text-sm text-gray-500">Training Sessions</p><p className="text-2xl font-bold">{stats.totalTrainingSessions}</p></div>
+                    <FileSpreadsheet size={32} className="text-green-500" />
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">{stats.totalUsers > 0 ? Math.round((stats.activeUsers / stats.totalUsers) * 100) : 0}% engagement</div>
+                  <div className="mt-2 text-xs text-gray-500">Classroom & workshops</div>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
-                    <div><p className="text-sm text-gray-500">Total Enrollments</p><p className="text-2xl font-bold">{stats.totalEnrollments.toLocaleString()}</p></div>
-                    <BookOpen size={32} className="text-purple-500" />
+                    <div><p className="text-sm text-gray-500">Departments</p><p className="text-2xl font-bold">{departmentData.length}</p></div>
+                    <Building size={32} className="text-purple-500" />
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">{stats.completionRate}% completion rate</div>
+                  <div className="mt-2 text-xs text-gray-500">With training records</div>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
-                    <div><p className="text-sm text-gray-500">Certificates</p><p className="text-2xl font-bold">{stats.certificatesIssued.toLocaleString()}</p></div>
-                    <Award size={32} className="text-yellow-500" />
+                    <div><p className="text-sm text-gray-500">Facilitators</p><p className="text-2xl font-bold">{facilitatorData.length}</p></div>
+                    <Star size={32} className="text-yellow-500" />
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">+{stats.completedCourses} completed</div>
+                  <div className="mt-2 text-xs text-gray-500">Active trainers</div>
                 </div>
               </div>
 
@@ -459,7 +582,7 @@ export default function AdminReportsPage() {
                     <Legend />
                     <Line type="monotone" dataKey="enrollments" stroke="#3b82f6" name="Enrollments" />
                     <Line type="monotone" dataKey="completions" stroke="#10b981" name="Completions" />
-                    <Line type="monotone" dataKey="newUsers" stroke="#f59e0b" name="New Users" />
+                    <Line type="monotone" dataKey="trainingHours" stroke="#f59e0b" name="Training Hours" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -469,9 +592,9 @@ export default function AdminReportsPage() {
                 <div className="p-6 border-b"><h3 className="text-lg font-semibold">Top Facilitators</h3></div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Sessions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th></tr></thead>
-                    <tbody className="divide-y">{facilitatorData.map((fac) => (<tr key={fac.name} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{fac.name}</td><td className="px-6 py-4 text-sm">{fac.sessions}</td><td className="px-6 py-4 text-sm">{fac.hours}</td></tr>))}</tbody>
-                  </table>
+                    <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Sessions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th> </thead>
+                    <tbody className="divide-y">{facilitatorData.map((fac) => (<tr key={fac.name} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{fac.name} </td><td className="px-6 py-4 text-sm">{fac.sessions} </td><td className="px-6 py-4 text-sm">{fac.hours} </td></tr>))}</tbody>
+                   </table>
                 </div>
               </div>
             </>
@@ -483,7 +606,7 @@ export default function AdminReportsPage() {
               <div className="p-6 border-b"><h2 className="text-xl font-bold">Course Performance</h2><p className="text-sm text-gray-500">Enrollments, completions, and progress rates</p></div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avg Progress</th></tr></thead>
+                  <thead className="bg-gray-50"><td><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avg Progress</th> </thead>
                   <tbody className="divide-y">{courseStats.map((course) => (<tr key={course.id} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{course.title}</td><td className="px-6 py-4 text-sm">{course.enrollments}</td><td className="px-6 py-4 text-sm">{course.completions}</td><td className="px-6 py-4"><span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">{course.completionRate}%</span></td><td className="px-6 py-4"><div className="w-24 bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{ width: `${course.averageProgress}%` }}></div></div></td></tr>))}</tbody>
                 </table>
               </div>
@@ -496,22 +619,76 @@ export default function AdminReportsPage() {
               <div className="p-6 border-b flex justify-between items-center">
                 <div><h2 className="text-xl font-bold">Training Records</h2><p className="text-sm text-gray-500">Total Hours: {stats.totalTrainingHours} | Total Sessions: {stats.totalTrainingSessions}</p></div>
                 <div className="flex gap-2">
+                  <button onClick={() => setShowAddModal(true)} className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">+ Add Record</button>
                   <button onClick={() => setShowImportModal(true)} className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">Import Excel</button>
-                  <button onClick={exportToExcel} className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Export</button>
+                  <button onClick={exportToExcel} className="px-3 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700">Export</button>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Date</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Department</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th></tr></thead>
-                  <tbody className="divide-y">{trainingRecords.slice(0, 50).map((record) => (<tr key={record.id} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm">{new Date(record.training_date).toLocaleDateString()}</td><td className="px-6 py-4 text-sm">{record.attendee_name}</td><td className="px-6 py-4 text-sm">{record.course}</td><td className="px-6 py-4 text-sm">{record.facilitator}</td><td className="px-6 py-4 text-sm">{record.department}</td><td className="px-6 py-4 text-sm">{record.duration_hours}</td></tr>))}
-                  {trainingRecords.length === 0 && (<tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">No training records. Click "Import Excel" to add data.</td></tr>)}
+                  <thead className="bg-gray-50">
+                    <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Date</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Department</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Actions</th> </thead>
+                  <tbody className="divide-y">
+                    {trainingRecords.map((record) => (
+                      <tr key={record.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm">{new Date(record.training_date).toLocaleDateString()} </td>
+                        <td className="px-6 py-4 text-sm">{record.attendee_name} </td>
+                        <td className="px-6 py-4 text-sm">{record.course} </td>
+                        <td className="px-6 py-4 text-sm">{record.facilitator} </td>
+                        <td className="px-6 py-4 text-sm">{record.department} </td>
+                        <td className="px-6 py-4 text-sm">{record.duration_hours} </td>
+                        <td className="px-6 py-4 text-sm">
+                          <button onClick={() => setEditingRecord(record)} className="text-blue-600 hover:text-blue-800 mr-2"><Edit size={16} /></button>
+                          <button onClick={() => handleDeleteRecord(record.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                    {trainingRecords.length === 0 && (<tr><td colSpan={7} className="px-6 py-8 text-center text-gray-500">No training records. Click "Add Record" or "Import Excel" to add data.</td></tr>)}
                   </tbody>
-                </table>
+                 </table>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Add Record Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full">
+            <div className="flex justify-between items-center p-4 border-b"><h2 className="text-lg font-semibold">Add Training Record</h2><button onClick={() => setShowAddModal(false)}><X size={20} /></button></div>
+            <div className="p-4 space-y-3">
+              <input type="date" value={newRecord.training_date} onChange={(e) => setNewRecord({...newRecord, training_date: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="text" placeholder="Attendee Name *" value={newRecord.attendee_name} onChange={(e) => setNewRecord({...newRecord, attendee_name: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="text" placeholder="Course *" value={newRecord.course} onChange={(e) => setNewRecord({...newRecord, course: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="text" placeholder="Facilitator" value={newRecord.facilitator} onChange={(e) => setNewRecord({...newRecord, facilitator: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="text" placeholder="Supervisor" value={newRecord.supervisor} onChange={(e) => setNewRecord({...newRecord, supervisor: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="text" placeholder="Department" value={newRecord.department} onChange={(e) => setNewRecord({...newRecord, department: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="number" step="0.5" placeholder="Duration Hours" value={newRecord.duration_hours} onChange={(e) => setNewRecord({...newRecord, duration_hours: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg" />
+            </div>
+            <div className="flex justify-end gap-3 p-4 border-t"><button onClick={() => setShowAddModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button><button onClick={handleAddRecord} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Add Record</button></div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Record Modal */}
+      {editingRecord && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full">
+            <div className="flex justify-between items-center p-4 border-b"><h2 className="text-lg font-semibold">Edit Training Record</h2><button onClick={() => setEditingRecord(null)}><X size={20} /></button></div>
+            <div className="p-4 space-y-3">
+              <input type="date" value={editingRecord.training_date} onChange={(e) => setEditingRecord({...editingRecord, training_date: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="text" placeholder="Attendee Name" value={editingRecord.attendee_name} onChange={(e) => setEditingRecord({...editingRecord, attendee_name: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="text" placeholder="Course" value={editingRecord.course} onChange={(e) => setEditingRecord({...editingRecord, course: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="text" placeholder="Facilitator" value={editingRecord.facilitator} onChange={(e) => setEditingRecord({...editingRecord, facilitator: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="text" placeholder="Supervisor" value={editingRecord.supervisor} onChange={(e) => setEditingRecord({...editingRecord, supervisor: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="text" placeholder="Department" value={editingRecord.department} onChange={(e) => setEditingRecord({...editingRecord, department: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="number" step="0.5" placeholder="Duration Hours" value={editingRecord.duration_hours} onChange={(e) => setEditingRecord({...editingRecord, duration_hours: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg" />
+            </div>
+            <div className="flex justify-end gap-3 p-4 border-t"><button onClick={() => setEditingRecord(null)} className="px-4 py-2 border rounded-lg">Cancel</button><button onClick={handleUpdateRecord} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save Changes</button></div>
+          </div>
+        </div>
+      )}
 
       {/* Import Modal */}
       {showImportModal && (
@@ -519,7 +696,10 @@ export default function AdminReportsPage() {
           <div className="bg-white rounded-xl max-w-2xl w-full">
             <div className="flex justify-between items-center p-4 border-b"><h2 className="text-lg font-semibold">Import Excel Data</h2><button onClick={() => setShowImportModal(false)}><X size={20} /></button></div>
             <div className="p-4">
-              {importPreview.length > 0 && (<div><p className="text-sm mb-3">Preview of {importData.length} records:</p><div className="overflow-x-auto"><table className="w-full text-sm border"><thead className="bg-gray-50"><tr>{Object.keys(importPreview[0]).slice(0, 5).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))}</tr></thead><tbody>{importPreview.map((row, idx) => (<tr key={idx}>{Object.values(row).slice(0, 5).map((value: any, i) => (<td key={i} className="px-3 py-2 border">{String(value).slice(0, 30)}</td>))}</tr>))}</tbody></table></div></div>)}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-700">📋 Need a template? Click the Excel icon in the top bar to download the template.</p>
+              </div>
+              {importPreview.length > 0 && (<div><p className="text-sm mb-3">Preview of {importData.length} records:</p><div className="overflow-x-auto"><table className="w-full text-sm border"><thead className="bg-gray-50"> <tr>{Object.keys(importPreview[0]).slice(0, 6).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))}</tr></thead><tbody>{importPreview.map((row, idx) => (<tr key={idx}>{Object.values(row).slice(0, 6).map((value: any, i) => (<td key={i} className="px-3 py-2 border">{String(value).slice(0, 30)}</td>))}</tr>))}</tbody></table></div></div>)}
             </div>
             <div className="flex justify-end gap-3 p-4 border-t"><button onClick={() => setShowImportModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button><button onClick={confirmImport} className="px-4 py-2 bg-green-600 text-white rounded-lg">Import {importData.length} Records</button></div>
           </div>
