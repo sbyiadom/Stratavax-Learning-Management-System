@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import * as XLSX from 'xlsx'
 import {
   BarChart3, Download, Calendar, ChevronRight, ChevronLeft,
@@ -11,13 +12,12 @@ import {
   ChevronDown, LogOut, Settings, Home, GraduationCap,
   Upload, RefreshCw, Building, Briefcase, FileSpreadsheet,
   Database, Activity, BarChart, LineChart as LineChartIcon,
-  PieChart as PieChartIcon, TrendingDown, Star, UserCheck
+  PieChart as PieChartIcon, TrendingDown, Star, UserCheck, Menu, X
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  AreaChart, Area, ComposedChart, Scatter, RadarChart, Radar,
-  PolarGrid, PolarAngleAxis, PolarRadiusAxis
+  AreaChart, Area, ComposedChart
 } from 'recharts'
 
 // Types
@@ -291,7 +291,6 @@ export default function AdminReportsPage() {
   }
 
   const loadDepartmentStats = async () => {
-    // This would come from training_records table
     const { data: records } = await supabase
       .from('training_records')
       .select('department, duration_hours, attendee_name')
@@ -435,37 +434,19 @@ export default function AdminReportsPage() {
   }
 
   const exportFullReport = () => {
-    const reportData = {
-      'Platform Overview': {
-        'Total Users': stats.totalUsers,
-        'Active Users': stats.activeUsers,
-        'Total Courses': stats.totalCourses,
-        'Total Enrollments': stats.totalEnrollments,
-        'Total Completions': stats.totalCompletions,
-        'Completion Rate': `${stats.completionRate}%`,
-        'Average Progress': `${stats.averageProgress}%`,
-        'Certificates Issued': stats.totalCertificates
-      },
-      'Course Performance': courseAnalytics.map(c => ({
-        'Course': c.title,
-        'Category': c.category,
-        'Enrollments': c.enrollments,
-        'Completions': c.completions,
-        'Completion Rate': `${c.completionRate}%`,
-        'Avg Progress': `${c.averageProgress}%`
-      })),
-      'Department Training': departmentStats.map(d => ({
-        'Department': d.name,
-        'Total Employees': d.totalEmployees,
-        'Trained Employees': d.trainedEmployees,
-        'Training Hours': d.trainingHours,
-        'Completion Rate': `${d.completionRate}%`
-      }))
-    }
-
-    const worksheet = XLSX.utils.json_to_sheet(reportData['Course Performance'])
+    const courseData = courseAnalytics.map(c => ({
+      'Course': c.title,
+      'Category': c.category,
+      'Difficulty': c.difficulty,
+      'Enrollments': c.enrollments,
+      'Completions': c.completions,
+      'Completion Rate': `${c.completionRate}%`,
+      'Avg Progress': `${c.averageProgress}%`
+    }))
+    
+    const worksheet = XLSX.utils.json_to_sheet(courseData)
     const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Full Report')
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Course Report')
     XLSX.writeFile(workbook, `admin-report-${new Date().toISOString().split('T')[0]}.xlsx`)
   }
 
@@ -487,7 +468,7 @@ export default function AdminReportsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header - Same as before */}
+      {/* Header */}
       <div className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-50 h-14">
         <div className="flex items-center justify-between h-full px-4">
           <div className="flex items-center space-x-4">
@@ -502,7 +483,7 @@ export default function AdminReportsPage() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <button onClick={() => setShowImportModal(true)} className="p-2 hover:bg-gray-100 rounded-full relative">
+            <button onClick={() => setShowImportModal(true)} className="p-2 hover:bg-gray-100 rounded-full">
               <Upload size={20} className="text-gray-600" />
             </button>
             <button onClick={exportFullReport} className="p-2 hover:bg-gray-100 rounded-full">
@@ -519,7 +500,7 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Sidebar - Same structure */}
+      {/* Sidebar */}
       <div className={`fixed left-0 top-14 bottom-0 bg-white border-r border-gray-200 transition-all duration-300 z-40 ${sidebarCollapsed ? 'w-20' : 'w-64'} hidden lg:block`}>
         <div className="flex flex-col h-full">
           <div className="p-4 flex justify-end">
@@ -640,7 +621,7 @@ export default function AdminReportsPage() {
                   </ResponsiveContainer>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">User Segmentation (Pareto Analysis)</h3>
+                  <h3 className="text-lg font-semibold mb-4">User Segmentation</h3>
                   <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={userSegments}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -686,7 +667,7 @@ export default function AdminReportsPage() {
 
               {/* Course Completion Pareto Chart */}
               <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-                <h3 className="text-lg font-semibold mb-4">Course Completion Pareto Analysis (80/20 Rule)</h3>
+                <h3 className="text-lg font-semibold mb-4">Course Completion Analysis (Pareto)</h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <ComposedChart data={courseAnalytics.slice(0, 12)}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -776,3 +757,156 @@ export default function AdminReportsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Employees</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trained Employees</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coverage %</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Training Hours</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Courses Taken</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {departmentStats.map((dept) => (
+                        <tr key={dept.name} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{dept.name}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{dept.totalEmployees}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{dept.trainedEmployees}</td>
+                          <td className="px-6 py-4 text-sm"><span className="font-medium">{Math.round((dept.trainedEmployees / dept.totalEmployees) * 100)}%</span></td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{dept.trainingHours}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{dept.coursesTaken}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Facilitators Report */}
+          {selectedReport === 'facilitators' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="p-6 border-b"><h3 className="text-lg font-semibold">Facilitator Performance</h3></div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Facilitator</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sessions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Hours</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Students Trained</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {facilitatorStats.map((fac) => (
+                      <tr key={fac.name} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{fac.name}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{fac.sessionsConducted}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{fac.totalHours}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{fac.studentsTrained}</td>
+                        <td className="px-6 py-4 text-sm"><div className="flex items-center gap-1"><span className="font-medium text-yellow-600">{fac.averageRating}</span><Star size={14} className="fill-yellow-400 text-yellow-400" /></div></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Trends Report */}
+          {selectedReport === 'trends' && (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-semibold mb-4">Monthly Enrollments & Completions</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={monthlyTrends}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="enrollments" stroke="#3b82f6" name="Enrollments" />
+                      <Line type="monotone" dataKey="completions" stroke="#10b981" name="Completions" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-semibold mb-4">Training Hours Trend</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={monthlyTrends}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Area type="monotone" dataKey="trainingHours" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.3} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="text-lg font-semibold mb-4">User Growth & New Users</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={monthlyTrends}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="newUsers" fill="#f59e0b" name="New Users" />
+                    <Line yAxisId="right" type="monotone" dataKey="enrollments" stroke="#3b82f6" name="Enrollments" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b">
+              <h2 className="text-xl font-bold">Import Training Data</h2>
+              <button onClick={() => setShowImportModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
+                <FileSpreadsheet size={48} className="mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-600 mb-2">Upload Excel or CSV file</p>
+                <p className="text-sm text-gray-500 mb-4">Supported formats: .xlsx, .xls, .csv</p>
+                <p className="text-xs text-gray-400 mb-4">Required columns: Training Date, Attendee Name, Course, Facilitator, Supervisor, Department, Duration Hours</p>
+                <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+              {importPreview.length > 0 && (
+                <div>
+                  <h3 className="font-medium mb-2">Preview ({importPreview.length} records)</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>{Object.keys(importPreview[0]).slice(0, 5).map(key => (<th key={key} className="px-3 py-2 text-left">{key}</th>))}</tr>
+                      </thead>
+                      <tbody>
+                        {importPreview.map((row, idx) => (
+                          <tr key={idx}>{Object.values(row).slice(0, 5).map((value: any, i) => (<td key={i} className="px-3 py-2 border-t">{String(value).slice(0, 30)}</td>))}</tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 p-6 border-t">
+              <button onClick={() => setShowImportModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+              <button onClick={handleConfirmImport} disabled={importData.length === 0} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">Import {importData.length} Records</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
