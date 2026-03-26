@@ -322,22 +322,22 @@ export default function AdminReportsPage() {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Training Template')
     
     const instructions = [
-      { 'Instructions': '=== STRATAVAX TRAINING DATA IMPORT TEMPLATE ===' },
-      { 'Instructions': '' },
-      { 'Instructions': 'HOW TO USE:' },
-      { 'Instructions': '1. Do NOT modify column headers' },
-      { 'Instructions': '2. Enter your classroom training data starting from Row 2' },
-      { 'Instructions': '3. Save as Excel (.xlsx) or CSV (.csv)' },
-      { 'Instructions': '4. Click "Import Excel" on the Reports page' },
-      { 'Instructions': '' },
-      { 'Instructions': 'Column Descriptions:' },
-      { 'Instructions': '- Training Date: YYYY-MM-DD format' },
-      { 'Instructions': '- Attendee Name: Full name of participant' },
-      { 'Instructions': '- Course: Training course name' },
-      { 'Instructions': '- Facilitator: Trainer name' },
-      { 'Instructions': '- Supervisor: Attendee supervisor (optional)' },
-      { 'Instructions': '- Department: Attendee department' },
-      { 'Instructions': '- Duration Hours: Training hours (e.g., 4, 6.5)' }
+      { Instructions: '=== STRATAVAX TRAINING DATA IMPORT TEMPLATE ===' },
+      { Instructions: '' },
+      { Instructions: 'HOW TO USE:' },
+      { Instructions: '1. Do NOT modify column headers' },
+      { Instructions: '2. Enter your classroom training data starting from Row 2' },
+      { Instructions: '3. Save as Excel (.xlsx) or CSV (.csv)' },
+      { Instructions: '4. Click "Import Excel" on the Reports page' },
+      { Instructions: '' },
+      { Instructions: 'Column Descriptions:' },
+      { Instructions: '- Training Date: YYYY-MM-DD format' },
+      { Instructions: '- Attendee Name: Full name of participant' },
+      { Instructions: '- Course: Training course name' },
+      { Instructions: '- Facilitator: Trainer name' },
+      { Instructions: '- Supervisor: Attendee supervisor (optional)' },
+      { Instructions: '- Department: Attendee department' },
+      { Instructions: '- Duration Hours: Training hours (e.g., 4, 6.5)' }
     ]
     const instructionsSheet = XLSX.utils.json_to_sheet(instructions)
     XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions')
@@ -383,7 +383,7 @@ export default function AdminReportsPage() {
     await loadAllData()
     setShowImportModal(false)
     setImportData([])
-    alert(`Import completed: ${successCount} records added, ${errorCount} failed`)
+    alert('Import completed: ' + successCount + ' records added, ' + errorCount + ' failed')
   }
 
   const exportToExcel = () => {
@@ -399,7 +399,7 @@ export default function AdminReportsPage() {
     const worksheet = XLSX.utils.json_to_sheet(exportData)
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Training Records')
-    XLSX.writeFile(workbook, `training-records-${new Date().toISOString().split('T')[0]}.xlsx`)
+    XLSX.writeFile(workbook, 'training-records-' + new Date().toISOString().split('T')[0] + '.xlsx')
   }
 
   const handleSignOut = async () => {
@@ -417,7 +417,6 @@ export default function AdminReportsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
       <div className="bg-white border-b fixed top-0 left-0 right-0 z-50 h-14">
         <div className="flex items-center justify-between h-full px-4">
           <div className="flex items-center space-x-4">
@@ -454,7 +453,6 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Sidebar */}
       <div className={`fixed left-0 top-14 bottom-0 bg-white border-r transition-all duration-300 z-40 ${sidebarCollapsed ? 'w-20' : 'w-64'} hidden lg:block`}>
         <div className="p-4 flex justify-end">
           <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 hover:bg-gray-100 rounded">
@@ -479,7 +477,6 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden" onClick={() => setMobileMenuOpen(false)}>
           <div className="fixed left-0 top-14 bottom-0 w-64 bg-white">
@@ -502,15 +499,12 @@ export default function AdminReportsPage() {
         </div>
       )}
 
-      {/* Main Content */}
       <div className={`pt-14 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <div className="p-6">
-          {/* Overview Tab */}
           {activeTab === 'overview' && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-6">Analytics Dashboard</h1>
               
-              {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
@@ -538,14 +532,13 @@ export default function AdminReportsPage() {
                 </div>
               </div>
 
-              {/* Progress Distribution */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <h3 className="text-lg font-semibold mb-4">Course Progress Distribution</h3>
                   <div className="space-y-4">
-                    <div><div className="flex justify-between text-sm mb-1"><span>Completed</span><span>{stats.completedCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.completedCourses / stats.totalEnrollments) * 100 : 0}%` }} /></div></div>
-                    <div><div className="flex justify-between text-sm mb-1"><span>In Progress</span><span>{stats.inProgressCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.inProgressCourses / stats.totalEnrollments) * 100 : 0}%` }} /></div></div>
-                    <div><div className="flex justify-between text-sm mb-1"><span>Not Started</span><span>{stats.notStartedCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-gray-400 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.notStartedCourses / stats.totalEnrollments) * 100 : 0}%` }} /></div></div>
+                    <div><div className="flex justify-between text-sm mb-1"><span>Completed</span><span>{stats.completedCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: stats.totalEnrollments > 0 ? (stats.completedCourses / stats.totalEnrollments) * 100 + '%' : '0%' }} /></div></div>
+                    <div><div className="flex justify-between text-sm mb-1"><span>In Progress</span><span>{stats.inProgressCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{ width: stats.totalEnrollments > 0 ? (stats.inProgressCourses / stats.totalEnrollments) * 100 + '%' : '0%' }} /></div></div>
+                    <div><div className="flex justify-between text-sm mb-1"><span>Not Started</span><span>{stats.notStartedCourses}</span></div><div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-gray-400 h-2 rounded-full" style={{ width: stats.totalEnrollments > 0 ? (stats.notStartedCourses / stats.totalEnrollments) * 100 + '%' : '0%' }} /></div></div>
                   </div>
                   <div className="mt-4 pt-4 border-t"><div className="flex justify-between text-sm"><span>Average Progress</span><span className="font-bold">{stats.averageProgress}%</span></div></div>
                 </div>
@@ -564,7 +557,6 @@ export default function AdminReportsPage() {
                 </div>
               </div>
 
-              {/* Monthly Trends */}
               <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
                 <h3 className="text-lg font-semibold mb-4">Monthly Trends</h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -581,7 +573,6 @@ export default function AdminReportsPage() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Facilitator Performance */}
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <div className="p-6 border-b"><h3 className="text-lg font-semibold">Top Facilitators</h3></div>
                 <div className="overflow-x-auto">
@@ -594,20 +585,18 @@ export default function AdminReportsPage() {
             </>
           )}
 
-          {/* Course Analytics Tab */}
           {activeTab === 'courses' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="p-6 border-b"><h2 className="text-xl font-bold">Course Performance</h2><p className="text-sm text-gray-500">Enrollments, completions, and progress rates</p></div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avg Progress</th></tr></thead>
-                  <tbody className="divide-y">{courseStats.map((course) => (<tr key={course.id} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{course.title}</td><td className="px-6 py-4 text-sm">{course.enrollments}</td><td className="px-6 py-4 text-sm">{course.completions}</td><td className="px-6 py-4"><span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">{course.completionRate}%</span></td><td className="px-6 py-4"><div className="w-24 bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{ width: `${course.averageProgress}%` }} /></div></td></tr>))}</tbody>
+                  <tbody className="divide-y">{courseStats.map((course) => (<tr key={course.id} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{course.title}</td><td className="px-6 py-4 text-sm">{course.enrollments}</td><td className="px-6 py-4 text-sm">{course.completions}</td><td className="px-6 py-4"><span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">{course.completionRate}%</span></td><td className="px-6 py-4"><div className="w-24 bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{ width: course.averageProgress + '%' }} /></div></td></tr>))}</tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {/* Training Records Tab */}
           {activeTab === 'training' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="p-6 border-b flex justify-between items-center">
@@ -624,19 +613,21 @@ export default function AdminReportsPage() {
                   <tbody className="divide-y">
                     {trainingRecords.map((record) => (
                       <tr key={record.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm">{new Date(record.training_date).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-sm">{record.attendee_name}</td>
-                        <td className="px-6 py-4 text-sm">{record.course}</td>
-                        <td className="px-6 py-4 text-sm">{record.facilitator}</td>
-                        <td className="px-6 py-4 text-sm">{record.department}</td>
-                        <td className="px-6 py-4 text-sm">{record.duration_hours}</td>
+                        <td className="px-6 py-4 text-sm">{new Date(record.training_date).toLocaleDateString()} </td>
+                        <td className="px-6 py-4 text-sm">{record.attendee_name} </td>
+                        <td className="px-6 py-4 text-sm">{record.course} </td>
+                        <td className="px-6 py-4 text-sm">{record.facilitator} </td>
+                        <td className="px-6 py-4 text-sm">{record.department} </td>
+                        <td className="px-6 py-4 text-sm">{record.duration_hours} </td>
                         <td className="px-6 py-4 text-sm">
                           <button onClick={() => setEditingRecord(record)} className="text-blue-600 hover:text-blue-800 mr-2"><Edit size={16} /></button>
                           <button onClick={() => handleDeleteRecord(record.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
                         </td>
                       </tr>
                     ))}
-                    {trainingRecords.length === 0 && ( ga<tr><td colSpan={7} className="px-6 py-8 text-center text-gray-500">No training records. Click "Add Record" or "Import Excel" to add data.</td></tr>)}
+                    {trainingRecords.length === 0 && (
+                      <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-500">No training records. Click "Add Record" or "Import Excel" to add data.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -645,7 +636,6 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Add Record Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full">
@@ -664,7 +654,6 @@ export default function AdminReportsPage() {
         </div>
       )}
 
-      {/* Edit Record Modal */}
       {editingRecord && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full">
@@ -683,18 +672,17 @@ export default function AdminReportsPage() {
         </div>
       )}
 
-      {/* Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full">
             <div className="flex justify-between items-center p-4 border-b"><h2 className="text-lg font-semibold">Import Excel Data</h2><button onClick={() => setShowImportModal(false)}><X size={20} /></button></div>
             <div className="p-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <p className="text-sm text-blue-700">📋 Need a template? Click the Excel icon in the top bar to download the template.</p>
+                <p className="text-sm text-blue-700">Need a template? Click the Excel icon in the top bar to download the template.</p>
               </div>
               {importPreview.length > 0 && (
                 <div><p className="text-sm mb-3">Preview of {importData.length} records:</p>
-                <div className="overflow-x-auto"><table className="w-full text-sm border"><thead className="bg-gray-50"> <tr>{Object.keys(importPreview[0]).slice(0, 6).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))}</tr></thead>
+                <div className="overflow-x-auto"><table className="w-full text-sm border"><thead className="bg-gray-50"><tr>{Object.keys(importPreview[0]).slice(0, 6).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))}</tr></thead>
                 <tbody>{importPreview.map((row, idx) => (<tr key={idx}>{Object.values(row).slice(0, 6).map((value: any, i) => (<td key={i} className="px-3 py-2 border">{String(value).slice(0, 30)}</td>))}</tr>))}</tbody></table></div></div>
               )}
             </div>
