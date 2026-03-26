@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseServer } from '@/lib/supabase-server'
+import { createClient } from '@/lib/supabase-server'
+import * as XLSX from 'xlsx'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabaseServer.auth.getUser()
+    const supabase = await createClient()
+    
+    // Verify user is authenticated and is admin
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
       return NextResponse.json(
@@ -15,79 +18,38 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Check if user is admin - using profiles_roles table (from your schema)
-    const { data: userRole, error: roleError } = await supabaseServer
-      .from('profiles_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single() as any
-
-    if (roleError) {
-      console.error('Error checking user role:', roleError)
-    }
-
-    // Check if user has admin role
-    const isAdmin = userRole && (userRole.role === 'admin' || userRole.role === 'super_admin')
-    
-    if (!isAdmin) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
-    }
-
-    // Fetch all courses with related data - using 'as any' to bypass TypeScript type checking
-    const { data: courses, error } = await supabaseServer
+    // Get all courses
+    const { data: courses, error: coursesError } = await supabase
       .from('courses')
-      .select(`
-        *,
-        enrollments (
-          user_id,
-          progress_percentage,
-          enrolled_at,
-          status
-        ),
-        modules (
-          id,
-          title,
-          lessons (
-            id,
-            title
-          )
-        )
-      `)
-      .order('created_at', { ascending: false }) as any
+      .select('*')
+      .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error('Error fetching courses:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      })
+    if (coursesError) {
+      console.error('Error fetching courses:', coursesError)
       return NextResponse.json(
         { error: 'Failed to fetch courses' },
         { status: 500 }
       )
     }
 
-    // Transform the data to include counts
-    const transformedCourses = courses?.map((course: any) => ({
-      ...course,
-      total_enrollments: course.enrollments?.length || 0,
-      total_modules: course.modules?.length || 0,
-      total_lessons: course.modules?.reduce((acc: number, module: any) => 
-        acc + (module.lessons?.length || 0), 0) || 0
-    })) || []
+    // Convert to worksheet
+    const worksheet = XLSX.utils.json_to_sheet(courses || [])
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Courses')
 
-    return NextResponse.json({ 
-      success: true,
-      courses: transformedCourses,
-      total: transformedCourses.length
+    // Generate buffer
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
+
+    // Return file
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="courses-${new Date().toISOString().split('T')[0]}.xlsx"`,
+      },
     })
-    
   } catch (error) {
-    console.error('Error in course export:', error)
+    console.error('Error in export:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
