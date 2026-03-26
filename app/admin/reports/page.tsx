@@ -10,8 +10,7 @@ import {
   Users, BookOpen, CheckCircle, Clock, Award, TrendingUp,
   FileText, Menu, X, Home, LogOut, Upload, RefreshCw,
   Building, Briefcase, FileSpreadsheet, Activity, Star, UserCheck,
-  FileDown, FileUp, Trash2, AlertCircle, PieChart as PieChartIcon,
-  LineChart as LineChartIcon, BarChart as BarChartIcon
+  FileDown, FileUp, Trash2, AlertCircle
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -135,10 +134,10 @@ export default function AdminReportsPage() {
       .select('*', { count: 'exact', head: true })
       .eq('is_published', true)
 
-    // Get enrollments
+    // Get enrollments with all needed fields
     const { data: enrollments } = await supabase
       .from('enrollments')
-      .select('progress_percentage, completed_at, user_id')
+      .select('progress_percentage, completed_at, user_id, enrolled_at')
 
     const totalEnrollments = enrollments?.length || 0
     const completedCourses = enrollments?.filter(e => e.completed_at).length || 0
@@ -153,7 +152,11 @@ export default function AdminReportsPage() {
     // Active users (last 30 days)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const activeUsers = new Set(enrollments?.filter(e => new Date(e.enrolled_at) > thirtyDaysAgo).map(e => e.user_id)).size || 0
+    const activeUsersList = enrollments?.filter(e => {
+      if (!e.enrolled_at) return false
+      return new Date(e.enrolled_at) > thirtyDaysAgo
+    }).map(e => e.user_id) || []
+    const uniqueActiveUsers = new Set(activeUsersList).size || 0
 
     // New users this month
     const firstDayOfMonth = new Date()
@@ -179,7 +182,7 @@ export default function AdminReportsPage() {
       completionRate,
       totalTrainingHours: 0,
       totalTrainingSessions: 0,
-      activeUsers,
+      activeUsers: uniqueActiveUsers,
       newUsersThisMonth: newUsers || 0,
       certificatesIssued: certificates || 0
     })
@@ -465,7 +468,7 @@ export default function AdminReportsPage() {
                     <div><p className="text-sm text-gray-500">Active Users</p><p className="text-2xl font-bold">{stats.activeUsers.toLocaleString()}</p></div>
                     <Activity size={32} className="text-green-500" />
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">{Math.round((stats.activeUsers / stats.totalUsers) * 100)}% engagement</div>
+                  <div className="mt-2 text-xs text-gray-500">{stats.totalUsers > 0 ? Math.round((stats.activeUsers / stats.totalUsers) * 100) : 0}% engagement</div>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
@@ -479,7 +482,7 @@ export default function AdminReportsPage() {
                     <div><p className="text-sm text-gray-500">Certificates</p><p className="text-2xl font-bold">{stats.certificatesIssued.toLocaleString()}</p></div>
                     <Award size={32} className="text-yellow-500" />
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">+{stats.completedCourses} this month</div>
+                  <div className="mt-2 text-xs text-gray-500">+{stats.completedCourses} completed</div>
                 </div>
               </div>
 
@@ -490,15 +493,15 @@ export default function AdminReportsPage() {
                   <div className="space-y-4">
                     <div>
                       <div className="flex justify-between text-sm mb-1"><span>Completed</span><span>{stats.completedCourses}</span></div>
-                      <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: `${(stats.completedCourses / stats.totalEnrollments) * 100 || 0}%` }}></div></div>
+                      <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.completedCourses / stats.totalEnrollments) * 100 : 0}%` }}></div></div>
                     </div>
                     <div>
                       <div className="flex justify-between text-sm mb-1"><span>In Progress</span><span>{stats.inProgressCourses}</span></div>
-                      <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${(stats.inProgressCourses / stats.totalEnrollments) * 100 || 0}%` }}></div></div>
+                      <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.inProgressCourses / stats.totalEnrollments) * 100 : 0}%` }}></div></div>
                     </div>
                     <div>
                       <div className="flex justify-between text-sm mb-1"><span>Not Started</span><span>{stats.notStartedCourses}</span></div>
-                      <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-gray-400 h-2 rounded-full" style={{ width: `${(stats.notStartedCourses / stats.totalEnrollments) * 100 || 0}%` }}></div></div>
+                      <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-gray-400 h-2 rounded-full" style={{ width: `${stats.totalEnrollments > 0 ? (stats.notStartedCourses / stats.totalEnrollments) * 100 : 0}%` }}></div></div>
                     </div>
                   </div>
                   <div className="mt-4 pt-4 border-t">
@@ -543,7 +546,7 @@ export default function AdminReportsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
-                      <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Sessions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th></tr>
+                      <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Sessions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Hours</th> </tr>
                     </thead>
                     <tbody className="divide-y">
                       {facilitatorData.map((fac) => (<tr key={fac.name} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{fac.name}</td><td className="px-6 py-4 text-sm">{fac.sessions}</td><td className="px-6 py-4 text-sm">{fac.hours}</td></tr>))}
