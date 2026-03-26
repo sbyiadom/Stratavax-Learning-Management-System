@@ -16,7 +16,8 @@ import {
   GraduationCap,
   Shield,
   Database,
-  Upload
+  Upload,
+  FileSpreadsheet
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
@@ -30,6 +31,7 @@ const navItems = [
   { name: 'Assignments', href: '/dashboard/assignments', icon: FileText },
   { name: 'Community', href: '/dashboard/community', icon: Users },
   { name: 'Certificates', href: '/dashboard/certificates', icon: GraduationCap },
+  { name: 'Reports', href: '/admin/reports', icon: FileSpreadsheet },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
@@ -47,8 +49,8 @@ export default function DashboardSidebar() {
     getUser()
   }, [supabase])
 
-  // Admin email - change this to your email
-  const ADMIN_EMAIL = 'voltic@gmail.com'
+  // Admin email - update to your email
+  const ADMIN_EMAIL = 'sbyiadom88@gmail.com'
   const isAdmin = userEmail === ADMIN_EMAIL
 
   return (
