@@ -8,11 +8,12 @@ import * as XLSX from 'xlsx'
 import {
   BarChart3, Download, Calendar, ChevronRight, ChevronLeft,
   Users, BookOpen, CheckCircle, Clock, Award, TrendingUp,
-  PieChart, FileText, Filter, Search, Bell, HelpCircle,
+  FileText, Filter, Search, Bell, HelpCircle,
   ChevronDown, LogOut, Settings, Home, GraduationCap,
   Upload, RefreshCw, Building, Briefcase, FileSpreadsheet,
-  Database, Activity, BarChart, LineChart as LineChartIcon,
-  PieChart as PieChartIcon, TrendingDown, Star, UserCheck, Menu, X
+  Database, Activity, BarChart as BarChartIcon, LineChart as LineChartIcon,
+  TrendingDown, Star, UserCheck, Menu, X,
+  FileDown, FileUp, Trash2, AlertCircle
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -124,7 +125,6 @@ export default function AdminReportsPage() {
   const supabase = createClient()
   const router = useRouter()
 
-  // Colors for charts
   const COLORS = ['#3b82f6', '#8b5cf6', '#ec489a', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316', '#d946ef']
 
   useEffect(() => {
@@ -156,18 +156,15 @@ export default function AdminReportsPage() {
   }
 
   const loadAdminStats = async () => {
-    // Get total users
     const { count: totalUsers } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true })
 
-    // Get total courses
     const { count: totalCourses } = await supabase
       .from('courses')
       .select('*', { count: 'exact', head: true })
       .eq('is_published', true)
 
-    // Get enrollments
     const { data: enrollments } = await supabase
       .from('enrollments')
       .select('*')
@@ -179,7 +176,6 @@ export default function AdminReportsPage() {
       ? Math.round(enrollments.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) / totalEnrollments)
       : 0
 
-    // Active users (last 30 days)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const { data: activeEnrollments } = await supabase
@@ -188,7 +184,6 @@ export default function AdminReportsPage() {
       .gte('enrolled_at', thirtyDaysAgo.toISOString())
     const activeUsers = new Set(activeEnrollments?.map(e => e.user_id)).size || 0
 
-    // New users this month/week
     const firstDayOfMonth = new Date()
     firstDayOfMonth.setDate(1)
     const sevenDaysAgo = new Date()
@@ -204,12 +199,10 @@ export default function AdminReportsPage() {
       .select('*', { count: 'exact', head: true })
       .gte('created_at', sevenDaysAgo.toISOString())
 
-    // Certificates
     const { count: certificates } = await supabase
       .from('certificates')
       .select('*', { count: 'exact', head: true })
 
-    // User growth (last 6 months)
     const growth = []
     const now = new Date()
     for (let i = 5; i >= 0; i--) {
@@ -326,11 +319,11 @@ export default function AdminReportsPage() {
       .select('facilitator, duration_hours, attendee_name')
     
     if (records) {
-      const facMap = new Map<string, { sessions: Set<string>; hours: number; students: Set<string>; courses: Set<string> }>()
+      const facMap = new Map<string, { sessions: Set<string>; hours: number; students: Set<string> }>()
       records.forEach(record => {
         if (!record.facilitator) return
         if (!facMap.has(record.facilitator)) {
-          facMap.set(record.facilitator, { sessions: new Set(), hours: 0, students: new Set(), courses: new Set() })
+          facMap.set(record.facilitator, { sessions: new Set(), hours: 0, students: new Set() })
         }
         const fac = facMap.get(record.facilitator)!
         fac.sessions.add(record.training_date)
@@ -344,7 +337,7 @@ export default function AdminReportsPage() {
         totalHours: data.hours,
         averageRating: 4.5,
         studentsTrained: data.students.size,
-        coursesTaught: data.courses.size || Math.floor(data.hours / 5)
+        coursesTaught: Math.floor(data.hours / 5)
       }))
 
       setFacilitatorStats(stats.sort((a, b) => b.sessionsConducted - a.sessionsConducted))
@@ -708,19 +701,19 @@ export default function AdminReportsPage() {
                   <tbody className="divide-y divide-gray-200">
                     {courseAnalytics.map((course) => (
                       <tr key={course.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{course.title}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{course.category}</td>
-                        <td className="px-6 py-4 text-sm"><span className={`px-2 py-1 rounded-full text-xs ${course.difficulty === 'beginner' ? 'bg-green-100 text-green-700' : course.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{course.difficulty}</span></td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{course.enrollments}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{course.completions}</td>
-                        <td className="px-6 py-4"><div className="flex items-center gap-2"><span className="text-sm font-medium">{course.completionRate}%</span><div className="w-16 h-1.5 bg-gray-100 rounded-full"><div className="h-1.5 bg-green-500 rounded-full" style={{ width: `${course.completionRate}%` }}></div></div></div></td>
-                        <td className="px-6 py-4"><div className="flex items-center gap-2"><span className="text-sm font-medium">{course.averageProgress}%</span><div className="w-16 h-1.5 bg-gray-100 rounded-full"><div className="h-1.5 bg-blue-500 rounded-full" style={{ width: `${course.averageProgress}%` }}></div></div></div></td>
-                      </tr>
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{course.title}<\/td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{course.category}<\/td>
+                        <td className="px-6 py-4 text-sm"><span className={`px-2 py-1 rounded-full text-xs ${course.difficulty === 'beginner' ? 'bg-green-100 text-green-700' : course.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{course.difficulty}<\/span><\/td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{course.enrollments}<\/td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{course.completions}<\/td>
+                        <td className="px-6 py-4"><div className="flex items-center gap-2"><span className="text-sm font-medium">{course.completionRate}%<\/span><div className="w-16 h-1.5 bg-gray-100 rounded-full"><div className="h-1.5 bg-green-500 rounded-full" style={{ width: `${course.completionRate}%` }}><\/div><\/div><\/div><\/td>
+                        <td className="px-6 py-4"><div className="flex items-center gap-2"><span className="text-sm font-medium">{course.averageProgress}%<\/span><div className="w-16 h-1.5 bg-gray-100 rounded-full"><div className="h-1.5 bg-blue-500 rounded-full" style={{ width: `${course.averageProgress}%` }}><\/div><\/div><\/div><\/td>
+                      <\/tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                  <\/tbody>
+                <\/table>
+              <\/div>
+            <\/div>
           )}
 
           {/* Departments Report */}
@@ -728,19 +721,19 @@ export default function AdminReportsPage() {
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">Training Coverage by Department</h3>
+                  <h3 className="text-lg font-semibold mb-4">Training Coverage by Department<\/h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
                       <Pie data={departmentStats} dataKey="trainedEmployees" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
                         {departmentStats.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
-                      </Pie>
+                      <\/Pie>
                       <Tooltip />
                       <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                    <\/PieChart>
+                  <\/ResponsiveContainer>
+                <\/div>
                 <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">Training Hours by Department</h3>
+                  <h3 className="text-lg font-semibold mb-4">Training Hours by Department<\/h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={departmentStats}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -748,71 +741,71 @@ export default function AdminReportsPage() {
                       <YAxis />
                       <Tooltip />
                       <Bar dataKey="trainingHours" fill="#10b981" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+                    <\/BarChart>
+                  <\/ResponsiveContainer>
+                <\/div>
+              <\/div>
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <div className="p-6 border-b"><h3 className="text-lg font-semibold">Department Details</h3></div>
+                <div className="p-6 border-b"><h3 className="text-lg font-semibold">Department Details<\/h3><\/div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Employees</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trained Employees</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coverage %</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Training Hours</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Courses Taken</th>
-                      </tr>
-                    </thead>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department<\/th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Employees<\/th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trained Employees<\/th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coverage %<\/th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Training Hours<\/th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Courses Taken<\/th>
+                      <\/tr>
+                    <\/thead>
                     <tbody className="divide-y divide-gray-200">
                       {departmentStats.map((dept) => (
                         <tr key={dept.name} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{dept.name}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{dept.totalEmployees}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{dept.trainedEmployees}</td>
-                          <td className="px-6 py-4 text-sm"><span className="font-medium">{Math.round((dept.trainedEmployees / dept.totalEmployees) * 100)}%</span></td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{dept.trainingHours}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{dept.coursesTaken}</td>
-                        </tr>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{dept.name}<\/td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{dept.totalEmployees}<\/td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{dept.trainedEmployees}<\/td>
+                          <td className="px-6 py-4 text-sm"><span className="font-medium">{Math.round((dept.trainedEmployees / dept.totalEmployees) * 100)}%<\/span><\/td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{dept.trainingHours}<\/td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{dept.coursesTaken}<\/td>
+                        <\/tr>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                    <\/tbody>
+                  <\/table>
+                <\/div>
+              <\/div>
             </>
           )}
 
           {/* Facilitators Report */}
           {selectedReport === 'facilitators' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b"><h3 className="text-lg font-semibold">Facilitator Performance</h3></div>
+              <div className="p-6 border-b"><h3 className="text-lg font-semibold">Facilitator Performance<\/h3><\/div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Facilitator</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sessions</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Hours</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Students Trained</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
-                    </tr>
-                  </thead>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Facilitator<\/th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sessions<\/th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Hours<\/th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Students Trained<\/th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating<\/th>
+                    <\/tr>
+                  <\/thead>
                   <tbody className="divide-y divide-gray-200">
                     {facilitatorStats.map((fac) => (
                       <tr key={fac.name} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{fac.name}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{fac.sessionsConducted}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{fac.totalHours}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{fac.studentsTrained}</td>
-                        <td className="px-6 py-4 text-sm"><div className="flex items-center gap-1"><span className="font-medium text-yellow-600">{fac.averageRating}</span><Star size={14} className="fill-yellow-400 text-yellow-400" /></div></td>
-                      </tr>
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{fac.name}<\/td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{fac.sessionsConducted}<\/td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{fac.totalHours}<\/td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{fac.studentsTrained}<\/td>
+                        <td className="px-6 py-4 text-sm"><div className="flex items-center gap-1"><span className="font-medium text-yellow-600">{fac.averageRating}<\/span><Star size={14} className="fill-yellow-400 text-yellow-400" /><\/div><\/td>
+                      <\/tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                  <\/tbody>
+                <\/table>
+              <\/div>
+            <\/div>
           )}
 
           {/* Trends Report */}
@@ -820,7 +813,7 @@ export default function AdminReportsPage() {
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">Monthly Enrollments & Completions</h3>
+                  <h3 className="text-lg font-semibold mb-4">Monthly Enrollments & Completions<\/h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={monthlyTrends}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -830,11 +823,11 @@ export default function AdminReportsPage() {
                       <Legend />
                       <Line type="monotone" dataKey="enrollments" stroke="#3b82f6" name="Enrollments" />
                       <Line type="monotone" dataKey="completions" stroke="#10b981" name="Completions" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                    <\/LineChart>
+                  <\/ResponsiveContainer>
+                <\/div>
                 <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">Training Hours Trend</h3>
+                  <h3 className="text-lg font-semibold mb-4">Training Hours Trend<\/h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={monthlyTrends}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -842,12 +835,12 @@ export default function AdminReportsPage() {
                       <YAxis />
                       <Tooltip />
                       <Area type="monotone" dataKey="trainingHours" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.3} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+                    <\/AreaChart>
+                  <\/ResponsiveContainer>
+                <\/div>
+              <\/div>
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold mb-4">User Growth & New Users</h3>
+                <h3 className="text-lg font-semibold mb-4">User Growth & New Users<\/h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <ComposedChart data={monthlyTrends}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -858,55 +851,55 @@ export default function AdminReportsPage() {
                     <Legend />
                     <Bar yAxisId="left" dataKey="newUsers" fill="#f59e0b" name="New Users" />
                     <Line yAxisId="right" type="monotone" dataKey="enrollments" stroke="#3b82f6" name="Enrollments" />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
+                  <\/ComposedChart>
+                <\/ResponsiveContainer>
+              <\/div>
             </>
           )}
-        </div>
-      </div>
+        <\/div>
+      <\/div>
 
       {/* Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-bold">Import Training Data</h2>
-              <button onClick={() => setShowImportModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-            </div>
+              <h2 className="text-xl font-bold">Import Training Data<\/h2>
+              <button onClick={() => setShowImportModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /><\/button>
+            <\/div>
             <div className="p-6 overflow-y-auto">
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
                 <FileSpreadsheet size={48} className="mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-600 mb-2">Upload Excel or CSV file</p>
-                <p className="text-sm text-gray-500 mb-4">Supported formats: .xlsx, .xls, .csv</p>
-                <p className="text-xs text-gray-400 mb-4">Required columns: Training Date, Attendee Name, Course, Facilitator, Supervisor, Department, Duration Hours</p>
+                <p className="text-gray-600 mb-2">Upload Excel or CSV file<\/p>
+                <p className="text-sm text-gray-500 mb-4">Supported formats: .xlsx, .xls, .csv<\/p>
+                <p className="text-xs text-gray-400 mb-4">Required columns: Training Date, Attendee Name, Course, Facilitator, Supervisor, Department, Duration Hours<\/p>
                 <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-              </div>
+              <\/div>
               {importPreview.length > 0 && (
                 <div>
-                  <h3 className="font-medium mb-2">Preview ({importPreview.length} records)</h3>
+                  <h3 className="font-medium mb-2">Preview ({importPreview.length} records)<\/h3>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50">
-                        <tr>{Object.keys(importPreview[0]).slice(0, 5).map(key => (<th key={key} className="px-3 py-2 text-left">{key}</th>))}</tr>
-                      </thead>
+                        <tr>{Object.keys(importPreview[0]).slice(0, 5).map(key => (<th key={key} className="px-3 py-2 text-left">{key}<\/th>))}<\/tr>
+                      <\/thead>
                       <tbody>
                         {importPreview.map((row, idx) => (
-                          <tr key={idx}>{Object.values(row).slice(0, 5).map((value: any, i) => (<td key={i} className="px-3 py-2 border-t">{String(value).slice(0, 30)}</td>))}</tr>
+                          <tr key={idx}>{Object.values(row).slice(0, 5).map((value: any, i) => (<td key={i} className="px-3 py-2 border-t">{String(value).slice(0, 30)}<\/td>))}<\/tr>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                      <\/tbody>
+                    <\/table>
+                  <\/div>
+                <\/div>
               )}
-            </div>
+            <\/div>
             <div className="flex justify-end gap-3 p-6 border-t">
-              <button onClick={() => setShowImportModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-              <button onClick={handleConfirmImport} disabled={importData.length === 0} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">Import {importData.length} Records</button>
-            </div>
-          </div>
-        </div>
+              <button onClick={() => setShowImportModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel<\/button>
+              <button onClick={handleConfirmImport} disabled={importData.length === 0} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">Import {importData.length} Records<\/button>
+            <\/div>
+          <\/div>
+        <\/div>
       )}
-    </div>
+    <\/div>
   )
 }
