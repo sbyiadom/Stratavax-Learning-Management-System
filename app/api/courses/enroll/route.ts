@@ -45,13 +45,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create enrollment
+    // Create enrollment with correct column names
     const enrollment = {
       user_id: user.id,
       course_id: body.courseId,
       status: 'active',
       progress_percentage: 0,
-      enrolled_at: new Date().toISOString()
+      enrolled_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
 
     // Enroll user in course
@@ -74,6 +75,20 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    // Update course enrollment count
+    const { count } = await supabase
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+      .eq('course_id', body.courseId)
+
+    await supabase
+      .from('courses')
+      .update({
+        enrollment_count: count || 0,
+        updated_at: new Date().toISOString()
+      } as any)
+      .eq('id', body.courseId)
 
     return NextResponse.json({ 
       success: true, 
