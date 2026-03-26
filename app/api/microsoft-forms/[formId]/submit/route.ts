@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseServer } from '@/lib/supabase-server'
+import { createClient } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,11 +8,11 @@ export async function POST(
   { params }: { params: { formId: string } }
 ) {
   try {
-    const { formId } = params
     const body = await request.json()
-
+    const supabase = await createClient()
+    
     // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabaseServer.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
       return NextResponse.json(
@@ -21,22 +21,22 @@ export async function POST(
       )
     }
 
-    if (!formId) {
+    // Validate formId
+    if (!params.formId) {
       return NextResponse.json(
         { error: 'Form ID is required' },
         { status: 400 }
       )
     }
 
-    // Store form submission - using 'as any' to bypass TypeScript type checking
-    // The table 'form_submissions' needs to exist in your database
-    const { data, error } = await supabaseServer
+    // Save form submission
+    const { data, error } = await supabase
       .from('form_submissions')
       .insert({
-        form_id: formId,
+        form_id: params.formId,
         user_id: user.id,
         submission_data: body,
-        created_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
       } as any)
       .select()
       .single()
@@ -50,7 +50,7 @@ export async function POST(
       })
       
       return NextResponse.json(
-        { error: 'Failed to save submission' },
+        { error: 'Failed to save form submission' },
         { status: 500 }
       )
     }
@@ -62,7 +62,7 @@ export async function POST(
     })
     
   } catch (error) {
-    console.error('Error in form submission:', error)
+    console.error('Error in Microsoft Forms submission:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
