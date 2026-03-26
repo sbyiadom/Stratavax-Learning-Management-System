@@ -6,7 +6,7 @@ import {
   LogIn, LogOut, Download, Github, Loader2, X, Send,
   BookOpen, Video, FileText, Link as LinkIcon, Clock,
   CheckCircle, AlertCircle, Star, Award, TrendingUp,
-  Home, Compass, BarChart, Certificate, User,
+  Home, Compass, BarChart, User,
   Edit, Trash2, Flag, Share2, Bookmark, Bell,
   GraduationCap
 } from 'lucide-react';
