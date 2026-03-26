@@ -6,30 +6,21 @@ import { redirect } from 'next/navigation'
 export default async function DashboardPage() {
   const supabase = await createClient()
   
-  // Get current user with better error handling
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser()
   
-  // Log for debugging
-  console.log('Dashboard - User:', user?.email)
-  console.log('Dashboard - Auth Error:', userError)
-  
-  // If no user, redirect to login
-  if (!user || userError) {
-    console.log('No user found, redirecting to login')
+  if (!user) {
     redirect('/login')
   }
   
   // Get user's profile
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile } = await supabase
     .from('profiles')
     .select('first_name, last_name')
     .eq('id', user.id)
     .maybeSingle()
   
-  console.log('Dashboard - Profile:', profile)
-  console.log('Dashboard - Profile Error:', profileError)
-  
-  // Get user's enrolled courses
+  // Get ONLY the courses the user is enrolled in
   const { data: enrollments } = await supabase
     .from('enrollments')
     .select(`
@@ -40,12 +31,21 @@ export default async function DashboardPage() {
         id,
         title,
         slug,
-        duration_hours
+        duration_hours,
+        category,
+        difficulty_level,
+        thumbnail_url
       )
     `)
+    .eq('user_id', user.id)  // Only this user's enrollments
+  
+  // Get certificates earned (only this user's)
+  const { data: certificates } = await supabase
+    .from('certificates')
+    .select('*')
     .eq('user_id', user.id)
   
-  // Get lesson progress
+  // Get lesson progress (only this user's)
   const { data: lessonProgress } = await supabase
     .from('lesson_progress')
     .select('completed')
@@ -56,17 +56,9 @@ export default async function DashboardPage() {
   const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
   
   // Get user's name
-  let displayName = 'Learner'
-  if (profile) {
-    if (profile.first_name) {
-      displayName = profile.first_name
-    }
-  } else {
-    displayName = user.email?.split('@')[0] || 'Learner'
-  }
+  const firstName = profile?.first_name || user.email?.split('@')[0] || 'Learner'
   
-  console.log('Dashboard - Display Name:', displayName)
-  
+  // Filter valid enrollments (with course data)
   const validEnrollments = enrollments?.filter(e => e.courses) || []
   
   return (
@@ -75,7 +67,7 @@ export default async function DashboardPage() {
         {/* Welcome Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {displayName}!
+            Welcome back, {firstName}!
           </h1>
           <p className="text-gray-600 mt-1">Continue your learning journey where you left off</p>
         </div>
@@ -112,7 +104,7 @@ export default async function DashboardPage() {
                 <Award className="text-purple-600" size={24} />
               </div>
               <div>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{certificates?.length || 0}</p>
                 <p className="text-sm text-gray-500">Certificates Earned</p>
               </div>
             </div>
@@ -131,12 +123,12 @@ export default async function DashboardPage() {
           </div>
         </div>
         
-        {/* My Courses */}
+        {/* My Courses - Only shows courses the user is enrolled in */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">My Courses</h2>
             <Link href="/dashboard/courses" className="text-blue-600 text-sm flex items-center gap-1">
-              Browse All <ChevronRight size={16} />
+              Browse All Courses <ChevronRight size={16} />
             </Link>
           </div>
           
@@ -157,7 +149,11 @@ export default async function DashboardPage() {
                     </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-semibold mb-1">{enrollment.courses.title}</h3>
+                    <h3 className="font-semibold mb-1 line-clamp-1">{enrollment.courses.title}</h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs text-gray-500 capitalize">{enrollment.courses.difficulty_level || 'Beginner'}</span>
+                      <span className="text-xs text-gray-500">{enrollment.courses.category || 'Course'}</span>
+                    </div>
                     <div className="flex justify-between items-center mt-2">
                       <span className="text-sm text-blue-600">{enrollment.progress_percentage || 0}% Complete</span>
                       <span className="text-xs text-gray-400">{enrollment.courses.duration_hours || 0}h</span>
@@ -168,9 +164,15 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-              <p className="text-gray-500 mb-4">You haven't enrolled in any courses yet.</p>
-              <Link href="/dashboard/courses" className="text-blue-600 hover:underline">
-                Browse Courses →
+              <div className="text-6xl mb-4">📚</div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No courses yet</h3>
+              <p className="text-gray-500 mb-6">Start your learning journey by enrolling in a course</p>
+              <Link
+                href="/dashboard/courses"
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+              >
+                Browse Courses
+                <ChevronRight size={18} className="ml-2" />
               </Link>
             </div>
           )}
