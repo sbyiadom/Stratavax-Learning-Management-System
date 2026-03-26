@@ -7,63 +7,37 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const supabase = await createClient()
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Validate required fields
-    if (!body.assessmentId || !body.answers) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+    // Create submission object
+    const submission = {
+      user_id: user.id,
+      assessment_id: body.assessmentId,
+      answers: body.answers || {},
+      score: body.score || 0,
+      submitted_at: new Date().toISOString(),
+      created_at: new Date().toISOString()
     }
 
-    // Save assessment submission - using 'as any' to bypass TypeScript type checking
+    // Insert with type assertion
     const { data, error } = await supabase
       .from('assessment_submissions')
-      .insert({
-        user_id: user.id,
-        assessment_id: body.assessmentId,
-        answers: body.answers,
-        score: body.score || 0,
-        submitted_at: new Date().toISOString(),
-      } as any)
-      .select()
-      .single()
+      .insert(submission as any)
 
     if (error) {
-      console.error('Error saving assessment:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      })
-      
-      return NextResponse.json(
-        { error: 'Failed to save assessment' },
-        { status: 500 }
-      )
+      console.error('Error submitting assessment:', error)
+      return NextResponse.json({ error: 'Failed to submit assessment' }, { status: 500 })
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      data,
-      message: 'Assessment submitted successfully' 
-    })
-    
+    return NextResponse.json({ success: true, data })
   } catch (error) {
     console.error('Error in assessment submission:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
