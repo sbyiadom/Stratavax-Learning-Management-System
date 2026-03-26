@@ -547,7 +547,10 @@ export default function AdminReportsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
-                      <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Training Hours</th></tr>
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Training Hours</th>
+                      </tr>
                     </thead>
                     <tbody className="divide-y">
                       {facilitatorData.map((fac: any) => (
@@ -569,7 +572,13 @@ export default function AdminReportsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
-                    <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avg Progress</th></tr>
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avg Progress</th>
+                    </tr>
                   </thead>
                   <tbody className="divide-y">
                     {courseStats.map((course: any) => (
@@ -669,21 +678,13 @@ export default function AdminReportsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select
-                  value={newRecord.role}
-                  onChange={(e) => setNewRecord({...newRecord, role: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                >
-                  <option value="">Select Role</option>
-                  <option value="Employee">Employee</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Supervisor">Supervisor</option>
-                  <option value="Team Lead">Team Lead</option>
-                  <option value="Director">Director</option>
-                  <option value="Executive">Executive</option>
-                  <option value="Intern">Intern</option>
-                  <option value="Consultant">Consultant</option>
-                </select>
+                <input 
+                  type="text" 
+                  placeholder="Enter role (e.g., Employee, Manager, etc.)" 
+                  value={newRecord.role} 
+                  onChange={(e) => setNewRecord({...newRecord, role: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
@@ -775,21 +776,13 @@ export default function AdminReportsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select
-                  value={editingRecord.role || ''}
-                  onChange={(e) => setEditingRecord({...editingRecord, role: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                >
-                  <option value="">Select Role</option>
-                  <option value="Employee">Employee</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Supervisor">Supervisor</option>
-                  <option value="Team Lead">Team Lead</option>
-                  <option value="Director">Director</option>
-                  <option value="Executive">Executive</option>
-                  <option value="Intern">Intern</option>
-                  <option value="Consultant">Consultant</option>
-                </select>
+                <input 
+                  type="text" 
+                  placeholder="Enter role (e.g., Employee, Manager, etc.)" 
+                  value={editingRecord.role || ''} 
+                  onChange={(e) => setEditingRecord({...editingRecord, role: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
