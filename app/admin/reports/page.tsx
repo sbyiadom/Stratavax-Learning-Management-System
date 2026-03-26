@@ -12,7 +12,8 @@ import {
   ChevronDown, LogOut, Settings, Home, GraduationCap,
   Upload, RefreshCw, Building, Briefcase, FileSpreadsheet,
   Database, Activity, BarChart, LineChart as LineChartIcon,
-  PieChart as PieChartIcon, TrendingDown, Star, UserCheck, Menu, X
+  PieChart as PieChartIcon, TrendingDown, Star, UserCheck, Menu, X,
+  FileDown, FileUp, Trash2, AlertCircle
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -21,6 +22,18 @@ import {
 } from 'recharts'
 
 // Types
+interface TrainingRecord {
+  id: string
+  training_date: string
+  attendee_name: string
+  course: string
+  facilitator: string
+  supervisor: string
+  department: string
+  duration_hours: number
+  created_at: string
+}
+
 interface AdminStats {
   totalUsers: number
   totalCourses: number
@@ -31,9 +44,9 @@ interface AdminStats {
   activeUsers: number
   newUsersThisMonth: number
   newUsersThisWeek: number
-  totalRevenue: number
+  totalTrainingHours: number
+  totalTrainingSessions: number
   totalCertificates: number
-  averageRating: number
   userGrowth: { month: string; count: number }[]
 }
 
@@ -46,9 +59,7 @@ interface CourseAnalytics {
   completions: number
   completionRate: number
   averageProgress: number
-  averageRating: number
   totalHours: number
-  revenue: number
 }
 
 interface DepartmentStats {
@@ -78,24 +89,18 @@ interface MonthlyTrend {
   revenue: number
 }
 
-interface UserSegment {
-  segment: string
-  count: number
-  percentage: number
-  avgProgress: number
-  avgCompletion: number
-}
-
 export default function AdminReportsPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [dateRange, setDateRange] = useState('30')
   const [selectedReport, setSelectedReport] = useState('overview')
   const [showImportModal, setShowImportModal] = useState(false)
   const [importData, setImportData] = useState<any[]>([])
   const [importPreview, setImportPreview] = useState<any[]>([])
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   
   // Data states
   const [stats, setStats] = useState<AdminStats>({
@@ -108,9 +113,9 @@ export default function AdminReportsPage() {
     activeUsers: 0,
     newUsersThisMonth: 0,
     newUsersThisWeek: 0,
-    totalRevenue: 0,
+    totalTrainingHours: 0,
+    totalTrainingSessions: 0,
     totalCertificates: 0,
-    averageRating: 0,
     userGrowth: []
   })
   
@@ -118,18 +123,25 @@ export default function AdminReportsPage() {
   const [departmentStats, setDepartmentStats] = useState<DepartmentStats[]>([])
   const [facilitatorStats, setFacilitatorStats] = useState<FacilitatorStats[]>([])
   const [monthlyTrends, setMonthlyTrends] = useState<MonthlyTrend[]>([])
-  const [userSegments, setUserSegments] = useState<UserSegment[]>([])
-  const [trainingRecords, setTrainingRecords] = useState<any[]>([])
+  const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>([])
+  const [filteredRecords, setFilteredRecords] = useState<TrainingRecord[]>([])
+  const [dateFilter, setDateFilter] = useState({ start: '', end: '' })
+  const [departmentFilter, setDepartmentFilter] = useState('all')
+  const [courseFilter, setCourseFilter] = useState('all')
+  const [facilitatorFilter, setFacilitatorFilter] = useState('all')
   
   const supabase = createClient()
   const router = useRouter()
 
-  // Colors for charts
-  const COLORS = ['#3b82f6', '#8b5cf6', '#ec489a', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316', '#d946ef']
+  const COLORS = ['#3b82f6', '#8b5cf6', '#ec489a', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16']
 
   useEffect(() => {
     loadAllData()
-  }, [dateRange])
+  }, [])
+
+  useEffect(() => {
+    filterTrainingRecords()
+  }, [trainingRecords, dateFilter, departmentFilter, courseFilter, facilitatorFilter])
 
   const loadAllData = async () => {
     setLoading(true)
@@ -145,29 +157,25 @@ export default function AdminReportsPage() {
     await Promise.all([
       loadAdminStats(),
       loadCourseAnalytics(),
+      loadTrainingRecords(),
       loadDepartmentStats(),
       loadFacilitatorStats(),
-      loadMonthlyTrends(),
-      loadUserSegments(),
-      loadTrainingRecords()
+      loadMonthlyTrends()
     ])
 
     setLoading(false)
   }
 
   const loadAdminStats = async () => {
-    // Get total users
     const { count: totalUsers } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true })
 
-    // Get total courses
     const { count: totalCourses } = await supabase
       .from('courses')
       .select('*', { count: 'exact', head: true })
       .eq('is_published', true)
 
-    // Get enrollments
     const { data: enrollments } = await supabase
       .from('enrollments')
       .select('*')
@@ -179,7 +187,6 @@ export default function AdminReportsPage() {
       ? Math.round(enrollments.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) / totalEnrollments)
       : 0
 
-    // Active users (last 30 days)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const { data: activeEnrollments } = await supabase
@@ -188,28 +195,24 @@ export default function AdminReportsPage() {
       .gte('enrolled_at', thirtyDaysAgo.toISOString())
     const activeUsers = new Set(activeEnrollments?.map(e => e.user_id)).size || 0
 
-    // New users this month/week
     const firstDayOfMonth = new Date()
     firstDayOfMonth.setDate(1)
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
     const { count: newUsersMonth } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', firstDayOfMonth.toISOString())
 
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
     const { count: newUsersWeek } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', sevenDaysAgo.toISOString())
 
-    // Certificates
     const { count: certificates } = await supabase
       .from('certificates')
       .select('*', { count: 'exact', head: true })
 
-    // User growth (last 6 months)
     const growth = []
     const now = new Date()
     for (let i = 5; i >= 0; i--) {
@@ -237,9 +240,9 @@ export default function AdminReportsPage() {
       activeUsers,
       newUsersThisMonth: newUsersMonth || 0,
       newUsersThisWeek: newUsersWeek || 0,
-      totalRevenue: 0,
+      totalTrainingHours: 0,
+      totalTrainingSessions: 0,
       totalCertificates: certificates || 0,
-      averageRating: 4.5,
       userGrowth: growth
     })
   }
@@ -255,8 +258,7 @@ export default function AdminReportsPage() {
         duration_hours,
         enrollments (
           completed_at,
-          progress_percentage,
-          user_id
+          progress_percentage
         )
       `)
       .eq('is_published', true)
@@ -280,9 +282,7 @@ export default function AdminReportsPage() {
           completions,
           completionRate,
           averageProgress: avgProgress,
-          averageRating: 4.5,
-          totalHours: course.duration_hours || 0,
-          revenue: 0
+          totalHours: course.duration_hours || 0
         }
       })
 
@@ -290,65 +290,76 @@ export default function AdminReportsPage() {
     }
   }
 
-  const loadDepartmentStats = async () => {
-    const { data: records } = await supabase
+  const loadTrainingRecords = async () => {
+    const { data } = await supabase
       .from('training_records')
-      .select('department, duration_hours, attendee_name')
+      .select('*')
+      .order('training_date', { ascending: false })
     
-    if (records) {
-      const deptMap = new Map<string, { trained: Set<string>; hours: number }>()
-      records.forEach(record => {
-        if (!record.department) return
-        if (!deptMap.has(record.department)) {
-          deptMap.set(record.department, { trained: new Set(), hours: 0 })
-        }
-        const dept = deptMap.get(record.department)!
-        dept.trained.add(record.attendee_name)
-        dept.hours += record.duration_hours || 0
-      })
-
-      const stats: DepartmentStats[] = Array.from(deptMap.entries()).map(([name, data]) => ({
-        name,
-        totalEmployees: Math.floor(data.trained.size * 1.5),
-        trainedEmployees: data.trained.size,
-        trainingHours: data.hours,
-        completionRate: Math.min(95, Math.floor(Math.random() * 30) + 70),
-        coursesTaken: Math.floor(data.hours / 4)
+    if (data) {
+      setTrainingRecords(data as TrainingRecord[])
+      
+      // Update stats with training data
+      const totalHours = data.reduce((sum, record) => sum + (record.duration_hours || 0), 0)
+      setStats(prev => ({
+        ...prev,
+        totalTrainingHours: totalHours,
+        totalTrainingSessions: data.length
       }))
-
-      setDepartmentStats(stats)
     }
   }
 
-  const loadFacilitatorStats = async () => {
-    const { data: records } = await supabase
-      .from('training_records')
-      .select('facilitator, duration_hours, attendee_name')
+  const loadDepartmentStats = async () => {
+    if (trainingRecords.length === 0) return
     
-    if (records) {
-      const facMap = new Map<string, { sessions: Set<string>; hours: number; students: Set<string>; courses: Set<string> }>()
-      records.forEach(record => {
-        if (!record.facilitator) return
-        if (!facMap.has(record.facilitator)) {
-          facMap.set(record.facilitator, { sessions: new Set(), hours: 0, students: new Set(), courses: new Set() })
-        }
-        const fac = facMap.get(record.facilitator)!
-        fac.sessions.add(record.training_date)
-        fac.hours += record.duration_hours || 0
-        fac.students.add(record.attendee_name)
-      })
+    const deptMap = new Map<string, { trained: Set<string>; hours: number }>()
+    trainingRecords.forEach(record => {
+      if (!record.department) return
+      if (!deptMap.has(record.department)) {
+        deptMap.set(record.department, { trained: new Set(), hours: 0 })
+      }
+      const dept = deptMap.get(record.department)!
+      dept.trained.add(record.attendee_name)
+      dept.hours += record.duration_hours || 0
+    })
 
-      const stats: FacilitatorStats[] = Array.from(facMap.entries()).map(([name, data]) => ({
-        name,
-        sessionsConducted: data.sessions.size,
-        totalHours: data.hours,
-        averageRating: 4.5,
-        studentsTrained: data.students.size,
-        coursesTaught: data.courses.size || Math.floor(data.hours / 5)
-      }))
+    const stats: DepartmentStats[] = Array.from(deptMap.entries()).map(([name, data]) => ({
+      name,
+      totalEmployees: Math.floor(data.trained.size * 1.5),
+      trainedEmployees: data.trained.size,
+      trainingHours: data.hours,
+      completionRate: Math.min(95, Math.floor(Math.random() * 30) + 70),
+      coursesTaken: Math.floor(data.hours / 4)
+    }))
 
-      setFacilitatorStats(stats.sort((a, b) => b.sessionsConducted - a.sessionsConducted))
-    }
+    setDepartmentStats(stats)
+  }
+
+  const loadFacilitatorStats = async () => {
+    if (trainingRecords.length === 0) return
+    
+    const facMap = new Map<string, { sessions: Set<string>; hours: number; students: Set<string> }>()
+    trainingRecords.forEach(record => {
+      if (!record.facilitator) return
+      if (!facMap.has(record.facilitator)) {
+        facMap.set(record.facilitator, { sessions: new Set(), hours: 0, students: new Set() })
+      }
+      const fac = facMap.get(record.facilitator)!
+      fac.sessions.add(record.training_date)
+      fac.hours += record.duration_hours || 0
+      fac.students.add(record.attendee_name)
+    })
+
+    const stats: FacilitatorStats[] = Array.from(facMap.entries()).map(([name, data]) => ({
+      name,
+      sessionsConducted: data.sessions.size,
+      totalHours: data.hours,
+      averageRating: 4.5,
+      studentsTrained: data.students.size,
+      coursesTaught: Math.floor(data.hours / 5)
+    }))
+
+    setFacilitatorStats(stats.sort((a, b) => b.sessionsConducted - a.sessionsConducted))
   }
 
   const loadMonthlyTrends = async () => {
@@ -359,12 +370,21 @@ export default function AdminReportsPage() {
       const month = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const monthStr = month.toLocaleString('default', { month: 'short' })
       
+      // Get actual training hours for this month
+      const monthTrainingHours = trainingRecords
+        .filter(r => {
+          const recordDate = new Date(r.training_date)
+          return recordDate.getMonth() === month.getMonth() && 
+                 recordDate.getFullYear() === month.getFullYear()
+        })
+        .reduce((sum, r) => sum + (r.duration_hours || 0), 0)
+      
       months.push({
         month: monthStr,
         enrollments: Math.floor(Math.random() * 80) + 30,
         completions: Math.floor(Math.random() * 50) + 20,
         newUsers: Math.floor(Math.random() * 25) + 10,
-        trainingHours: Math.floor(Math.random() * 200) + 100,
+        trainingHours: monthTrainingHours || Math.floor(Math.random() * 200) + 100,
         revenue: Math.floor(Math.random() * 5000) + 2000
       })
     }
@@ -372,29 +392,95 @@ export default function AdminReportsPage() {
     setMonthlyTrends(months)
   }
 
-  const loadUserSegments = async () => {
-    const segments: UserSegment[] = [
-      { segment: 'Active Learners', count: stats.activeUsers, percentage: stats.totalUsers > 0 ? Math.round((stats.activeUsers / stats.totalUsers) * 100) : 0, avgProgress: 65, avgCompletion: 45 },
-      { segment: 'Inactive', count: stats.totalUsers - stats.activeUsers, percentage: stats.totalUsers > 0 ? Math.round(((stats.totalUsers - stats.activeUsers) / stats.totalUsers) * 100) : 0, avgProgress: 15, avgCompletion: 8 },
-      { segment: 'High Achievers', count: Math.floor(stats.totalUsers * 0.2), percentage: 20, avgProgress: 85, avgCompletion: 75 },
-      { segment: 'New Users', count: stats.newUsersThisMonth, percentage: stats.totalUsers > 0 ? Math.round((stats.newUsersThisMonth / stats.totalUsers) * 100) : 0, avgProgress: 20, avgCompletion: 12 }
-    ]
-    setUserSegments(segments)
+  const filterTrainingRecords = () => {
+    let filtered = [...trainingRecords]
+    
+    if (dateFilter.start) {
+      filtered = filtered.filter(r => r.training_date >= dateFilter.start)
+    }
+    if (dateFilter.end) {
+      filtered = filtered.filter(r => r.training_date <= dateFilter.end)
+    }
+    if (departmentFilter !== 'all') {
+      filtered = filtered.filter(r => r.department === departmentFilter)
+    }
+    if (courseFilter !== 'all') {
+      filtered = filtered.filter(r => r.course === courseFilter)
+    }
+    if (facilitatorFilter !== 'all') {
+      filtered = filtered.filter(r => r.facilitator === facilitatorFilter)
+    }
+    
+    setFilteredRecords(filtered)
   }
 
-  const loadTrainingRecords = async () => {
-    const { data } = await supabase
-      .from('training_records')
-      .select('*')
-      .order('training_date', { ascending: false })
-      .limit(100)
-    setTrainingRecords(data || [])
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        'Training Date': '2024-03-15',
+        'Attendee Name': 'John Doe',
+        'Course': 'Leadership 101',
+        'Facilitator': 'Dr. Sarah Johnson',
+        'Supervisor': 'Jane Manager',
+        'Department': 'Human Resources',
+        'Duration Hours': 4
+      },
+      {
+        'Training Date': '2024-03-16',
+        'Attendee Name': 'Jane Smith',
+        'Course': 'Advanced Excel',
+        'Facilitator': 'Prof. Michael Brown',
+        'Supervisor': 'Mike Lead',
+        'Department': 'Finance',
+        'Duration Hours': 6
+      },
+      {
+        'Training Date': '2024-03-17',
+        'Attendee Name': 'Bob Wilson',
+        'Course': 'Project Management',
+        'Facilitator': 'Dr. Emily Chen',
+        'Supervisor': 'Sarah Director',
+        'Department': 'Operations',
+        'Duration Hours': 8
+      }
+    ]
+    
+    const worksheet = XLSX.utils.json_to_sheet(templateData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Training Template')
+    
+    // Add instructions sheet
+    const instructions = [
+      { 'Instruction': '=== STRATAVAX TRAINING DATA IMPORT TEMPLATE ===' },
+      { 'Instruction': '' },
+      { 'Instruction': 'INSTRUCTIONS:' },
+      { 'Instruction': '1. Do NOT modify the column headers' },
+      { 'Instruction': '2. Enter training date in YYYY-MM-DD format (e.g., 2024-03-15)' },
+      { 'Instruction': '3. All fields are required except where noted' },
+      { 'Instruction': '4. Duration Hours should be a number (e.g., 4, 6.5, 8)' },
+      { 'Instruction': '5. Save as Excel file (.xlsx) and upload to the platform' },
+      { 'Instruction': '6. Data will be added to your existing records' },
+      { 'Instruction': '' },
+      { 'Instruction': 'COLUMN DESCRIPTIONS:' },
+      { 'Instruction': '- Training Date: The date the training took place' },
+      { 'Instruction': '- Attendee Name: Full name of the participant' },
+      { 'Instruction': '- Course: Name of the training course' },
+      { 'Instruction': '- Facilitator: Name of the trainer/facilitator' },
+      { 'Instruction': '- Supervisor: Name of attendee\'s supervisor' },
+      { 'Instruction': '- Department: Department of the attendee' },
+      { 'Instruction': '- Duration Hours: Length of training in hours' }
+    ]
+    const instructionsSheet = XLSX.utils.json_to_sheet(instructions)
+    XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions')
+    
+    XLSX.writeFile(workbook, 'stratavax-training-template.xlsx')
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
+    setImportError(null)
     const reader = new FileReader()
     reader.onload = (e) => {
       const data = e.target?.result
@@ -402,58 +488,91 @@ export default function AdminReportsPage() {
       const sheetName = workbook.SheetNames[0]
       const worksheet = workbook.Sheets[sheetName]
       const jsonData = XLSX.utils.sheet_to_json(worksheet)
+      
+      // Validate data structure
+      if (jsonData.length === 0) {
+        setImportError('File is empty')
+        return
+      }
+      
       setImportData(jsonData)
-      setImportPreview(jsonData.slice(0, 5))
+      setImportPreview(jsonData.slice(0, 10))
     }
     reader.readAsBinaryString(file)
   }
 
   const handleConfirmImport = async () => {
     if (importData.length === 0) return
-
+    
+    setImporting(true)
+    setImportError(null)
+    
     const formattedData = importData.map((row: any) => ({
       training_date: row['Training Date'] || row['training_date'] || row['Date'] || new Date().toISOString().split('T')[0],
-      attendee_name: row['Attendee Name'] || row['attendee_name'] || row['Name'] || '',
-      course: row['Course'] || row['course'] || '',
-      facilitator: row['Facilitator'] || row['facilitator'] || '',
+      attendee_name: row['Attendee Name'] || row['attendee_name'] || row['Name'] || row['Attendee'] || 'Unknown',
+      course: row['Course'] || row['course'] || 'Unknown Course',
+      facilitator: row['Facilitator'] || row['facilitator'] || 'Unknown',
       supervisor: row['Supervisor'] || row['supervisor'] || '',
-      department: row['Department'] || row['department'] || '',
-      duration_hours: parseFloat(row['Duration Hours'] || row['duration_hours'] || row['Hours'] || 0)
+      department: row['Department'] || row['department'] || 'General',
+      duration_hours: parseFloat(row['Duration Hours'] || row['duration_hours'] || row['Hours'] || 0),
+      created_at: new Date().toISOString()
     }))
 
     const { error } = await supabase
       .from('training_records')
       .insert(formattedData)
 
-    if (!error) {
+    if (error) {
+      console.error('Import error:', error)
+      setImportError(error.message)
+    } else {
       await loadAllData()
       setShowImportModal(false)
       setImportData([])
       setImportPreview([])
     }
+    
+    setImporting(false)
   }
 
-  const exportFullReport = () => {
-    const courseData = courseAnalytics.map(c => ({
-      'Course': c.title,
-      'Category': c.category,
-      'Difficulty': c.difficulty,
-      'Enrollments': c.enrollments,
-      'Completions': c.completions,
-      'Completion Rate': `${c.completionRate}%`,
-      'Avg Progress': `${c.averageProgress}%`
+  const deleteAllTrainingRecords = async () => {
+    const { error } = await supabase
+      .from('training_records')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000')
+    
+    if (!error) {
+      await loadAllData()
+      setShowDeleteConfirm(false)
+    }
+  }
+
+  const exportTrainingData = () => {
+    const exportData = filteredRecords.map(record => ({
+      'Training Date': record.training_date,
+      'Attendee Name': record.attendee_name,
+      'Course': record.course,
+      'Facilitator': record.facilitator,
+      'Supervisor': record.supervisor,
+      'Department': record.department,
+      'Duration Hours': record.duration_hours
     }))
     
-    const worksheet = XLSX.utils.json_to_sheet(courseData)
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
     const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Course Report')
-    XLSX.writeFile(workbook, `admin-report-${new Date().toISOString().split('T')[0]}.xlsx`)
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Training Records')
+    XLSX.writeFile(workbook, `training-records-${new Date().toISOString().split('T')[0]}.xlsx`)
   }
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push('/login')
   }
+
+  // Get unique filter options
+  const departments = ['all', ...new Set(trainingRecords.map(r => r.department).filter(Boolean))]
+  const courses = ['all', ...new Set(trainingRecords.map(r => r.course).filter(Boolean))]
+  const facilitators = ['all', ...new Set(trainingRecords.map(r => r.facilitator).filter(Boolean))]
 
   if (loading) {
     return (
@@ -482,12 +601,18 @@ export default function AdminReportsPage() {
               <span className="font-semibold text-gray-900">Stratavax Admin Reports</span>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <button onClick={() => setShowImportModal(true)} className="p-2 hover:bg-gray-100 rounded-full">
-              <Upload size={20} className="text-gray-600" />
+          <div className="flex items-center space-x-2">
+            <button onClick={downloadTemplate} className="p-2 hover:bg-gray-100 rounded-full" title="Download Template">
+              <FileDown size={20} className="text-gray-600" />
             </button>
-            <button onClick={exportFullReport} className="p-2 hover:bg-gray-100 rounded-full">
+            <button onClick={() => setShowImportModal(true)} className="p-2 hover:bg-gray-100 rounded-full" title="Import Excel">
+              <FileUp size={20} className="text-gray-600" />
+            </button>
+            <button onClick={exportTrainingData} className="p-2 hover:bg-gray-100 rounded-full" title="Export Data">
               <Download size={20} className="text-gray-600" />
+            </button>
+            <button onClick={() => setShowDeleteConfirm(true)} className="p-2 hover:bg-gray-100 rounded-full" title="Delete All">
+              <Trash2 size={20} className="text-red-500" />
             </button>
             <div className="flex items-center space-x-2 ml-2">
               <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
@@ -500,7 +625,7 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar - same as before */}
       <div className={`fixed left-0 top-14 bottom-0 bg-white border-r border-gray-200 transition-all duration-300 z-40 ${sidebarCollapsed ? 'w-20' : 'w-64'} hidden lg:block`}>
         <div className="flex flex-col h-full">
           <div className="p-4 flex justify-end">
@@ -554,355 +679,267 @@ export default function AdminReportsPage() {
             <span className="text-gray-900">Reports Dashboard</span>
           </div>
 
-          {/* Report Tabs */}
-          <div className="border-b border-gray-200 mb-6">
-            <nav className="flex space-x-8">
-              {['overview', 'courses', 'departments', 'facilitators', 'trends'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setSelectedReport(tab)}
-                  className={`pb-3 px-1 text-sm font-medium border-b-2 transition capitalize ${
-                    selectedReport === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </nav>
+          {/* Training Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">Total Training Hours</p><p className="text-2xl font-bold">{stats.totalTrainingHours}</p></div>
+                <Clock size={32} className="text-blue-500" />
+              </div>
+              <div className="mt-2 text-xs text-gray-500">Across all training sessions</div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">Training Sessions</p><p className="text-2xl font-bold">{stats.totalTrainingSessions}</p></div>
+                <FileText size={32} className="text-green-500" />
+              </div>
+              <div className="mt-2 text-xs text-gray-500">Classroom & online trainings</div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">Departments</p><p className="text-2xl font-bold">{departmentStats.length}</p></div>
+                <Building size={32} className="text-purple-500" />
+              </div>
+              <div className="mt-2 text-xs text-gray-500">With training records</div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">Facilitators</p><p className="text-2xl font-bold">{facilitatorStats.length}</p></div>
+                <Briefcase size={32} className="text-orange-500" />
+              </div>
+              <div className="mt-2 text-xs text-gray-500">Active trainers</div>
+            </div>
           </div>
 
-          {/* Overview Report */}
-          {selectedReport === 'overview' && (
-            <>
-              {/* Key Stats Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div><p className="text-sm text-gray-500">Total Users</p><p className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</p></div>
-                    <Users size={32} className="text-blue-500" />
-                  </div>
-                  <div className="mt-2 flex justify-between text-xs"><span className="text-green-600">+{stats.newUsersThisMonth} this month</span><span className="text-gray-400">+{stats.newUsersThisWeek} this week</span></div>
+          {/* Training Records Section */}
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Training Records</h2>
+                  <p className="text-sm text-gray-500">Manage classroom and offline training data</p>
                 </div>
-                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div><p className="text-sm text-gray-500">Active Users</p><p className="text-2xl font-bold">{stats.activeUsers.toLocaleString()}</p></div>
-                    <Activity size={32} className="text-green-500" />
-                  </div>
-                  <div className="mt-2 text-xs text-gray-500">{Math.round((stats.activeUsers / stats.totalUsers) * 100)}% engagement rate</div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowImportModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    <Upload size={16} />
+                    Import Excel
+                  </button>
+                  <button
+                    onClick={exportTrainingData}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <Download size={16} />
+                    Export
+                  </button>
                 </div>
-                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div><p className="text-sm text-gray-500">Total Enrollments</p><p className="text-2xl font-bold">{stats.totalEnrollments.toLocaleString()}</p></div>
-                    <BookOpen size={32} className="text-purple-500" />
-                  </div>
-                  <div className="mt-2 text-xs text-gray-500">{stats.completionRate}% completion rate</div>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div><p className="text-sm text-gray-500">Certificates</p><p className="text-2xl font-bold">{stats.totalCertificates.toLocaleString()}</p></div>
-                    <Award size={32} className="text-yellow-500" />
-                  </div>
-                  <div className="mt-2 text-xs text-gray-500">Avg rating {stats.averageRating}★</div>
-                </div>
-              </div>
-
-              {/* User Growth & Completion Charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">User Growth (Last 6 Months)</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <AreaChart data={stats.userGrowth}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
-                      <Area type="monotone" dataKey="count" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">User Segmentation</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={userSegments}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="segment" />
-                      <YAxis yAxisId="left" />
-                      <YAxis yAxisId="right" orientation="right" />
-                      <Tooltip />
-                      <Legend />
-                      <Bar yAxisId="left" dataKey="count" fill="#3b82f6" name="User Count" />
-                      <Bar yAxisId="right" dataKey="percentage" fill="#f59e0b" name="Percentage (%)" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Department Training & Facilitator Performance */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">Training Hours by Department</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={departmentStats.slice(0, 6)} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis dataKey="name" type="category" width={100} />
-                      <Tooltip />
-                      <Bar dataKey="trainingHours" fill="#10b981" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">Top Facilitators by Sessions</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={facilitatorStats.slice(0, 6)}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="sessionsConducted" fill="#8b5cf6" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Course Completion Pareto Chart */}
-              <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-                <h3 className="text-lg font-semibold mb-4">Course Completion Analysis (Pareto)</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <ComposedChart data={courseAnalytics.slice(0, 12)}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="title" angle={-45} textAnchor="end" height={100} />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip />
-                    <Legend />
-                    <Bar yAxisId="left" dataKey="completions" fill="#3b82f6" name="Completions" />
-                    <Line yAxisId="right" type="monotone" dataKey="completionRate" stroke="#f59e0b" name="Completion Rate (%)" />
-                  </ComposedChart>
-                </ResponsiveContainer>
-                <p className="text-sm text-gray-500 mt-4 text-center">Top 20% of courses account for 80% of completions</p>
-              </div>
-            </>
-          )}
-
-          {/* Courses Report */}
-          {selectedReport === 'courses' && (
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b">
-                <h3 className="text-lg font-semibold">Course Performance Analytics</h3>
-                <p className="text-sm text-gray-500">Detailed breakdown of all courses</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Difficulty</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Enrollments</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Completions</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Completion Rate</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Progress</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {courseAnalytics.map((course) => (
-                      <tr key={course.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{course.title}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{course.category}</td>
-                        <td className="px-6 py-4 text-sm"><span className={`px-2 py-1 rounded-full text-xs ${course.difficulty === 'beginner' ? 'bg-green-100 text-green-700' : course.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{course.difficulty}</span></td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{course.enrollments}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{course.completions}</td>
-                        <td className="px-6 py-4"><div className="flex items-center gap-2"><span className="text-sm font-medium">{course.completionRate}%</span><div className="w-16 h-1.5 bg-gray-100 rounded-full"><div className="h-1.5 bg-green-500 rounded-full" style={{ width: `${course.completionRate}%` }}></div></div></div></td>
-                        <td className="px-6 py-4"><div className="flex items-center gap-2"><span className="text-sm font-medium">{course.averageProgress}%</span><div className="w-16 h-1.5 bg-gray-100 rounded-full"><div className="h-1.5 bg-blue-500 rounded-full" style={{ width: `${course.averageProgress}%` }}></div></div></div></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </div>
-          )}
 
-          {/* Departments Report */}
-          {selectedReport === 'departments' && (
-            <>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">Training Coverage by Department</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie data={departmentStats} dataKey="trainedEmployees" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
-                        {departmentStats.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">Training Hours by Department</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={departmentStats}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="trainingHours" fill="#10b981" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+            {/* Filters */}
+            <div className="p-4 border-b border-gray-100 bg-gray-50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <input
+                  type="date"
+                  placeholder="Start Date"
+                  value={dateFilter.start}
+                  onChange={(e) => setDateFilter({ ...dateFilter, start: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+                <input
+                  type="date"
+                  placeholder="End Date"
+                  value={dateFilter.end}
+                  onChange={(e) => setDateFilter({ ...dateFilter, end: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+                <select
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  {departments.map(dept => (
+                    <option key={dept} value={dept}>{dept === 'all' ? 'All Departments' : dept}</option>
+                  ))}
+                </select>
+                <select
+                  value={courseFilter}
+                  onChange={(e) => setCourseFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  {courses.map(course => (
+                    <option key={course} value={course}>{course === 'all' ? 'All Courses' : course}</option>
+                  ))}
+                </select>
+                <select
+                  value={facilitatorFilter}
+                  onChange={(e) => setFacilitatorFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  {facilitators.map(fac => (
+                    <option key={fac} value={fac}>{fac === 'all' ? 'All Facilitators' : fac}</option>
+                  ))}
+                </select>
               </div>
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <div className="p-6 border-b"><h3 className="text-lg font-semibold">Department Details</h3></div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Employees</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trained Employees</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coverage %</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Training Hours</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Courses Taken</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {departmentStats.map((dept) => (
-                        <tr key={dept.name} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{dept.name}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{dept.totalEmployees}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{dept.trainedEmployees}</td>
-                          <td className="px-6 py-4 text-sm"><span className="font-medium">{Math.round((dept.trainedEmployees / dept.totalEmployees) * 100)}%</span></td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{dept.trainingHours}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{dept.coursesTaken}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Facilitators Report */}
-          {selectedReport === 'facilitators' && (
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b"><h3 className="text-lg font-semibold">Facilitator Performance</h3></div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Facilitator</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sessions</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Hours</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Students Trained</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {facilitatorStats.map((fac) => (
-                      <tr key={fac.name} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{fac.name}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{fac.sessionsConducted}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{fac.totalHours}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{fac.studentsTrained}</td>
-                        <td className="px-6 py-4 text-sm"><div className="flex items-center gap-1"><span className="font-medium text-yellow-600">{fac.averageRating}</span><Star size={14} className="fill-yellow-400 text-yellow-400" /></div></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex justify-end mt-3">
+                <button
+                  onClick={() => {
+                    setDateFilter({ start: '', end: '' })
+                    setDepartmentFilter('all')
+                    setCourseFilter('all')
+                    setFacilitatorFilter('all')
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  Clear Filters
+                </button>
               </div>
             </div>
-          )}
 
-          {/* Trends Report */}
-          {selectedReport === 'trends' && (
-            <>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">Monthly Enrollments & Completions</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={monthlyTrends}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="enrollments" stroke="#3b82f6" name="Enrollments" />
-                      <Line type="monotone" dataKey="completions" stroke="#10b981" name="Completions" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold mb-4">Training Hours Trend</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={monthlyTrends}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
-                      <Area type="monotone" dataKey="trainingHours" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.3} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+            {/* Training Records Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attendee</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Facilitator</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supervisor</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hours</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                        No training records found. Click "Import Excel" to add data.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRecords.map((record) => (
+                      <tr key={record.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm text-gray-900">{new Date(record.training_date).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{record.attendee_name}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{record.course}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{record.facilitator}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{record.supervisor || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{record.department}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{record.duration_hours}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {filteredRecords.length > 0 && (
+              <div className="px-6 py-4 bg-gray-50 border-t text-sm text-gray-500">
+                Showing {filteredRecords.length} of {trainingRecords.length} records
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold mb-4">User Growth & New Users</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <ComposedChart data={monthlyTrends}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip />
-                    <Legend />
-                    <Bar yAxisId="left" dataKey="newUsers" fill="#f59e0b" name="New Users" />
-                    <Line yAxisId="right" type="monotone" dataKey="enrollments" stroke="#3b82f6" name="Enrollments" />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
       {/* Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b">
               <h2 className="text-xl font-bold">Import Training Data</h2>
               <button onClick={() => setShowImportModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
             <div className="p-6 overflow-y-auto">
+              {importError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                  <AlertCircle size={18} className="text-red-500" />
+                  <p className="text-sm text-red-600">{importError}</p>
+                </div>
+              )}
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
                 <FileSpreadsheet size={48} className="mx-auto text-gray-400 mb-4" />
                 <p className="text-gray-600 mb-2">Upload Excel or CSV file</p>
                 <p className="text-sm text-gray-500 mb-4">Supported formats: .xlsx, .xls, .csv</p>
-                <p className="text-xs text-gray-400 mb-4">Required columns: Training Date, Attendee Name, Course, Facilitator, Supervisor, Department, Duration Hours</p>
-                <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                <button
+                  onClick={downloadTemplate}
+                  className="mb-4 inline-flex items-center gap-2 px-4 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+                >
+                  <FileDown size={16} />
+                  Download Template
+                </button>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileUpload}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
               </div>
+              
               {importPreview.length > 0 && (
                 <div>
                   <h3 className="font-medium mb-2">Preview ({importPreview.length} records)</h3>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto max-h-64">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>{Object.keys(importPreview[0]).slice(0, 5).map(key => (<th key={key} className="px-3 py-2 text-left">{key}</th>))}</tr>
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          {Object.keys(importPreview[0]).slice(0, 6).map(key => (
+                            <th key={key} className="px-3 py-2 text-left">{key}</th>
+                          ))}
+                        </tr>
                       </thead>
                       <tbody>
                         {importPreview.map((row, idx) => (
-                          <tr key={idx}>{Object.values(row).slice(0, 5).map((value: any, i) => (<td key={i} className="px-3 py-2 border-t">{String(value).slice(0, 30)}</td>))}</tr>
+                          <tr key={idx}>
+                            {Object.values(row).slice(0, 6).map((value: any, i) => (
+                              <td key={i} className="px-3 py-2 border-t">{String(value).slice(0, 30)}</td>
+                            ))}
+                          </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
+                  <p className="text-xs text-gray-500 mt-2">Showing first 10 records. Total: {importData.length} records</p>
                 </div>
               )}
             </div>
             <div className="flex justify-end gap-3 p-6 border-t">
               <button onClick={() => setShowImportModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-              <button onClick={handleConfirmImport} disabled={importData.length === 0} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">Import {importData.length} Records</button>
+              <button
+                onClick={handleConfirmImport}
+                disabled={importData.length === 0 || importing}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />}
+                {importing ? 'Importing...' : `Import ${importData.length} Records`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 size={20} className="text-red-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Delete All Records</h2>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete all training records? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={deleteAllTrainingRecords} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                Delete All
+              </button>
             </div>
           </div>
         </div>
