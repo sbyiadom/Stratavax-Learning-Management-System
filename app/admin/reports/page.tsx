@@ -50,6 +50,7 @@ export default function AdminReportsPage() {
   const [newRecord, setNewRecord] = useState({
     training_date: new Date().toISOString().split('T')[0],
     attendee_name: '',
+    role: '',
     course: '',
     facilitator: '',
     supervisor: '',
@@ -228,15 +229,18 @@ export default function AdminReportsPage() {
       return
     }
 
-    const { error } = await supabase.from('training_records').insert({
+    const recordData = {
       training_date: newRecord.training_date,
       attendee_name: newRecord.attendee_name,
+      role: newRecord.role || '',
       course: newRecord.course,
-      facilitator: newRecord.facilitator,
-      supervisor: newRecord.supervisor,
-      department: newRecord.department,
-      duration_hours: newRecord.duration_hours
-    })
+      facilitator: newRecord.facilitator || '',
+      supervisor: newRecord.supervisor || '',
+      department: newRecord.department || '',
+      duration_hours: newRecord.duration_hours || 0
+    }
+
+    const { error } = await supabase.from('training_records').insert(recordData)
 
     if (!error) {
       await loadAllData()
@@ -244,6 +248,7 @@ export default function AdminReportsPage() {
       setNewRecord({
         training_date: new Date().toISOString().split('T')[0],
         attendee_name: '',
+        role: '',
         course: '',
         facilitator: '',
         supervisor: '',
@@ -252,7 +257,8 @@ export default function AdminReportsPage() {
       })
       alert('Record added successfully')
     } else {
-      alert('Error adding record')
+      console.error('Error adding record:', error)
+      alert('Error adding record: ' + error.message)
     }
   }
 
@@ -264,6 +270,7 @@ export default function AdminReportsPage() {
       .update({
         training_date: editingRecord.training_date,
         attendee_name: editingRecord.attendee_name,
+        role: editingRecord.role || '',
         course: editingRecord.course,
         facilitator: editingRecord.facilitator,
         supervisor: editingRecord.supervisor,
@@ -297,6 +304,7 @@ export default function AdminReportsPage() {
     const template = [{
       'Training Date': new Date().toISOString().split('T')[0],
       'Attendee Name': 'John Doe',
+      'Role': 'Employee',
       'Course': 'Leadership 101',
       'Facilitator': 'Dr. Johnson',
       'Supervisor': 'Jane Manager',
@@ -332,6 +340,7 @@ export default function AdminReportsPage() {
       const record = {
         training_date: row['Training Date'] || row['training_date'] || new Date().toISOString().split('T')[0],
         attendee_name: row['Attendee Name'] || row['attendee_name'] || row['Name'] || '',
+        role: row['Role'] || row['role'] || '',
         course: row['Course'] || row['course'] || '',
         facilitator: row['Facilitator'] || row['facilitator'] || '',
         supervisor: row['Supervisor'] || row['supervisor'] || '',
@@ -351,6 +360,7 @@ export default function AdminReportsPage() {
     const exportData = records.map((r: any) => ({
       'Training Date': r.training_date,
       'Attendee Name': r.attendee_name,
+      'Role': r.role || '',
       'Course': r.course,
       'Facilitator': r.facilitator,
       'Supervisor': r.supervisor || '',
@@ -590,13 +600,23 @@ export default function AdminReportsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
-                    <tr><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Date</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Attendee</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Department</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Hours</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Actions</th></tr>
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Attendee</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Role</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Course</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Department</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Hours</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Actions</th>
+                    </tr>
                   </thead>
                   <tbody className="divide-y">
                     {records.map((record: any) => (
                       <tr key={record.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-sm">{new Date(record.training_date).toLocaleDateString()}</td>
                         <td className="px-4 py-3 text-sm">{record.attendee_name}</td>
+                        <td className="px-4 py-3 text-sm">{record.role || '-'}</td>
                         <td className="px-4 py-3 text-sm">{record.course}</td>
                         <td className="px-4 py-3 text-sm">{record.facilitator}</td>
                         <td className="px-4 py-3 text-sm">{record.department}</td>
@@ -608,7 +628,7 @@ export default function AdminReportsPage() {
                       </tr>
                     ))}
                     {records.length === 0 && (
-                      <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No records. Click "Add Record" or "Import Excel" to add data.</td></tr>
+                      <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">No records. Click "Add Record" or "Import Excel" to add data.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -620,36 +640,208 @@ export default function AdminReportsPage() {
 
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full">
-            <div className="flex justify-between items-center p-4 border-b"><h2 className="text-lg font-semibold">Add Training Record</h2><button onClick={() => setShowAddModal(false)}><X size={20} /></button></div>
-            <div className="p-4 space-y-3">
-              <input type="date" value={newRecord.training_date} onChange={(e) => setNewRecord({...newRecord, training_date: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
-              <input type="text" placeholder="Attendee Name *" value={newRecord.attendee_name} onChange={(e) => setNewRecord({...newRecord, attendee_name: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
-              <input type="text" placeholder="Course *" value={newRecord.course} onChange={(e) => setNewRecord({...newRecord, course: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
-              <input type="text" placeholder="Facilitator" value={newRecord.facilitator} onChange={(e) => setNewRecord({...newRecord, facilitator: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
-              <input type="text" placeholder="Supervisor" value={newRecord.supervisor} onChange={(e) => setNewRecord({...newRecord, supervisor: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
-              <input type="text" placeholder="Department" value={newRecord.department} onChange={(e) => setNewRecord({...newRecord, department: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
-              <input type="number" step="0.5" placeholder="Duration Hours" value={newRecord.duration_hours} onChange={(e) => setNewRecord({...newRecord, duration_hours: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg" />
+          <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-4 border-b sticky top-0 bg-white">
+              <h2 className="text-lg font-semibold">Add Training Record</h2>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
             </div>
-            <div className="flex justify-end gap-3 p-4 border-t"><button onClick={() => setShowAddModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button><button onClick={handleAddRecord} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Add Record</button></div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Training Date</label>
+                <input 
+                  type="date" 
+                  value={newRecord.training_date} 
+                  onChange={(e) => setNewRecord({...newRecord, training_date: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Attendee Name *</label>
+                <input 
+                  type="text" 
+                  placeholder="Full name of attendee" 
+                  value={newRecord.attendee_name} 
+                  onChange={(e) => setNewRecord({...newRecord, attendee_name: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select
+                  value={newRecord.role}
+                  onChange={(e) => setNewRecord({...newRecord, role: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">Select Role</option>
+                  <option value="Employee">Employee</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Supervisor">Supervisor</option>
+                  <option value="Team Lead">Team Lead</option>
+                  <option value="Director">Director</option>
+                  <option value="Executive">Executive</option>
+                  <option value="Intern">Intern</option>
+                  <option value="Consultant">Consultant</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
+                <input 
+                  type="text" 
+                  placeholder="Course name" 
+                  value={newRecord.course} 
+                  onChange={(e) => setNewRecord({...newRecord, course: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Facilitator</label>
+                <input 
+                  type="text" 
+                  placeholder="Trainer/facilitator name" 
+                  value={newRecord.facilitator} 
+                  onChange={(e) => setNewRecord({...newRecord, facilitator: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor</label>
+                <input 
+                  type="text" 
+                  placeholder="Attendee's supervisor" 
+                  value={newRecord.supervisor} 
+                  onChange={(e) => setNewRecord({...newRecord, supervisor: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <input 
+                  type="text" 
+                  placeholder="Department name" 
+                  value={newRecord.department} 
+                  onChange={(e) => setNewRecord({...newRecord, department: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Duration Hours</label>
+                <input 
+                  type="number" 
+                  step="0.5" 
+                  placeholder="Training duration in hours" 
+                  value={newRecord.duration_hours} 
+                  onChange={(e) => setNewRecord({...newRecord, duration_hours: parseFloat(e.target.value) || 0})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-4 border-t sticky bottom-0 bg-white">
+              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+              <button onClick={handleAddRecord} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add Record</button>
+            </div>
           </div>
         </div>
       )}
 
       {editingRecord && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full">
-            <div className="flex justify-between items-center p-4 border-b"><h2 className="text-lg font-semibold">Edit Record</h2><button onClick={() => setEditingRecord(null)}><X size={20} /></button></div>
-            <div className="p-4 space-y-3">
-              <input type="date" value={editingRecord.training_date} onChange={(e) => setEditingRecord({...editingRecord, training_date: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
-              <input type="text" value={editingRecord.attendee_name} onChange={(e) => setEditingRecord({...editingRecord, attendee_name: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
-              <input type="text" value={editingRecord.course} onChange={(e) => setEditingRecord({...editingRecord, course: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
-              <input type="text" value={editingRecord.facilitator} onChange={(e) => setEditingRecord({...editingRecord, facilitator: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
-              <input type="text" value={editingRecord.supervisor || ''} onChange={(e) => setEditingRecord({...editingRecord, supervisor: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
-              <input type="text" value={editingRecord.department} onChange={(e) => setEditingRecord({...editingRecord, department: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
-              <input type="number" step="0.5" value={editingRecord.duration_hours} onChange={(e) => setEditingRecord({...editingRecord, duration_hours: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg" />
+          <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-4 border-b sticky top-0 bg-white">
+              <h2 className="text-lg font-semibold">Edit Record</h2>
+              <button onClick={() => setEditingRecord(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
             </div>
-            <div className="flex justify-end gap-3 p-4 border-t"><button onClick={() => setEditingRecord(null)} className="px-4 py-2 border rounded-lg">Cancel</button><button onClick={handleUpdateRecord} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save</button></div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Training Date</label>
+                <input 
+                  type="date" 
+                  value={editingRecord.training_date} 
+                  onChange={(e) => setEditingRecord({...editingRecord, training_date: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Attendee Name</label>
+                <input 
+                  type="text" 
+                  value={editingRecord.attendee_name} 
+                  onChange={(e) => setEditingRecord({...editingRecord, attendee_name: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select
+                  value={editingRecord.role || ''}
+                  onChange={(e) => setEditingRecord({...editingRecord, role: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">Select Role</option>
+                  <option value="Employee">Employee</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Supervisor">Supervisor</option>
+                  <option value="Team Lead">Team Lead</option>
+                  <option value="Director">Director</option>
+                  <option value="Executive">Executive</option>
+                  <option value="Intern">Intern</option>
+                  <option value="Consultant">Consultant</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
+                <input 
+                  type="text" 
+                  value={editingRecord.course} 
+                  onChange={(e) => setEditingRecord({...editingRecord, course: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Facilitator</label>
+                <input 
+                  type="text" 
+                  value={editingRecord.facilitator} 
+                  onChange={(e) => setEditingRecord({...editingRecord, facilitator: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor</label>
+                <input 
+                  type="text" 
+                  value={editingRecord.supervisor || ''} 
+                  onChange={(e) => setEditingRecord({...editingRecord, supervisor: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <input 
+                  type="text" 
+                  value={editingRecord.department} 
+                  onChange={(e) => setEditingRecord({...editingRecord, department: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Duration Hours</label>
+                <input 
+                  type="number" 
+                  step="0.5" 
+                  value={editingRecord.duration_hours} 
+                  onChange={(e) => setEditingRecord({...editingRecord, duration_hours: parseFloat(e.target.value) || 0})} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-4 border-t sticky bottom-0 bg-white">
+              <button onClick={() => setEditingRecord(null)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+              <button onClick={handleUpdateRecord} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
+            </div>
           </div>
         </div>
       )}
@@ -657,20 +849,35 @@ export default function AdminReportsPage() {
       {showImportModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full">
-            <div className="flex justify-between items-center p-4 border-b"><h2 className="text-lg font-semibold">Import Excel</h2><button onClick={() => setShowImportModal(false)}><X size={20} /></button></div>
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="text-lg font-semibold">Import Excel</h2>
+              <button onClick={() => setShowImportModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
             <div className="p-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4"><p className="text-sm text-blue-700">Download template from the Excel icon in top bar</p></div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-700">Download template from the Excel icon in top bar</p>
+              </div>
               {importPreview.length > 0 && (
                 <div>
                   <p className="text-sm mb-2">Preview ({importData.length} records):</p>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm border">
                       <thead className="bg-gray-50">
-                        <tr>{Object.keys(importPreview[0]).slice(0, 5).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))}</tr>
+                        <tr>
+                          {Object.keys(importPreview[0]).slice(0, 6).map(key => (
+                            <th key={key} className="px-3 py-2 border">{key}</th>
+                          ))}
+                        </tr>
                       </thead>
                       <tbody>
                         {importPreview.map((row, idx) => (
-                          <tr key={idx}>{Object.values(row).slice(0, 5).map((val: any, i) => (<td key={i} className="px-3 py-2 border">{String(val).slice(0, 30)}</td>))}</tr>
+                          <tr key={idx}>
+                            {Object.values(row).slice(0, 6).map((val: any, i) => (
+                              <td key={i} className="px-3 py-2 border">{String(val).slice(0, 30)}</td>
+                            ))}
+                          </tr>
                         ))}
                       </tbody>
                     </table>
@@ -678,7 +885,10 @@ export default function AdminReportsPage() {
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-3 p-4 border-t"><button onClick={() => setShowImportModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button><button onClick={confirmImport} className="px-4 py-2 bg-green-600 text-white rounded-lg">Import {importData.length} Records</button></div>
+            <div className="flex justify-end gap-3 p-4 border-t">
+              <button onClick={() => setShowImportModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button>
+              <button onClick={confirmImport} className="px-4 py-2 bg-green-600 text-white rounded-lg">Import {importData.length} Records</button>
+            </div>
           </div>
         </div>
       )}
