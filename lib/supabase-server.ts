@@ -9,7 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-// Create a server-side Supabase client
+// Export a function to create a client (for server components that need async)
 export const createClient = async () => {
   const cookieStore = await cookies()
   
@@ -34,3 +34,22 @@ export const createClient = async () => {
     }
   )
 }
+
+// For backward compatibility - create a singleton that can be used directly
+// This is what most files expect (supabaseServer.from(...))
+export const supabaseServer = createServerClient(
+  supabaseUrl,
+  supabaseAnonKey,
+  {
+    cookies: {
+      getAll() {
+        // This needs to be handled differently for server-side
+        // Return empty array for now - this will be populated on the client
+        return []
+      },
+      setAll(cookiesToSet: any) {
+        // No-op for server-side
+      },
+    },
+  }
+)
