@@ -30,6 +30,21 @@ export async function middleware(request: NextRequest) {
   
   const pathname = request.nextUrl.pathname
 
+  // Check if this is a Google Forms webhook
+  const isGoogleFormsWebhook = pathname.startsWith('/api/google-forms/')
+  
+  // If it's a Google Forms webhook, check for valid webhook secret
+  if (isGoogleFormsWebhook) {
+    const authHeader = request.headers.get('authorization')
+    const expectedSecret = process.env.GOOGLE_FORMS_WEBHOOK_SECRET
+    
+    if (authHeader === `Bearer ${expectedSecret}`) {
+      // Valid webhook secret, allow the request
+      return response
+    }
+    // If no valid webhook secret, continue to normal auth check below
+  }
+
   // Define public routes
   const isPublicRoute = pathname === '/' || 
                         pathname === '/login' || 
