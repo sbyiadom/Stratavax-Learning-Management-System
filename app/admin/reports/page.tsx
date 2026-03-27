@@ -467,12 +467,42 @@ export default function AdminReportsPage() {
   }
 
   const handleDeleteRecord = async (id: string) => {
-    if (confirm('Delete this record?')) {
-      const { error } = await supabase.from('training_records').delete().eq('id', id)
-      if (!error) {
+    if (confirm('Delete this record? This will also delete any associated evaluations.')) {
+      try {
+        // First delete any linked evaluations
+        const { error: evalError } = await supabase
+          .from('training_evaluations')
+          .delete()
+          .eq('training_record_id', id)
+        
+        if (evalError) {
+          console.error('Error deleting evaluation:', evalError)
+          // Continue anyway to try deleting the record
+        }
+        
+        // Then delete the training record
+        const { error: recordError } = await supabase
+          .from('training_records')
+          .delete()
+          .eq('id', id)
+        
+        if (recordError) {
+          console.error('Error deleting record:', recordError)
+          alert('Error deleting record: ' + recordError.message)
+          return
+        }
+        
+        // Also unlink any form submissions
+        await supabase
+          .from('form_submissions')
+          .update({ training_record_id: null })
+          .eq('training_record_id', id)
+        
         await loadAllData()
-        alert('Record deleted')
-      } else {
+        alert('Record deleted successfully')
+        
+      } catch (error) {
+        console.error('Error in delete operation:', error)
         alert('Error deleting record')
       }
     }
