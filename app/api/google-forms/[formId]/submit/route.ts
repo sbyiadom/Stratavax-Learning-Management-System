@@ -18,7 +18,7 @@ export async function POST(
     let userId = null
     
     if (isGoogleWebhook) {
-      // For Google Forms webhook, we don't have a user - use a system user or null
+      // For Google Forms webhook, use system user or null
       userId = process.env.SYSTEM_USER_ID || null
     } else {
       // For manual submissions, verify user is authenticated
