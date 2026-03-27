@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
-import { BookOpen, Clock, Award, TrendingUp, ChevronRight } from 'lucide-react'
+import { BookOpen, Clock, Award, TrendingUp, ChevronRight, FileSpreadsheet, Plus, ExternalLink } from 'lucide-react'
 import { redirect } from 'next/navigation'
 
 export default async function DashboardPage() {
@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   // Get user's profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('first_name, last_name')
+    .select('first_name, last_name, role')
     .eq('id', user.id)
     .maybeSingle()
   
@@ -55,8 +55,9 @@ export default async function DashboardPage() {
   const totalLessons = lessonProgress?.length || 0
   const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
   
-  // Get user's name
+  // Get user's name and role
   const firstName = profile?.first_name || user.email?.split('@')[0] || 'Learner'
+  const isAdmin = profile?.role === 'admin'
   
   // Filter valid enrollments (with course data)
   const validEnrollments = enrollments?.filter(e => e.courses) || []
@@ -70,6 +71,50 @@ export default async function DashboardPage() {
             Welcome back, {firstName}!
           </h1>
           <p className="text-gray-600 mt-1">Continue your learning journey where you left off</p>
+        </div>
+        
+        {/* Quick Actions - Google Form Buttons */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Training Registration Button */}
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLSfyGkgfb5PQM_7O8XwJ0d9mfqj2t9w4ryJDMpFf2zD5R1lmNw/viewform"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-all duration-200 border border-gray-100 hover:border-green-200"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-100 rounded-xl group-hover:bg-green-200 transition">
+                  <FileSpreadsheet className="text-green-600" size={28} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900">Training Registration</h3>
+                  <p className="text-sm text-gray-500">Submit your training attendance and evaluation</p>
+                </div>
+                <ExternalLink className="text-gray-400 group-hover:text-green-600" size={20} />
+              </div>
+            </a>
+            
+            {/* Request Course Button - Only for admins? Or show to all */}
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLSeCifdHaoX89Cn8THhaBEai3MLrY_Ln7JKnH-tzXwai8LKLkg/viewform"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-all duration-200 border border-gray-100 hover:border-blue-200"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-100 rounded-xl group-hover:bg-blue-200 transition">
+                  <Plus className="text-blue-600" size={28} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900">Request a Course</h3>
+                  <p className="text-sm text-gray-500">Suggest a new training course to be added</p>
+                </div>
+                <ExternalLink className="text-gray-400 group-hover:text-blue-600" size={20} />
+              </div>
+            </a>
+          </div>
         </div>
         
         {/* Stats Cards */}
@@ -177,6 +222,27 @@ export default async function DashboardPage() {
             </div>
           )}
         </div>
+        
+        {/* Admin Quick Link - Only visible to admins */}
+        {isAdmin && (
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <div className="bg-blue-50 rounded-xl p-5">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900">Admin Dashboard</h3>
+                  <p className="text-sm text-gray-600">View all training records, evaluations, and analytics</p>
+                </div>
+                <Link
+                  href="/admin/reports"
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                >
+                  Go to Admin Reports
+                  <ChevronRight size={16} className="ml-1" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
