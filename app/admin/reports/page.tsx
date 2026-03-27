@@ -9,11 +9,12 @@ import {
   Users, BookOpen, CheckCircle, Clock, Award, TrendingUp,
   Menu, X, LogOut, Upload,
   Building, FileSpreadsheet, Activity, Star,
-  FileDown, FileUp, Trash2, Plus, Edit
+  FileDown, FileUp, Trash2, Plus, Edit, ThumbsUp, MessageSquare
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts'
 
 export default function AdminReportsPage() {
@@ -28,6 +29,25 @@ export default function AdminReportsPage() {
   const [editingRecord, setEditingRecord] = useState<any>(null)
   const [importData, setImportData] = useState<any[]>([])
   const [importPreview, setImportPreview] = useState<any[]>([])
+  const [evaluationData, setEvaluationData] = useState<any>({
+    total: 0,
+    averages: {
+      content: 0,
+      facilitator: 0,
+      logistics: 0,
+      engagement: 0,
+      applicability: 0,
+      overall: 0
+    },
+    wordCloud: [],
+    recentEvaluations: [],
+    byCourse: [],
+    ratingDistribution: {
+      content: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      facilitator: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      overall: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    }
+  })
   const [stats, setStats] = useState({
     totalHours: 0,
     totalRecords: 0,
@@ -41,7 +61,9 @@ export default function AdminReportsPage() {
     completionRate: 0,
     activeUsers: 0,
     newUsersThisMonth: 0,
-    certificatesIssued: 0
+    certificatesIssued: 0,
+    totalEvaluations: 0,
+    averageRating: 0
   })
   const [courseStats, setCourseStats] = useState<any[]>([])
   const [departmentData, setDepartmentData] = useState<any[]>([])
@@ -82,7 +104,8 @@ export default function AdminReportsPage() {
       loadCourseStats(),
       loadMonthlyTrends(),
       loadDepartmentData(),
-      loadFacilitatorData()
+      loadFacilitatorData(),
+      loadEvaluationStats()
     ])
   }
 
@@ -102,6 +125,23 @@ export default function AdminReportsPage() {
       totalRecords: data?.length || 0,
       totalDepartments: departments.size
     }))
+  }
+
+  const loadEvaluationStats = async () => {
+    try {
+      const response = await fetch('/api/training/stats')
+      const data = await response.json()
+      if (data && data.success) {
+        setEvaluationData(data)
+        setStats(prev => ({
+          ...prev,
+          totalEvaluations: data.total || 0,
+          averageRating: data.averages?.overall || 0
+        }))
+      }
+    } catch (error) {
+      console.error('Error loading evaluation stats:', error)
+    }
   }
 
   const loadDashboardStats = async () => {
@@ -166,6 +206,7 @@ export default function AdminReportsPage() {
     const { data: enrollments } = await supabase.from('enrollments').select('enrolled_at, completed_at')
     const { data: profiles } = await supabase.from('profiles').select('created_at')
     const { data: trainingRecords } = await supabase.from('training_records').select('training_date, duration_hours')
+    const { data: formSubmissions } = await supabase.from('form_submissions').select('created_at')
     
     const months = []
     const now = new Date()
@@ -179,7 +220,8 @@ export default function AdminReportsPage() {
         enrollments: enrollments?.filter(e => e.enrolled_at && new Date(e.enrolled_at) >= month && new Date(e.enrolled_at) < nextMonth).length || 0,
         completions: enrollments?.filter(e => e.completed_at && new Date(e.completed_at) >= month && new Date(e.completed_at) < nextMonth).length || 0,
         newUsers: profiles?.filter(p => p.created_at && new Date(p.created_at) >= month && new Date(p.created_at) < nextMonth).length || 0,
-        trainingHours: trainingRecords?.filter(r => r.training_date && new Date(r.training_date) >= month && new Date(r.training_date) < nextMonth).reduce((sum, r) => sum + (r.duration_hours || 0), 0) || 0
+        trainingHours: trainingRecords?.filter(r => r.training_date && new Date(r.training_date) >= month && new Date(r.training_date) < nextMonth).reduce((sum, r) => sum + (r.duration_hours || 0), 0) || 0,
+        formSubmissions: formSubmissions?.filter(f => f.created_at && new Date(f.created_at) >= month && new Date(f.created_at) < nextMonth).length || 0
       })
     }
     setMonthlyData(months)
@@ -237,7 +279,8 @@ export default function AdminReportsPage() {
       facilitator: newRecord.facilitator || '',
       supervisor: newRecord.supervisor || '',
       department: newRecord.department || '',
-      duration_hours: newRecord.duration_hours || 0
+      duration_hours: newRecord.duration_hours || 0,
+      source: 'manual'
     }
 
     const { error } = await supabase.from('training_records').insert(recordData)
@@ -345,7 +388,8 @@ export default function AdminReportsPage() {
         facilitator: row['Facilitator'] || row['facilitator'] || '',
         supervisor: row['Supervisor'] || row['supervisor'] || '',
         department: row['Department'] || row['department'] || '',
-        duration_hours: parseFloat(row['Duration Hours'] || row['duration_hours'] || row['Hours'] || 0)
+        duration_hours: parseFloat(row['Duration Hours'] || row['duration_hours'] || row['Hours'] || 0),
+        source: 'manual_import'
       }
       const { error } = await supabase.from('training_records').insert(record)
       if (!error) success++
@@ -365,7 +409,8 @@ export default function AdminReportsPage() {
       'Facilitator': r.facilitator,
       'Supervisor': r.supervisor || '',
       'Department': r.department,
-      'Duration Hours': r.duration_hours
+      'Duration Hours': r.duration_hours,
+      'Source': r.source || 'manual'
     }))
     const ws = XLSX.utils.json_to_sheet(exportData)
     const wb = XLSX.utils.book_new()
@@ -377,6 +422,15 @@ export default function AdminReportsPage() {
     await supabase.auth.signOut()
     router.push('/login')
   }
+
+  // Radar chart data for evaluation ratings
+  const radarData = [
+    { subject: 'Content', rating: evaluationData.averages.content, fullMark: 5 },
+    { subject: 'Facilitator', rating: evaluationData.averages.facilitator, fullMark: 5 },
+    { subject: 'Logistics', rating: evaluationData.averages.logistics, fullMark: 5 },
+    { subject: 'Engagement', rating: evaluationData.averages.engagement, fullMark: 5 },
+    { subject: 'Applicability', rating: evaluationData.averages.applicability, fullMark: 5 }
+  ]
 
   if (loading) {
     return (
@@ -436,6 +490,9 @@ export default function AdminReportsPage() {
           <button onClick={() => setActiveTab('training')} className={`flex items-center gap-3 px-3 py-2 w-full rounded-md ${activeTab === 'training' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}>
             <FileSpreadsheet size={20} /> {!sidebarCollapsed && <span>Training Records</span>}
           </button>
+          <button onClick={() => setActiveTab('evaluations')} className={`flex items-center gap-3 px-3 py-2 w-full rounded-md ${activeTab === 'evaluations' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}>
+            <Star size={20} /> {!sidebarCollapsed && <span>Evaluations</span>}
+          </button>
         </nav>
         <div className="absolute bottom-4 left-0 right-0 px-3">
           <button onClick={handleSignOut} className="flex items-center gap-3 px-3 py-2 w-full rounded-md text-gray-600 hover:bg-gray-100">
@@ -461,6 +518,9 @@ export default function AdminReportsPage() {
               <button onClick={() => { setActiveTab('training'); setMobileMenuOpen(false); }} className="flex items-center gap-3 px-3 py-2 w-full rounded-md text-gray-600 hover:bg-gray-100">
                 <FileSpreadsheet size={20} /><span>Training Records</span>
               </button>
+              <button onClick={() => { setActiveTab('evaluations'); setMobileMenuOpen(false); }} className="flex items-center gap-3 px-3 py-2 w-full rounded-md text-gray-600 hover:bg-gray-100">
+                <Star size={20} /><span>Evaluations</span>
+              </button>
             </nav>
           </div>
         </div>
@@ -471,6 +531,8 @@ export default function AdminReportsPage() {
           {activeTab === 'overview' && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-6">Analytics Dashboard</h1>
+              
+              {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
@@ -481,27 +543,129 @@ export default function AdminReportsPage() {
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
-                    <div><p className="text-sm text-gray-500">Active Users</p><p className="text-2xl font-bold">{stats.activeUsers}</p></div>
-                    <Activity size={32} className="text-green-500" />
+                    <div><p className="text-sm text-gray-500">Training Records</p><p className="text-2xl font-bold">{stats.totalRecords}</p></div>
+                    <FileSpreadsheet size={32} className="text-purple-500" />
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">{stats.totalUsers > 0 ? Math.round((stats.activeUsers / stats.totalUsers) * 100) : 0}% engagement</div>
+                  <div className="mt-2 text-xs text-gray-500">{stats.totalHours} total hours</div>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
-                    <div><p className="text-sm text-gray-500">Total Enrollments</p><p className="text-2xl font-bold">{stats.totalEnrollments}</p></div>
-                    <BookOpen size={32} className="text-purple-500" />
+                    <div><p className="text-sm text-gray-500">Evaluations</p><p className="text-2xl font-bold">{stats.totalEvaluations}</p></div>
+                    <Star size={32} className="text-yellow-500" />
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">{stats.completionRate}% completion rate</div>
+                  <div className="mt-2 text-xs text-green-600">{stats.averageRating} / 5 avg rating</div>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-5">
                   <div className="flex items-center justify-between">
                     <div><p className="text-sm text-gray-500">Certificates</p><p className="text-2xl font-bold">{stats.certificatesIssued}</p></div>
-                    <Award size={32} className="text-yellow-500" />
+                    <Award size={32} className="text-green-500" />
                   </div>
                   <div className="mt-2 text-xs text-gray-500">+{stats.completedCourses} completed</div>
                 </div>
               </div>
 
+              {/* Evaluation Ratings Section */}
+              {stats.totalEvaluations > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Star className="text-yellow-500" size={20} />
+                      Training Evaluation Ratings
+                    </h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <RadarChart data={radarData}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="subject" />
+                        <PolarRadiusAxis domain={[0, 5]} />
+                        <Radar name="Rating" dataKey="rating" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
+                        <Tooltip />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 grid grid-cols-5 gap-2 text-center">
+                      <div><p className="text-xs text-gray-500">Content</p><p className="text-lg font-bold">{evaluationData.averages.content}</p></div>
+                      <div><p className="text-xs text-gray-500">Facilitator</p><p className="text-lg font-bold">{evaluationData.averages.facilitator}</p></div>
+                      <div><p className="text-xs text-gray-500">Logistics</p><p className="text-lg font-bold">{evaluationData.averages.logistics}</p></div>
+                      <div><p className="text-xs text-gray-500">Engagement</p><p className="text-lg font-bold">{evaluationData.averages.engagement}</p></div>
+                      <div><p className="text-xs text-gray-500">Applicability</p><p className="text-lg font-bold">{evaluationData.averages.applicability}</p></div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <MessageSquare className="text-blue-500" size={20} />
+                      Word Cloud - One Word Feedback
+                    </h3>
+                    {evaluationData.wordCloud && evaluationData.wordCloud.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 min-h-[200px] items-center justify-center">
+                        {evaluationData.wordCloud.map((item: any, idx: number) => (
+                          <span 
+                            key={idx}
+                            className="px-3 py-1 bg-gray-100 rounded-full text-gray-700 transition-all hover:bg-blue-100"
+                            style={{
+                              fontSize: `${Math.max(12, Math.min(28, 12 + item.count * 4))}px`,
+                              opacity: 0.6 + (item.count / evaluationData.wordCloud[0].count) * 0.4
+                            }}
+                          >
+                            {item.word} ({item.count})
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-8">No feedback words yet. Submit evaluations to see word cloud.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Evaluations */}
+              {evaluationData.recentEvaluations && evaluationData.recentEvaluations.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
+                  <div className="p-6 border-b">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <ThumbsUp className="text-green-500" size={20} />
+                      Recent Evaluations
+                    </h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Attendee</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Rating</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">One Word</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Comments</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {evaluationData.recentEvaluations.slice(0, 5).map((evalItem: any) => (
+                          <tr key={evalItem.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 text-sm font-medium">{evalItem.attendee_name || 'Anonymous'}</td>
+                            <td className="px-6 py-4 text-sm">{evalItem.course}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-1">
+                                <span className="text-sm font-bold">{evalItem.overall}</span>
+                                <Star size={14} className="text-yellow-500 fill-yellow-500" />
+                                <span className="text-xs text-gray-500">/5</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                                {evalItem.one_word || '-'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                              {evalItem.comments || '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Existing Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <h3 className="text-lg font-semibold mb-4">Course Progress Distribution</h3>
@@ -547,17 +711,11 @@ export default function AdminReportsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Training Hours</th>
-                      </tr>
+                      <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Training Hours</th></tr>
                     </thead>
                     <tbody className="divide-y">
                       {facilitatorData.map((fac: any) => (
-                        <tr key={fac.name} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 text-sm font-medium">{fac.name}</td>
-                          <td className="px-6 py-4 text-sm">{fac.hours}</td>
-                        </tr>
+                        <tr key={fac.name} className="hover:bg-gray-50"><td className="px-6 py-4 text-sm font-medium">{fac.name}</td><td className="px-6 py-4 text-sm">{fac.hours}</td></tr>
                       ))}
                     </tbody>
                   </table>
@@ -572,13 +730,7 @@ export default function AdminReportsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avg Progress</th>
-                    </tr>
+                    <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Enrollments</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completions</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Completion Rate</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avg Progress</th></tr>
                   </thead>
                   <tbody className="divide-y">
                     {courseStats.map((course: any) => (
@@ -617,6 +769,7 @@ export default function AdminReportsPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Department</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Hours</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Source</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Actions</th>
                     </tr>
                   </thead>
@@ -631,112 +784,188 @@ export default function AdminReportsPage() {
                         <td className="px-4 py-3 text-sm">{record.department}</td>
                         <td className="px-4 py-3 text-sm">{record.duration_hours}</td>
                         <td className="px-4 py-3 text-sm">
+                          <span className={`px-2 py-1 rounded-full text-xs ${record.source === 'google_form' ? 'bg-green-100 text-green-700' : record.source === 'manual' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
+                            {record.source || 'manual'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
                           <button onClick={() => setEditingRecord(record)} className="text-blue-600 hover:text-blue-800 mr-2"><Edit size={16} /></button>
                           <button onClick={() => handleDeleteRecord(record.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
                         </td>
                       </tr>
                     ))}
                     {records.length === 0 && (
-                      <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">No records. Click "Add Record" or "Import Excel" to add data.</td></tr>
+                      <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500">No records. Click "Add Record" or "Import Excel" to add data.</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
+
+          {activeTab === 'evaluations' && (
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-6">Training Evaluations</h1>
+              
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+                <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+                  <p className="text-sm text-gray-500">Total Evaluations</p>
+                  <p className="text-2xl font-bold">{evaluationData.total}</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+                  <p className="text-sm text-gray-500">Overall Rating</p>
+                  <p className="text-2xl font-bold text-yellow-600">{evaluationData.averages.overall}</p>
+                  <p className="text-xs text-gray-500">/5</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+                  <p className="text-sm text-gray-500">Content</p>
+                  <p className="text-2xl font-bold text-blue-600">{evaluationData.averages.content}</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+                  <p className="text-sm text-gray-500">Facilitator</p>
+                  <p className="text-2xl font-bold text-green-600">{evaluationData.averages.facilitator}</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+                  <p className="text-sm text-gray-500">Engagement</p>
+                  <p className="text-2xl font-bold text-purple-600">{evaluationData.averages.engagement}</p>
+                </div>
+              </div>
+
+              {/* Radar Chart */}
+              <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+                <h3 className="text-lg font-semibold mb-4">Rating Breakdown</h3>
+                <ResponsiveContainer width="100%" height={400}>
+                  <RadarChart data={radarData}>
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="subject" />
+                    <PolarRadiusAxis domain={[0, 5]} />
+                    <Radar name="Average Rating" dataKey="rating" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
+                    <Tooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Word Cloud */}
+              <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+                <h3 className="text-lg font-semibold mb-4">Word Cloud - One Word Feedback</h3>
+                <div className="flex flex-wrap gap-2 min-h-[150px] items-center justify-center p-4">
+                  {evaluationData.wordCloud && evaluationData.wordCloud.length > 0 ? (
+                    evaluationData.wordCloud.map((item: any, idx: number) => (
+                      <span 
+                        key={idx}
+                        className="px-3 py-1 bg-gray-100 rounded-full text-gray-700 transition-all hover:bg-blue-100 hover:scale-105 cursor-default"
+                        style={{
+                          fontSize: `${Math.max(12, Math.min(32, 12 + item.count * 3))}px`,
+                          opacity: 0.6 + (item.count / evaluationData.wordCloud[0].count) * 0.4
+                        }}
+                      >
+                        {item.word} ({item.count})
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-gray-500">No feedback words yet</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Course Performance Table */}
+              {evaluationData.byCourse && evaluationData.byCourse.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
+                  <div className="p-6 border-b"><h3 className="text-lg font-semibold">Course Performance by Rating</h3></div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Evaluations</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Content</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Logistics</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Engagement</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Applicability</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Overall</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {evaluationData.byCourse.map((course: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 text-sm font-medium">{course.course}</td>
+                            <td className="px-6 py-4 text-sm">{course.total}</td>
+                            <td className="px-6 py-4 text-sm">{course.content}</td>
+                            <td className="px-6 py-4 text-sm">{course.facilitator}</td>
+                            <td className="px-6 py-4 text-sm">{course.logistics}</td>
+                            <td className="px-6 py-4 text-sm">{course.engagement}</td>
+                            <td className="px-6 py-4 text-sm">{course.applicability}</td>
+                            <td className="px-6 py-4"><span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-700 font-bold">{course.overall}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* All Evaluations Table */}
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="p-6 border-b"><h3 className="text-lg font-semibold">All Evaluations</h3></div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Attendee</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Course</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Rating</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">One Word</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Comments</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {evaluationData.recentEvaluations && evaluationData.recentEvaluations.map((evalItem: any) => (
+                        <tr key={evalItem.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-sm font-medium">{evalItem.attendee_name || 'Anonymous'}</td>
+                          <td className="px-6 py-4 text-sm">{evalItem.course}</td>
+                          <td className="px-6 py-4 text-sm">{evalItem.training_date}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm font-bold">{evalItem.overall}</span>
+                              <Star size={14} className="text-yellow-500 fill-yellow-500" />
+                            </div>
+                          </td>
+                          <td className="px-6 py-4"><span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">{evalItem.one_word || '-'}</span></td>
+                          <td className="px-6 py-4 text-sm text-gray-600 max-w-md truncate">{evalItem.comments || '-'}</td>
+                        </tr>
+                      ))}
+                      {(!evaluationData.recentEvaluations || evaluationData.recentEvaluations.length === 0) && (
+                        <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">No evaluations yet. Submit training feedback to see data.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Modals remain the same */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-4 border-b sticky top-0 bg-white">
               <h2 className="text-lg font-semibold">Add Training Record</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
             <div className="p-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Training Date</label>
-                <input 
-                  type="date" 
-                  value={newRecord.training_date} 
-                  onChange={(e) => setNewRecord({...newRecord, training_date: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Attendee Name *</label>
-                <input 
-                  type="text" 
-                  placeholder="Full name of attendee" 
-                  value={newRecord.attendee_name} 
-                  onChange={(e) => setNewRecord({...newRecord, attendee_name: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <input 
-                  type="text" 
-                  placeholder="Enter role (e.g., Employee, Manager, etc.)" 
-                  value={newRecord.role} 
-                  onChange={(e) => setNewRecord({...newRecord, role: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
-                <input 
-                  type="text" 
-                  placeholder="Course name" 
-                  value={newRecord.course} 
-                  onChange={(e) => setNewRecord({...newRecord, course: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Facilitator</label>
-                <input 
-                  type="text" 
-                  placeholder="Trainer/facilitator name" 
-                  value={newRecord.facilitator} 
-                  onChange={(e) => setNewRecord({...newRecord, facilitator: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor</label>
-                <input 
-                  type="text" 
-                  placeholder="Attendee's supervisor" 
-                  value={newRecord.supervisor} 
-                  onChange={(e) => setNewRecord({...newRecord, supervisor: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                <input 
-                  type="text" 
-                  placeholder="Department name" 
-                  value={newRecord.department} 
-                  onChange={(e) => setNewRecord({...newRecord, department: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Duration Hours</label>
-                <input 
-                  type="number" 
-                  step="0.5" 
-                  placeholder="Training duration in hours" 
-                  value={newRecord.duration_hours} 
-                  onChange={(e) => setNewRecord({...newRecord, duration_hours: parseFloat(e.target.value) || 0})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Training Date</label><input type="date" value={newRecord.training_date} onChange={(e) => setNewRecord({...newRecord, training_date: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Attendee Name *</label><input type="text" placeholder="Full name of attendee" value={newRecord.attendee_name} onChange={(e) => setNewRecord({...newRecord, attendee_name: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Role</label><input type="text" placeholder="Enter role" value={newRecord.role} onChange={(e) => setNewRecord({...newRecord, role: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Course *</label><input type="text" placeholder="Course name" value={newRecord.course} onChange={(e) => setNewRecord({...newRecord, course: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Facilitator</label><input type="text" placeholder="Trainer/facilitator name" value={newRecord.facilitator} onChange={(e) => setNewRecord({...newRecord, facilitator: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Supervisor</label><input type="text" placeholder="Attendee's supervisor" value={newRecord.supervisor} onChange={(e) => setNewRecord({...newRecord, supervisor: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Department</label><input type="text" placeholder="Department name" value={newRecord.department} onChange={(e) => setNewRecord({...newRecord, department: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Duration Hours</label><input type="number" step="0.5" placeholder="Training duration in hours" value={newRecord.duration_hours} onChange={(e) => setNewRecord({...newRecord, duration_hours: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
             </div>
             <div className="flex justify-end gap-3 p-4 border-t sticky bottom-0 bg-white">
               <button onClick={() => setShowAddModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
@@ -751,85 +980,17 @@ export default function AdminReportsPage() {
           <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-4 border-b sticky top-0 bg-white">
               <h2 className="text-lg font-semibold">Edit Record</h2>
-              <button onClick={() => setEditingRecord(null)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
+              <button onClick={() => setEditingRecord(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
             <div className="p-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Training Date</label>
-                <input 
-                  type="date" 
-                  value={editingRecord.training_date} 
-                  onChange={(e) => setEditingRecord({...editingRecord, training_date: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Attendee Name</label>
-                <input 
-                  type="text" 
-                  value={editingRecord.attendee_name} 
-                  onChange={(e) => setEditingRecord({...editingRecord, attendee_name: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <input 
-                  type="text" 
-                  placeholder="Enter role (e.g., Employee, Manager, etc.)" 
-                  value={editingRecord.role || ''} 
-                  onChange={(e) => setEditingRecord({...editingRecord, role: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
-                <input 
-                  type="text" 
-                  value={editingRecord.course} 
-                  onChange={(e) => setEditingRecord({...editingRecord, course: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Facilitator</label>
-                <input 
-                  type="text" 
-                  value={editingRecord.facilitator} 
-                  onChange={(e) => setEditingRecord({...editingRecord, facilitator: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor</label>
-                <input 
-                  type="text" 
-                  value={editingRecord.supervisor || ''} 
-                  onChange={(e) => setEditingRecord({...editingRecord, supervisor: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                <input 
-                  type="text" 
-                  value={editingRecord.department} 
-                  onChange={(e) => setEditingRecord({...editingRecord, department: e.target.value})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Duration Hours</label>
-                <input 
-                  type="number" 
-                  step="0.5" 
-                  value={editingRecord.duration_hours} 
-                  onChange={(e) => setEditingRecord({...editingRecord, duration_hours: parseFloat(e.target.value) || 0})} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Training Date</label><input type="date" value={editingRecord.training_date} onChange={(e) => setEditingRecord({...editingRecord, training_date: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Attendee Name</label><input type="text" value={editingRecord.attendee_name} onChange={(e) => setEditingRecord({...editingRecord, attendee_name: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Role</label><input type="text" placeholder="Enter role" value={editingRecord.role || ''} onChange={(e) => setEditingRecord({...editingRecord, role: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Course</label><input type="text" value={editingRecord.course} onChange={(e) => setEditingRecord({...editingRecord, course: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Facilitator</label><input type="text" value={editingRecord.facilitator} onChange={(e) => setEditingRecord({...editingRecord, facilitator: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Supervisor</label><input type="text" value={editingRecord.supervisor || ''} onChange={(e) => setEditingRecord({...editingRecord, supervisor: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Department</label><input type="text" value={editingRecord.department} onChange={(e) => setEditingRecord({...editingRecord, department: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Duration Hours</label><input type="number" step="0.5" value={editingRecord.duration_hours} onChange={(e) => setEditingRecord({...editingRecord, duration_hours: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
             </div>
             <div className="flex justify-end gap-3 p-4 border-t sticky bottom-0 bg-white">
               <button onClick={() => setEditingRecord(null)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
@@ -842,46 +1003,15 @@ export default function AdminReportsPage() {
       {showImportModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full">
-            <div className="flex justify-between items-center p-4 border-b">
-              <h2 className="text-lg font-semibold">Import Excel</h2>
-              <button onClick={() => setShowImportModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
-            </div>
+            <div className="flex justify-between items-center p-4 border-b"><h2 className="text-lg font-semibold">Import Excel</h2><button onClick={() => setShowImportModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button></div>
             <div className="p-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <p className="text-sm text-blue-700">Download template from the Excel icon in top bar</p>
-              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4"><p className="text-sm text-blue-700">Download template from the Excel icon in top bar</p></div>
               {importPreview.length > 0 && (
-                <div>
-                  <p className="text-sm mb-2">Preview ({importData.length} records):</p>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm border">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          {Object.keys(importPreview[0]).slice(0, 6).map(key => (
-                            <th key={key} className="px-3 py-2 border">{key}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {importPreview.map((row, idx) => (
-                          <tr key={idx}>
-                            {Object.values(row).slice(0, 6).map((val: any, i) => (
-                              <td key={i} className="px-3 py-2 border">{String(val).slice(0, 30)}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <div><p className="text-sm mb-2">Preview ({importData.length} records):</p>
+                  <div className="overflow-x-auto"><table className="w-full text-sm border"><thead className="bg-gray-50"><tr>{Object.keys(importPreview[0]).slice(0, 6).map(key => (<th key={key} className="px-3 py-2 border">{key}</th>))}</tr></thead><tbody>{importPreview.map((row, idx) => (<tr key={idx}>{Object.values(row).slice(0, 6).map((val: any, i) => (<td key={i} className="px-3 py-2 border">{String(val).slice(0, 30)}</td>))}</tr>))}</tbody></table></div></div>
               )}
             </div>
-            <div className="flex justify-end gap-3 p-4 border-t">
-              <button onClick={() => setShowImportModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button>
-              <button onClick={confirmImport} className="px-4 py-2 bg-green-600 text-white rounded-lg">Import {importData.length} Records</button>
-            </div>
+            <div className="flex justify-end gap-3 p-4 border-t"><button onClick={() => setShowImportModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button><button onClick={confirmImport} className="px-4 py-2 bg-green-600 text-white rounded-lg">Import {importData.length} Records</button></div>
           </div>
         </div>
       )}
