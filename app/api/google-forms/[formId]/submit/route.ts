@@ -15,13 +15,7 @@ export async function POST(
     const authHeader = request.headers.get('authorization')
     const isGoogleWebhook = authHeader === `Bearer ${process.env.GOOGLE_FORMS_WEBHOOK_SECRET}`
     
-    let userId = null
-    
-    if (isGoogleWebhook) {
-      // For Google Forms webhook, bypass authentication
-      console.log('✅ Google Forms webhook authenticated')
-      userId = process.env.SYSTEM_USER_ID || null
-    } else {
+    if (!isGoogleWebhook) {
       // For manual submissions, verify user is authenticated
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       if (authError || !user) {
@@ -31,7 +25,6 @@ export async function POST(
           { status: 401 }
         )
       }
-      userId = user.id
     }
 
     // Validate formId
@@ -46,13 +39,17 @@ export async function POST(
     console.log(`   Attendee: ${body.attendeeName || 'Unknown'}`)
     console.log(`   Course: ${body.course || 'Unknown'}`)
 
-    // Save raw form submission
+    // Save raw form submission - matching your table structure
+    const submissionId = body.formSubmissionId || `google-${Date.now()}`;
+    
     const { data: submission, error: submissionError } = await supabase
       .from('form_submissions')
       .insert({
         form_id: params.formId,
-        user_id: userId,
-        submission_data: body,
+        submission_id: submissionId,
+        raw_data: body,
+        processed: false,
+        submitted_at: body.submittedAt || new Date().toISOString(),
         created_at: new Date().toISOString()
       } as any)
       .select()
@@ -61,7 +58,7 @@ export async function POST(
     if (submissionError) {
       console.error('Error saving form submission:', submissionError)
       return NextResponse.json(
-        { error: 'Failed to save form submission' },
+        { error: 'Failed to save form submission', details: submissionError.message },
         { status: 500 }
       )
     }
@@ -69,6 +66,15 @@ export async function POST(
     // Process training registration if this is the training form
     if (params.formId === process.env.TRAINING_REGISTER_FORM_ID) {
       await processTrainingRegistration(supabase, body, submission.id)
+      
+      // Update submission as processed
+      await supabase
+        .from('form_submissions')
+        .update({
+          processed: true,
+          processed_at: new Date().toISOString()
+        })
+        .eq('id', submission.id)
     }
 
     return NextResponse.json({ 
@@ -131,6 +137,14 @@ async function processTrainingRegistration(supabase: any, formData: any, submiss
 
     console.log(`✅ Training record created: ${trainingRecord.attendee_name} - ${trainingRecord.course}`)
 
+    // Update form_submission with training_record_id
+    await supabase
+      .from('form_submissions')
+      .update({
+        training_record_id: record.id
+      })
+      .eq('id', submissionId)
+
     // Insert evaluation if ratings exist
     if (formData.contentRating || formData.facilitatorRating || 
         formData.logisticsRating || formData.engagementRating || 
@@ -161,16 +175,6 @@ async function processTrainingRegistration(supabase: any, formData: any, submiss
         console.log(`✅ Evaluation created for ${trainingRecord.attendee_name}`)
       }
     }
-
-    // Update submission as processed
-    await supabase
-      .from('form_submissions')
-      .update({
-        processed: true,
-        training_record_id: record.id,
-        processed_at: new Date().toISOString()
-      })
-      .eq('id', submissionId)
 
   } catch (error) {
     console.error('Error processing training registration:', error)
