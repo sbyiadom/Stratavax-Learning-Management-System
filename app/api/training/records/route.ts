@@ -116,21 +116,41 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching count:', countError)
     }
     
-    // Get unique courses for filter dropdown
-    const { data: courses } = await supabase
+    // Get unique courses for filter dropdown - FIXED
+    const { data: coursesData } = await supabase
       .from('training_records')
       .select('course')
       .not('course', 'is', null)
     
-    const uniqueCourses = [...new Set(courses?.map(c => c.course).filter(Boolean))].sort()
+    const uniqueCourses: string[] = []
+    if (coursesData) {
+      const courseMap = new Map<string, boolean>()
+      coursesData.forEach(item => {
+        if (item.course && !courseMap.has(item.course)) {
+          courseMap.set(item.course, true)
+          uniqueCourses.push(item.course)
+        }
+      })
+      uniqueCourses.sort()
+    }
     
-    // Get unique departments for filter dropdown
-    const { data: departments } = await supabase
+    // Get unique departments for filter dropdown - FIXED
+    const { data: departmentsData } = await supabase
       .from('training_records')
       .select('department')
       .not('department', 'is', null)
     
-    const uniqueDepartments = [...new Set(departments?.map(d => d.department).filter(Boolean))].sort()
+    const uniqueDepartments: string[] = []
+    if (departmentsData) {
+      const deptMap = new Map<string, boolean>()
+      departmentsData.forEach(item => {
+        if (item.department && !deptMap.has(item.department)) {
+          deptMap.set(item.department, true)
+          uniqueDepartments.push(item.department)
+        }
+      })
+      uniqueDepartments.sort()
+    }
     
     return NextResponse.json({
       success: true,
