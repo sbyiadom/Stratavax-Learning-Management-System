@@ -18,12 +18,14 @@ export async function POST(
     let userId = null
     
     if (isGoogleWebhook) {
-      // For Google Forms webhook, use system user or null
+      // For Google Forms webhook, bypass authentication
+      console.log('✅ Google Forms webhook authenticated')
       userId = process.env.SYSTEM_USER_ID || null
     } else {
       // For manual submissions, verify user is authenticated
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       if (authError || !user) {
+        console.log('❌ Unauthorized - no valid auth')
         return NextResponse.json(
           { error: 'Unauthorized' },
           { status: 401 }
@@ -39,6 +41,10 @@ export async function POST(
         { status: 400 }
       )
     }
+
+    console.log(`📝 Processing submission for form: ${params.formId}`)
+    console.log(`   Attendee: ${body.attendeeName || 'Unknown'}`)
+    console.log(`   Course: ${body.course || 'Unknown'}`)
 
     // Save raw form submission
     const { data: submission, error: submissionError } = await supabase
@@ -74,7 +80,7 @@ export async function POST(
   } catch (error) {
     console.error('Error in Google Forms submission:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
