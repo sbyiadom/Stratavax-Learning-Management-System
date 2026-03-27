@@ -152,19 +152,60 @@ export default function AdminReportsPage() {
     
     // Build filter options from data
     if (data) {
-      const supervisors = [...new Set(data.map(r => r.supervisor).filter(Boolean))].sort()
-      const roles = [...new Set(data.map(r => r.role).filter(Boolean))].sort()
-      const courses = [...new Set(data.map(r => r.course).filter(Boolean))].sort()
-      const facilitators = [...new Set(data.map(r => r.facilitator).filter(Boolean))].sort()
-      const departments = [...new Set(data.map(r => r.department).filter(Boolean))].sort()
-      const attendees = [...new Set(data.map(r => r.attendee_name).filter(Boolean))].sort()
+      const supervisors: string[] = []
+      const roles: string[] = []
+      const courses: string[] = []
+      const facilitators: string[] = []
+      const departmentsList: string[] = []
+      const attendees: string[] = []
+      
+      const supervisorSet = new Set<string>()
+      const roleSet = new Set<string>()
+      const courseSet = new Set<string>()
+      const facilitatorSet = new Set<string>()
+      const departmentSet = new Set<string>()
+      const attendeeSet = new Set<string>()
+      
+      data.forEach(record => {
+        if (record.supervisor && !supervisorSet.has(record.supervisor)) {
+          supervisorSet.add(record.supervisor)
+          supervisors.push(record.supervisor)
+        }
+        if (record.role && !roleSet.has(record.role)) {
+          roleSet.add(record.role)
+          roles.push(record.role)
+        }
+        if (record.course && !courseSet.has(record.course)) {
+          courseSet.add(record.course)
+          courses.push(record.course)
+        }
+        if (record.facilitator && !facilitatorSet.has(record.facilitator)) {
+          facilitatorSet.add(record.facilitator)
+          facilitators.push(record.facilitator)
+        }
+        if (record.department && !departmentSet.has(record.department)) {
+          departmentSet.add(record.department)
+          departmentsList.push(record.department)
+        }
+        if (record.attendee_name && !attendeeSet.has(record.attendee_name)) {
+          attendeeSet.add(record.attendee_name)
+          attendees.push(record.attendee_name)
+        }
+      })
+      
+      supervisors.sort()
+      roles.sort()
+      courses.sort()
+      facilitators.sort()
+      departmentsList.sort()
+      attendees.sort()
       
       setFilterOptions({
         supervisors,
         roles,
         courses,
         facilitators,
-        departments,
+        departments: departmentsList,
         attendees
       })
     }
@@ -503,6 +544,7 @@ export default function AdminReportsPage() {
       'Facilitator': r.facilitator,
       'Supervisor': r.supervisor || '',
       'Department': r.department,
+      'Location': r.location || '',
       'Duration Hours': r.duration_hours,
       'Source': r.source || 'manual'
     }))
@@ -624,9 +666,9 @@ export default function AdminReportsPage() {
       <div className={`pt-14 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <div className="p-6">
           {activeTab === 'overview' && (
-            // Overview tab content (same as before)
             <div>
               <h1 className="text-2xl font-bold text-gray-900 mb-6">Analytics Dashboard</h1>
+              
               {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <div className="bg-white rounded-xl shadow-sm p-5">
@@ -781,6 +823,7 @@ export default function AdminReportsPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Facilitator</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Supervisor</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Department</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Location</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Hours</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Source</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Actions</th>
@@ -796,6 +839,7 @@ export default function AdminReportsPage() {
                         <td className="px-4 py-3 text-sm">{record.facilitator || '-'}</td>
                         <td className="px-4 py-3 text-sm">{record.supervisor || '-'}</td>
                         <td className="px-4 py-3 text-sm">{record.department || '-'}</td>
+                        <td className="px-4 py-3 text-sm">{record.location || '-'}</td>
                         <td className="px-4 py-3 text-sm">{record.duration_hours}</td>
                         <td className="px-4 py-3 text-sm">
                           <span className={`px-2 py-1 rounded-full text-xs ${record.source === 'google_form' ? 'bg-green-100 text-green-700' : record.source === 'manual' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
@@ -809,7 +853,7 @@ export default function AdminReportsPage() {
                       </tr>
                     ))}
                     {filteredRecords.length === 0 && (
-                      <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500">No records found</td></tr>
+                      <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-500">No records found</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -818,7 +862,6 @@ export default function AdminReportsPage() {
           )}
 
           {activeTab === 'evaluations' && (
-            // Evaluations tab content (same as before)
             <div>
               <h1 className="text-2xl font-bold text-gray-900 mb-6">Training Evaluations</h1>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
@@ -879,7 +922,7 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Modals - same as before */}
+      {/* Add Record Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -905,6 +948,7 @@ export default function AdminReportsPage() {
         </div>
       )}
 
+      {/* Edit Record Modal */}
       {editingRecord && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -930,6 +974,7 @@ export default function AdminReportsPage() {
         </div>
       )}
 
+      {/* Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full">
