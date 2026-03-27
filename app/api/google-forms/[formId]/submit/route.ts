@@ -38,6 +38,8 @@ export async function POST(
     console.log(`📝 Processing submission for form: ${params.formId}`)
     console.log(`   Attendee: ${body.attendeeName || 'Unknown'}`)
     console.log(`   Course: ${body.course || 'Unknown'}`)
+    console.log(`   Location: ${body.location || 'Not specified'}`)
+    console.log(`   Department: ${body.department || 'Not specified'}`)
 
     // Save raw form submission - matching your table structure
     const submissionId = body.formSubmissionId || `google-${Date.now()}`;
@@ -97,19 +99,19 @@ async function processTrainingRegistration(supabase: any, formData: any, submiss
     // Calculate duration in hours
     const durationHours = formData.durationMinutes ? formData.durationMinutes / 60 : 0
 
-    // Create training record
+    // Create training record - SEPARATE location and department fields
     const trainingRecord = {
       attendee_name: formData.attendeeName || '',
       role: formData.role || '',
       course: formData.course || '',
       facilitator: formData.facilitator || '',
       supervisor: formData.lineManager || '',
-      department: formData.location || '',
+      department: formData.department || '',        // ← Department from Google Form
+      location: formData.location || '',             // ← Location from Google Form
       duration_hours: durationHours,
       training_date: formData.trainingDate || new Date().toISOString().split('T')[0],
       personnel_number: formData.personnelNumber || '',
       country: formData.country || '',
-      location: formData.location || '',
       line_manager: formData.lineManager || '',
       acknowledged: formData.acknowledged === 'Yes',
       source: 'google_form',
@@ -136,6 +138,10 @@ async function processTrainingRegistration(supabase: any, formData: any, submiss
     }
 
     console.log(`✅ Training record created: ${trainingRecord.attendee_name} - ${trainingRecord.course}`)
+    console.log(`   Location: ${trainingRecord.location}`)
+    console.log(`   Department: ${trainingRecord.department}`)
+    console.log(`   Facilitator: ${trainingRecord.facilitator}`)
+    console.log(`   Line Manager: ${trainingRecord.line_manager}`)
 
     // Update form_submission with training_record_id
     await supabase
