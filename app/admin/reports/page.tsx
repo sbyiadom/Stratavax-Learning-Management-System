@@ -118,11 +118,16 @@ export default function AdminReportsPage() {
     try {
       const response = await fetch('/api/admin/users')
       const data = await response.json()
-      if (data.success) {
+      
+      if (data.success && data.users) {
         setAllUsers(data.users)
+      } else {
+        console.error('Failed to load users:', data)
+        setAllUsers([])
       }
     } catch (error) {
       console.error('Error loading users:', error)
+      setAllUsers([])
     } finally {
       setUsersLoading(false)
     }
@@ -407,14 +412,6 @@ export default function AdminReportsPage() {
     )
   }
 
-  const getRoleBadge = (role: string) => {
-    switch(role) {
-      case 'admin': return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium flex items-center gap-1"><Crown size={12} /> Admin</span>
-      case 'supervisor': return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium flex items-center gap-1"><UserCog size={12} /> Supervisor</span>
-      default: return <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium flex items-center gap-1"><Eye size={12} /> Viewer</span>
-    }
-  }
-
   const getRoleBadgeForCurrentUser = () => {
     switch(userRole) {
       case 'admin': return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium flex items-center gap-1"><Crown size={12} /> Admin</span>
@@ -680,24 +677,23 @@ export default function AdminReportsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b">
-                    <tr><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Date</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Facilitator</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Dept</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Hours</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Source</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Actions</th></tr>
-                  </thead>
+                    <tr><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Date</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Facilitator</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Dept</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Hours</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Source</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Actions</th> </thead>
                   <tbody>
                     {filteredRecords.map((r: any) => (
                       <tr key={r.id} className="hover:bg-gray-50">
-                        <td className="px-5 py-3 text-sm">{new Date(r.training_date).toLocaleDateString()}</td>
-                        <td className="px-5 py-3 text-sm font-medium">{r.attendee_name || '-'}</td>
-                        <td className="px-5 py-3 text-sm">{r.role || '-'}</td>
-                        <td className="px-5 py-3 text-sm">{r.course}</td>
-                        <td className="px-5 py-3 text-sm">{r.facilitator || '-'}</td>
-                        <td className="px-5 py-3 text-sm">{r.department || '-'}</td>
-                        <td className="px-5 py-3 text-sm">{r.duration_hours}</td>
-                        <td className="px-5 py-3"><span className={`px-2 py-1 rounded-full text-xs ${r.source === 'google_form' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{r.source || 'manual'}</span></td>
-                        <td className="px-5 py-3"><div className="flex gap-2">{canEditRecords && <button onClick={() => setEditingRecord(r)} className="text-blue-500 hover:text-blue-700"><Edit size={16} /></button>}{canDeleteRecords && <button onClick={() => handleDeleteRecord(r.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>}</div></td>
-                      </tr>
+                        <td className="px-5 py-3 text-sm">{new Date(r.training_date).toLocaleDateString()}宜昌
+                        <td className="px-5 py-3 text-sm font-medium">{r.attendee_name || '-'}宜昌
+                        <td className="px-5 py-3 text-sm">{r.role || '-'}宜昌
+                        <td className="px-5 py-3 text-sm">{r.course}宜昌
+                        <td className="px-5 py-3 text-sm">{r.facilitator || '-'}宜昌
+                        <td className="px-5 py-3 text-sm">{r.department || '-'}宜昌
+                        <td className="px-5 py-3 text-sm">{r.duration_hours}宜昌
+                        <td className="px-5 py-3"><span className={`px-2 py-1 rounded-full text-xs ${r.source === 'google_form' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{r.source || 'manual'}</span>宜昌
+                        <td className="px-5 py-3"><div className="flex gap-2">{canEditRecords && <button onClick={() => setEditingRecord(r)} className="text-blue-500 hover:text-blue-700"><Edit size={16} /></button>}{canDeleteRecords && <button onClick={() => handleDeleteRecord(r.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>}</div>宜昌
+                       </tr>
                     ))}
                   </tbody>
-                </table>
+                 </table>
               </div>
             </div>
           )}
@@ -756,16 +752,15 @@ export default function AdminReportsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
-                      <tr><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Rating</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">One Word</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Comments</th></tr>
-                    </thead>
+                      <tr><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Rating</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">One Word</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Comments</th> </thead>
                     <tbody>
                       {evaluationData.recentEvaluations?.slice(0,8).map((e: any) => (
                         <tr key={e.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-3 text-sm">{e.attendee_name || 'Anonymous'}</td>
-                          <td className="px-6 py-3 text-sm">{e.course}</td>
-                          <td className="px-6 py-3"><div className="flex items-center gap-1"><span className="font-semibold">{e.overall}</span><Star size={12} className="text-yellow-500 fill-yellow-500" /></div></td>
-                          <td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{e.one_word || '-'}</span></td>
-                          <td className="px-6 py-3 text-sm text-gray-500 max-w-xs truncate">{e.comments || '-'}</td>
+                          <td className="px-6 py-3 text-sm">{e.attendee_name || 'Anonymous'}宜昌
+                          <td className="px-6 py-3 text-sm">{e.course}宜昌
+                          <td className="px-6 py-3"><div className="flex items-center gap-1"><span className="font-semibold">{e.overall}</span><Star size={12} className="text-yellow-500 fill-yellow-500" /></div>宜昌
+                          <td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{e.one_word || '-'}</span>宜昌
+                          <td className="px-6 py-3 text-sm text-gray-500 max-w-xs truncate">{e.comments || '-'}宜昌
                         </tr>
                       ))}
                     </tbody>
@@ -780,32 +775,95 @@ export default function AdminReportsPage() {
             <div className="bg-white rounded-xl shadow-sm overflow-hidden border">
               <div className="p-5 border-b bg-gray-50">
                 <div className="flex items-center justify-between">
-                  <div><h2 className="text-lg font-semibold text-gray-800">User Management</h2><p className="text-sm text-gray-500">Manage user roles and permissions</p></div>
-                  <button onClick={loadAllUsers} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700"><RefreshCw size={14} /> Refresh</button>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-800">User Management</h2>
+                    <p className="text-sm text-gray-500">Manage user roles and permissions</p>
+                  </div>
+                  <button 
+                    onClick={loadAllUsers} 
+                    className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700"
+                  >
+                    <RefreshCw size={14} /> Refresh
+                  </button>
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
-                    <tr><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Current Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Change Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User ID</th></tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {usersLoading ? <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">Loading users...</td></tr> : allUsers.length === 0 ? <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">No users found</td></tr> : allUsers.map((u: any) => (
-                      <tr key={u.id} className="hover:bg-gray-50">
-                        <td className="px-5 py-4 text-sm font-medium text-gray-900">{u.email}</td>
-                        <td className="px-5 py-4">{getRoleBadge(u.role || 'user')}</td>
-                        <td className="px-5 py-4">
-                          <div className="flex gap-2">
-                            <button onClick={() => updateUserRole(u.id, 'user')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${u.role === 'user' ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} disabled={u.role === 'user'}><Eye size={12} className="inline mr-1" /> Viewer</button>
-                            <button onClick={() => updateUserRole(u.id, 'supervisor')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${u.role === 'supervisor' ? 'bg-blue-200 text-blue-700 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`} disabled={u.role === 'supervisor'}><UserCog size={12} className="inline mr-1" /> Supervisor</button>
-                            <button onClick={() => updateUserRole(u.id, 'admin')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${u.role === 'admin' ? 'bg-red-200 text-red-700 cursor-not-allowed' : 'bg-red-50 text-red-600 hover:bg-red-100'}`} disabled={u.role === 'admin'}><Crown size={12} className="inline mr-1" /> Admin</button>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 text-xs text-gray-400 font-mono">{u.id.slice(0, 8)}...</td>
+                {usersLoading ? (
+                  <div className="p-8 text-center text-gray-500">Loading users...</div>
+                ) : allUsers.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400">No users found</div>
+                ) : (
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Current Role</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Change Role</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User ID</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y">
+                      {allUsers.map((u: any) => (
+                        <tr key={u.id} className="hover:bg-gray-50">
+                          <td className="px-5 py-4 text-sm font-medium text-gray-900">{u.email}</td>
+                          <td className="px-5 py-4">
+                            {u.role === 'admin' ? (
+                              <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium flex items-center gap-1 w-fit">
+                                <Crown size={12} /> Admin
+                              </span>
+                            ) : u.role === 'supervisor' ? (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium flex items-center gap-1 w-fit">
+                                <UserCog size={12} /> Supervisor
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium flex items-center gap-1 w-fit">
+                                <Eye size={12} /> Viewer
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => updateUserRole(u.id, 'user')}
+                                disabled={u.role === 'user'}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1 ${
+                                  u.role === 'user' 
+                                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                              >
+                                <Eye size={12} /> Viewer
+                              </button>
+                              <button
+                                onClick={() => updateUserRole(u.id, 'supervisor')}
+                                disabled={u.role === 'supervisor'}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1 ${
+                                  u.role === 'supervisor' 
+                                    ? 'bg-blue-200 text-blue-700 cursor-not-allowed' 
+                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                                }`}
+                              >
+                                <UserCog size={12} /> Supervisor
+                              </button>
+                              <button
+                                onClick={() => updateUserRole(u.id, 'admin')}
+                                disabled={u.role === 'admin'}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1 ${
+                                  u.role === 'admin' 
+                                    ? 'bg-red-200 text-red-700 cursor-not-allowed' 
+                                    : 'bg-red-50 text-red-600 hover:bg-red-100'
+                                }`}
+                              >
+                                <Crown size={12} /> Admin
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 text-xs text-gray-400 font-mono">{u.id.slice(0, 8)}...</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
               <div className="p-4 border-t bg-gray-50">
                 <div className="text-sm text-gray-500">
