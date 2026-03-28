@@ -11,18 +11,28 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
+      console.error('Auth error:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    
+    console.log('User ID:', user.id)
+    console.log('User Email:', user.email)
     
     // Get the user's profile to check role
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
+    
+    console.log('Profile:', profile)
+    console.log('Profile error:', profileError)
     
     // Check if user is admin
-    if (!profile || profile.role !== 'admin') {
+    const isAdmin = profile?.role === 'admin'
+    
+    if (!isAdmin) {
+      console.log('User is not admin. Role:', profile?.role)
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
     
@@ -36,6 +46,8 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching users:', usersError)
       return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
     }
+    
+    console.log('Users found:', users?.length)
     
     return NextResponse.json({ success: true, users })
     
@@ -66,7 +78,7 @@ export async function PUT(request: NextRequest) {
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
     
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
