@@ -399,7 +399,10 @@ export default function AdminReportsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div><p className="text-gray-500">Loading analytics...</p></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading analytics...</p>
+        </div>
       </div>
     )
   }
@@ -422,6 +425,7 @@ export default function AdminReportsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Header */}
       <header className="bg-gradient-to-r from-blue-700 to-indigo-800 shadow-lg">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -474,6 +478,7 @@ export default function AdminReportsPage() {
       </header>
 
       <div className="flex">
+        {/* Sidebar */}
         <aside className="w-72 bg-white border-r border-gray-200 shadow-sm min-h-[calc(100vh-80px)]">
           <div className="p-6">
             <div className="mb-6">
@@ -537,37 +542,167 @@ export default function AdminReportsPage() {
           </div>
         </aside>
 
+        {/* Main Content */}
         <main className="flex-1 p-8">
+          {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-            <div className="bg-white rounded-xl shadow-sm p-5 border"><div className="flex justify-between"><div><p className="text-sm text-gray-500">Training Hours</p><p className="text-2xl font-bold">{stats.totalHours}</p><p className="text-xs text-green-600">+{stats.monthlyGrowth.toFixed(1)}%</p></div><div className="p-3 bg-blue-50 rounded-xl"><Clock className="text-blue-600" size={24} /></div></div></div>
-            <div className="bg-white rounded-xl shadow-sm p-5 border"><div className="flex justify-between"><div><p className="text-sm text-gray-500">Total Records</p><p className="text-2xl font-bold">{stats.totalRecords}</p><p className="text-xs text-gray-500">{stats.totalDepartments} depts</p></div><div className="p-3 bg-purple-50 rounded-xl"><FileSpreadsheet className="text-purple-600" size={24} /></div></div></div>
-            <div className="bg-white rounded-xl shadow-sm p-5 border"><div className="flex justify-between"><div><p className="text-sm text-gray-500">Avg. Rating</p><p className="text-2xl font-bold text-yellow-600">{stats.averageRating}</p><p className="text-xs text-gray-500">out of 5</p></div><div className="p-3 bg-yellow-50 rounded-xl"><Star className="text-yellow-600" size={24} fill="currentColor" /></div></div></div>
-            <div className="bg-white rounded-xl shadow-sm p-5 border"><div className="flex justify-between"><div><p className="text-sm text-gray-500">Completion Rate</p><p className="text-2xl font-bold text-green-600">{stats.completionRate}%</p><p className="text-xs text-gray-500">{stats.completedCourses} completed</p></div><div className="p-3 bg-green-50 rounded-xl"><CheckCircle className="text-green-600" size={24} /></div></div></div>
+            <div className="bg-white rounded-xl shadow-sm p-5 border">
+              <div className="flex justify-between">
+                <div><p className="text-sm text-gray-500">Training Hours</p><p className="text-2xl font-bold">{stats.totalHours}</p><p className="text-xs text-green-600">+{stats.monthlyGrowth.toFixed(1)}%</p></div>
+                <div className="p-3 bg-blue-50 rounded-xl"><Clock className="text-blue-600" size={24} /></div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm p-5 border">
+              <div className="flex justify-between">
+                <div><p className="text-sm text-gray-500">Total Records</p><p className="text-2xl font-bold">{stats.totalRecords}</p><p className="text-xs text-gray-500">{stats.totalDepartments} depts</p></div>
+                <div className="p-3 bg-purple-50 rounded-xl"><FileSpreadsheet className="text-purple-600" size={24} /></div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm p-5 border">
+              <div className="flex justify-between">
+                <div><p className="text-sm text-gray-500">Avg. Rating</p><p className="text-2xl font-bold text-yellow-600">{stats.averageRating}</p><p className="text-xs text-gray-500">out of 5</p></div>
+                <div className="p-3 bg-yellow-50 rounded-xl"><Star className="text-yellow-600" size={24} fill="currentColor" /></div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm p-5 border">
+              <div className="flex justify-between">
+                <div><p className="text-sm text-gray-500">Completion Rate</p><p className="text-2xl font-bold text-green-600">{stats.completionRate}%</p><p className="text-xs text-gray-500">{stats.completedCourses} completed</p></div>
+                <div className="p-3 bg-green-50 rounded-xl"><CheckCircle className="text-green-600" size={24} /></div>
+              </div>
+            </div>
           </div>
 
+          {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6"><div className="flex justify-between mb-3"><span className="text-sm font-medium text-blue-700">Active Learners</span><Users className="text-blue-600" size={22} /></div><p className="text-3xl font-bold">{stats.activeUsers}</p><p className="text-xs text-gray-500">of {stats.totalUsers} total users</p></div>
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6"><div className="flex justify-between mb-3"><span className="text-sm font-medium text-green-700">Course Engagement</span><BookOpen className="text-green-600" size={22} /></div><p className="text-3xl font-bold">{stats.totalEnrollments}</p><p className="text-xs text-gray-500">across {stats.totalCourses} courses</p></div>
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6"><div className="flex justify-between mb-3"><span className="text-sm font-medium text-purple-700">Certificates Issued</span><Award className="text-purple-600" size={22} /></div><p className="text-3xl font-bold">{stats.certificatesIssued}</p><p className="text-xs text-gray-500">+{stats.completedCourses} this period</p></div>
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6">
+                  <div className="flex justify-between mb-3"><span className="text-sm font-medium text-blue-700">Active Learners</span><Users className="text-blue-600" size={22} /></div>
+                  <p className="text-3xl font-bold">{stats.activeUsers}</p>
+                  <p className="text-xs text-gray-500">of {stats.totalUsers} total users</p>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6">
+                  <div className="flex justify-between mb-3"><span className="text-sm font-medium text-green-700">Course Engagement</span><BookOpen className="text-green-600" size={22} /></div>
+                  <p className="text-3xl font-bold">{stats.totalEnrollments}</p>
+                  <p className="text-xs text-gray-500">across {stats.totalCourses} courses</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6">
+                  <div className="flex justify-between mb-3"><span className="text-sm font-medium text-purple-700">Certificates Issued</span><Award className="text-purple-600" size={22} /></div>
+                  <p className="text-3xl font-bold">{stats.certificatesIssued}</p>
+                  <p className="text-xs text-gray-500">+{stats.completedCourses} this period</p>
+                </div>
               </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Training Hours by Department</h3><ResponsiveContainer height={280}><BarChart data={departmentData} layout="vertical"><CartesianGrid /><XAxis type="number" /><YAxis type="category" dataKey="name" width={100} /><Tooltip /><Bar dataKey="hours" fill="#3b82f6" radius={[0,8,8,0]} /></BarChart></ResponsiveContainer></div>
-                <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Top Facilitators</h3><ResponsiveContainer height={280}><BarChart data={facilitatorData}><CartesianGrid /><XAxis dataKey="name" /><YAxis /><Tooltip /><Bar dataKey="hours" fill="#10b981" radius={[8,8,0,0]} /></BarChart></ResponsiveContainer></div>
+                <div className="bg-white rounded-xl p-6 border">
+                  <h3 className="font-semibold mb-4">Training Hours by Department</h3>
+                  <ResponsiveContainer height={280}>
+                    <BarChart data={departmentData} layout="vertical">
+                      <CartesianGrid /><XAxis type="number" /><YAxis type="category" dataKey="name" width={100} /><Tooltip />
+                      <Bar dataKey="hours" fill="#3b82f6" radius={[0,8,8,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="bg-white rounded-xl p-6 border">
+                  <h3 className="font-semibold mb-4">Top Facilitators</h3>
+                  <ResponsiveContainer height={280}>
+                    <BarChart data={facilitatorData}>
+                      <CartesianGrid /><XAxis dataKey="name" /><YAxis /><Tooltip />
+                      <Bar dataKey="hours" fill="#10b981" radius={[8,8,0,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-              <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Monthly Trends</h3><ResponsiveContainer height={320}><ComposedChart data={monthlyData}><CartesianGrid /><XAxis dataKey="month" /><YAxis yAxisId="left" /><YAxis yAxisId="right" orientation="right" /><Tooltip /><Legend /><Bar yAxisId="left" dataKey="enrollments" fill="#3b82f6" name="Enrollments" /><Bar yAxisId="left" dataKey="completions" fill="#10b981" name="Completions" /><Line yAxisId="right" type="monotone" dataKey="trainingHours" stroke="#f59e0b" name="Hours" /></ComposedChart></ResponsiveContainer></div>
-              {stats.totalEvaluations > 0 && <div className="grid grid-cols-1 lg:grid-cols-2 gap-6"><div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Effectiveness Radar</h3><ResponsiveContainer height={300}><RadarChart data={radarData}><PolarGrid /><PolarAngleAxis dataKey="subject" /><PolarRadiusAxis domain={[0,5]} /><Radar dataKey="rating" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} /></RadarChart></ResponsiveContainer></div><div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Word Cloud</h3><div className="flex flex-wrap gap-2 justify-center p-4 bg-gray-50 rounded-lg min-h-[250px]">{evaluationData.wordCloud?.length > 0 ? evaluationData.wordCloud.map((w: any, i: number) => (<span key={i} className="px-3 py-1 bg-blue-50 rounded-full" style={{ fontSize: `${12 + w.count * 2}px` }}>{w.word} ({w.count})</span>)) : <p className="text-gray-400">No feedback</p>}</div></div></div>}
+
+              <div className="bg-white rounded-xl p-6 border">
+                <h3 className="font-semibold mb-4">Monthly Trends</h3>
+                <ResponsiveContainer height={320}>
+                  <ComposedChart data={monthlyData}>
+                    <CartesianGrid /><XAxis dataKey="month" /><YAxis yAxisId="left" /><YAxis yAxisId="right" orientation="right" />
+                    <Tooltip /><Legend />
+                    <Bar yAxisId="left" dataKey="enrollments" fill="#3b82f6" name="Enrollments" />
+                    <Bar yAxisId="left" dataKey="completions" fill="#10b981" name="Completions" />
+                    <Line yAxisId="right" type="monotone" dataKey="trainingHours" stroke="#f59e0b" name="Hours" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+
+              {stats.totalEvaluations > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="bg-white rounded-xl p-6 border">
+                    <h3 className="font-semibold mb-4">Effectiveness Radar</h3>
+                    <ResponsiveContainer height={300}>
+                      <RadarChart data={radarData}>
+                        <PolarGrid /><PolarAngleAxis dataKey="subject" /><PolarRadiusAxis domain={[0,5]} />
+                        <Radar dataKey="rating" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="bg-white rounded-xl p-6 border">
+                    <h3 className="font-semibold mb-4">Word Cloud</h3>
+                    <div className="flex flex-wrap gap-2 justify-center p-4 bg-gray-50 rounded-lg min-h-[250px]">
+                      {evaluationData.wordCloud?.length > 0 ? evaluationData.wordCloud.map((w: any, i: number) => (
+                        <span key={i} className="px-3 py-1 bg-blue-50 rounded-full" style={{ fontSize: `${12 + w.count * 2}px` }}>{w.word} ({w.count})</span>
+                      )) : <p className="text-gray-400">No feedback</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
+          {/* Training Records Tab */}
           {activeTab === 'training' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden border">
-              <div className="p-5 border-b bg-gray-50"><div className="flex justify-between items-center flex-wrap gap-3"><div><h2 className="font-semibold">Training Records</h2><p className="text-sm text-gray-500">{filteredRecords.length} records • {stats.totalHours} hours</p></div><div className="flex gap-2"><div className="flex gap-1 bg-white rounded-lg p-1 border"><button onClick={() => setDateRange('week')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'week' ? 'bg-blue-600 text-white' : ''}`}>Week</button><button onClick={() => setDateRange('month')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'month' ? 'bg-blue-600 text-white' : ''}`}>Month</button><button onClick={() => setDateRange('quarter')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'quarter' ? 'bg-blue-600 text-white' : ''}`}>Quarter</button><button onClick={() => setDateRange('all')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'all' ? 'bg-blue-600 text-white' : ''}`}>All</button></div><button onClick={() => setShowFilters(!showFilters)} className="px-3 py-1.5 bg-gray-100 rounded-lg text-sm flex items-center gap-2"><Filter size={14} /> Filters</button><button onClick={clearFilters} className="px-3 py-1.5 bg-gray-100 rounded-lg text-sm"><RefreshCw size={14} /></button></div></div>{showFilters && (<div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-4 gap-3"><select value={filters.attendee} onChange={(e) => setFilters({...filters, attendee: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Attendees</option>{filterOptions.attendees.map(opt => <option key={opt}>{opt}</option>)}</select><select value={filters.role} onChange={(e) => setFilters({...filters, role: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Roles</option>{filterOptions.roles.map(opt => <option key={opt}>{opt}</option>)}</select><select value={filters.course} onChange={(e) => setFilters({...filters, course: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Courses</option>{filterOptions.courses.map(opt => <option key={opt}>{opt}</option>)}</select><select value={filters.department} onChange={(e) => setFilters({...filters, department: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Depts</option>{filterOptions.departments.map(opt => <option key={opt}>{opt}</option>)}</select></div>)}</div>
-              <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 border-b"><tr><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Date</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Facilitator</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Dept</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Hours</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Source</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Actions</th></thead><tbody>{filteredRecords.map((r: any) => (<tr key={r.id} className="hover:bg-gray-50"><td className="px-5 py-3 text-sm">{new Date(r.training_date).toLocaleDateString()}宜昌<td className="px-5 py-3 text-sm font-medium">{r.attendee_name || '-'}宜昌<td className="px-5 py-3 text-sm">{r.role || '-'}宜昌<td className="px-5 py-3 text-sm">{r.course}宜昌<td className="px-5 py-3 text-sm">{r.facilitator || '-'}宜昌<td className="px-5 py-3 text-sm">{r.department || '-'}宜昌<td className="px-5 py-3 text-sm">{r.duration_hours}宜昌<td className="px-5 py-3"><span className={`px-2 py-1 rounded-full text-xs ${r.source === 'google_form' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{r.source || 'manual'}</span>宜昌<td className="px-5 py-3"><div className="flex gap-2">{canEditRecords && <button onClick={() => setEditingRecord(r)} className="text-blue-500 hover:text-blue-700"><Edit size={16} /></button>}{canDeleteRecords && <button onClick={() => handleDeleteRecord(r.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>}</div>宜昌</tr>))}</tbody>}</div>
+              <div className="p-5 border-b bg-gray-50">
+                <div className="flex justify-between items-center flex-wrap gap-3">
+                  <div><h2 className="font-semibold">Training Records</h2><p className="text-sm text-gray-500">{filteredRecords.length} records • {stats.totalHours} hours</p></div>
+                  <div className="flex gap-2">
+                    <div className="flex gap-1 bg-white rounded-lg p-1 border">
+                      <button onClick={() => setDateRange('week')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'week' ? 'bg-blue-600 text-white' : ''}`}>Week</button>
+                      <button onClick={() => setDateRange('month')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'month' ? 'bg-blue-600 text-white' : ''}`}>Month</button>
+                      <button onClick={() => setDateRange('quarter')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'quarter' ? 'bg-blue-600 text-white' : ''}`}>Quarter</button>
+                      <button onClick={() => setDateRange('all')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'all' ? 'bg-blue-600 text-white' : ''}`}>All</button>
+                    </div>
+                    <button onClick={() => setShowFilters(!showFilters)} className="px-3 py-1.5 bg-gray-100 rounded-lg text-sm flex items-center gap-2"><Filter size={14} /> Filters</button>
+                    <button onClick={clearFilters} className="px-3 py-1.5 bg-gray-100 rounded-lg text-sm"><RefreshCw size={14} /></button>
+                  </div>
+                </div>
+                {showFilters && (
+                  <div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <select value={filters.attendee} onChange={(e) => setFilters({...filters, attendee: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Attendees</option>{filterOptions.attendees.map(opt => <option key={opt}>{opt}</option>)}</select>
+                    <select value={filters.role} onChange={(e) => setFilters({...filters, role: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Roles</option>{filterOptions.roles.map(opt => <option key={opt}>{opt}</option>)}</select>
+                    <select value={filters.course} onChange={(e) => setFilters({...filters, course: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Courses</option>{filterOptions.courses.map(opt => <option key={opt}>{opt}</option>)}</select>
+                    <select value={filters.department} onChange={(e) => setFilters({...filters, department: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Depts</option>{filterOptions.departments.map(opt => <option key={opt}>{opt}</option>)}</select>
+                  </div>
+                )}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Date</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Facilitator</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Dept</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Hours</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Source</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    {filteredRecords.map((r: any) => (
+                      <tr key={r.id} className="hover:bg-gray-50">
+                        <td className="px-5 py-3 text-sm">{new Date(r.training_date).toLocaleDateString()}</td>
+                        <td className="px-5 py-3 text-sm font-medium">{r.attendee_name || '-'}</td>
+                        <td className="px-5 py-3 text-sm">{r.role || '-'}</td>
+                        <td className="px-5 py-3 text-sm">{r.course}</td>
+                        <td className="px-5 py-3 text-sm">{r.facilitator || '-'}</td>
+                        <td className="px-5 py-3 text-sm">{r.department || '-'}</td>
+                        <td className="px-5 py-3 text-sm">{r.duration_hours}</td>
+                        <td className="px-5 py-3"><span className={`px-2 py-1 rounded-full text-xs ${r.source === 'google_form' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{r.source || 'manual'}</span></td>
+                        <td className="px-5 py-3"><div className="flex gap-2">{canEditRecords && <button onClick={() => setEditingRecord(r)} className="text-blue-500 hover:text-blue-700"><Edit size={16} /></button>}{canDeleteRecords && <button onClick={() => handleDeleteRecord(r.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>}</div></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
+          {/* Evaluations Tab */}
           {activeTab === 'evaluations' && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -577,15 +712,70 @@ export default function AdminReportsPage() {
                 <div className="bg-white rounded-xl p-5 text-center border"><p className="text-sm text-gray-500">Facilitator</p><p className="text-xl font-bold text-green-600">{evaluationData.averages.facilitator}</p></div>
                 <div className="bg-white rounded-xl p-5 text-center border"><p className="text-sm text-gray-500">Engagement</p><p className="text-xl font-bold text-purple-600">{evaluationData.averages.engagement}</p></div>
               </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Rating Distribution</h3><ResponsiveContainer height={260}><RePieChart><Pie data={ratingDistributionData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>{ratingDistributionData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip /></RePieChart></ResponsiveContainer></div>
-                <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Course Performance</h3><div className="space-y-3 max-h-[260px] overflow-auto">{evaluationData.byCourse?.slice(0,5).map((c: any, i: number) => (<div key={i} className="flex justify-between items-center p-2 bg-gray-50 rounded"><span className="text-sm">{c.course}</span><div className="flex items-center gap-2"><Star size={14} className="text-yellow-500" /><span className="font-semibold">{c.overall}</span><div className="w-16 bg-gray-200 rounded-full h-1"><div className="bg-green-500 h-1 rounded-full" style={{ width: `${(c.overall/5)*100}%` }} /></div></div></div>))}</div></div>
+                <div className="bg-white rounded-xl p-6 border">
+                  <h3 className="font-semibold mb-4">Rating Distribution</h3>
+                  <ResponsiveContainer height={260}>
+                    <RePieChart>
+                      <Pie data={ratingDistributionData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                        {ratingDistributionData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                      </Pie>
+                      <Tooltip />
+                    </RePieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="bg-white rounded-xl p-6 border">
+                  <h3 className="font-semibold mb-4">Course Performance</h3>
+                  <div className="space-y-3 max-h-[260px] overflow-auto">
+                    {evaluationData.byCourse?.slice(0,5).map((c: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                        <span className="text-sm">{c.course}</span>
+                        <div className="flex items-center gap-2">
+                          <Star size={14} className="text-yellow-500" />
+                          <span className="font-semibold">{c.overall}</span>
+                          <div className="w-16 bg-gray-200 rounded-full h-1"><div className="bg-green-500 h-1 rounded-full" style={{ width: `${(c.overall/5)*100}%` }} /></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Word Cloud</h3><div className="flex flex-wrap gap-2 justify-center p-6 bg-gray-50 rounded-lg">{evaluationData.wordCloud?.length > 0 ? evaluationData.wordCloud.map((w: any, i: number) => (<span key={i} className="px-3 py-1.5 bg-blue-50 rounded-full" style={{ fontSize: `${12 + w.count * 2}px` }}>{w.word} ({w.count})</span>)) : <p className="text-gray-400">No feedback</p>}</div></div>
-              <div className="bg-white rounded-xl overflow-hidden border"><div className="px-6 py-4 bg-gray-50 border-b"><h3 className="font-semibold">Recent Evaluations</h3></div><div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Rating</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">One Word</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Comments</th> </thead><tbody>{evaluationData.recentEvaluations?.slice(0,8).map((e: any) => (<tr key={e.id} className="hover:bg-gray-50"><td className="px-6 py-3 text-sm">{e.attendee_name || 'Anonymous'}宜昌<td className="px-6 py-3 text-sm">{e.course}宜昌<td className="px-6 py-3"><div className="flex items-center gap-1"><span className="font-semibold">{e.overall}</span><Star size={12} className="text-yellow-500 fill-yellow-500" /></div>宜昌<td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{e.one_word || '-'}</span>宜昌<td className="px-6 py-3 text-sm text-gray-500 max-w-xs truncate">{e.comments || '-'}宜昌</tr>))}</tbody> </div></div>
+
+              <div className="bg-white rounded-xl p-6 border">
+                <h3 className="font-semibold mb-4">Word Cloud</h3>
+                <div className="flex flex-wrap gap-2 justify-center p-6 bg-gray-50 rounded-lg">
+                  {evaluationData.wordCloud?.length > 0 ? evaluationData.wordCloud.map((w: any, i: number) => (
+                    <span key={i} className="px-3 py-1.5 bg-blue-50 rounded-full" style={{ fontSize: `${12 + w.count * 2}px` }}>{w.word} ({w.count})</span>
+                  )) : <p className="text-gray-400">No feedback</p>}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl overflow-hidden border">
+                <div className="px-6 py-4 bg-gray-50 border-b"><h3 className="font-semibold">Recent Evaluations</h3></div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Rating</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">One Word</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Comments</th></tr>
+                    </thead>
+                    <tbody>
+                      {evaluationData.recentEvaluations?.slice(0,8).map((e: any) => (
+                        <tr key={e.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-3 text-sm">{e.attendee_name || 'Anonymous'}</td>
+                          <td className="px-6 py-3 text-sm">{e.course}</td>
+                          <td className="px-6 py-3"><div className="flex items-center gap-1"><span className="font-semibold">{e.overall}</span><Star size={12} className="text-yellow-500 fill-yellow-500" /></div></td>
+                          <td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{e.one_word || '-'}</span></td>
+                          <td className="px-6 py-3 text-sm text-gray-500 max-w-xs truncate">{e.comments || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
 
+          {/* User Management Tab */}
           {activeTab === 'users' && isAdmin && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden border">
               <div className="p-5 border-b bg-gray-50">
