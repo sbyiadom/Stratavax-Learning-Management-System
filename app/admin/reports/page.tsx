@@ -816,7 +816,7 @@ export default function AdminReportsPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4">
                   <h3 className="text-lg font-semibold text-gray-800">Training Hours by Department</h3>
                 </div>
                 <ResponsiveContainer width="100%" height={280}>
@@ -831,7 +831,7 @@ export default function AdminReportsPage() {
               </div>
 
               <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4">
                   <h3 className="text-lg font-semibold text-gray-800">Top Facilitators</h3>
                 </div>
                 <ResponsiveContainer width="100%" height={280}>
@@ -1013,7 +1013,8 @@ export default function AdminReportsPage() {
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hours</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Source</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                   </thead>
+                  </tr>
+                </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredRecords.map((record: any) => (
                     <tr key={record.id} className="hover:bg-gray-50 transition">
