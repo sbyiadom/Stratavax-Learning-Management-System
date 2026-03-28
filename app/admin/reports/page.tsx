@@ -26,8 +26,6 @@ import {
 export default function AdminReportsPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
   const [records, setRecords] = useState<any[]>([])
   const [filteredRecords, setFilteredRecords] = useState<any[]>([])
@@ -36,7 +34,6 @@ export default function AdminReportsPage() {
   const [editingRecord, setEditingRecord] = useState<any>(null)
   const [importData, setImportData] = useState<any[]>([])
   const [importPreview, setImportPreview] = useState<any[]>([])
-  const [showFullscreenChart, setShowFullscreenChart] = useState<string | null>(null)
   const [evaluationData, setEvaluationData] = useState<any>({
     total: 0,
     averages: {
@@ -348,7 +345,6 @@ export default function AdminReportsPage() {
     const { count: newUsers } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', firstDayOfMonth.toISOString())
     const { count: certificates } = await supabase.from('certificates').select('*', { count: 'exact', head: true })
 
-    // Calculate monthly growth
     const lastMonth = new Date()
     lastMonth.setMonth(lastMonth.getMonth() - 1)
     const { data: lastMonthRecords } = await supabase
@@ -531,26 +527,15 @@ export default function AdminReportsPage() {
   const handleDeleteRecord = async (id: string) => {
     if (confirm('Delete this record? This will also delete any associated evaluations.')) {
       try {
-        const { error: evalError } = await supabase
-          .from('training_evaluations')
-          .delete()
-          .eq('training_record_id', id)
-        
-        const { error: recordError } = await supabase
-          .from('training_records')
-          .delete()
-          .eq('id', id)
+        await supabase.from('training_evaluations').delete().eq('training_record_id', id)
+        const { error: recordError } = await supabase.from('training_records').delete().eq('id', id)
         
         if (recordError) {
           alert('Error deleting record: ' + recordError.message)
           return
         }
         
-        await supabase
-          .from('form_submissions')
-          .update({ training_record_id: null })
-          .eq('training_record_id', id)
-        
+        await supabase.from('form_submissions').update({ training_record_id: null }).eq('training_record_id', id)
         await loadAllData()
         alert('Record deleted successfully')
       } catch (error) {
@@ -649,7 +634,6 @@ export default function AdminReportsPage() {
     { subject: 'Applicability', rating: evaluationData.averages.applicability, fullMark: 5 }
   ]
 
-  // Prepare rating distribution data for pie chart
   const ratingDistributionData = [
     { name: '5 Stars', value: evaluationData.ratingDistribution?.overall?.[5] || 0, color: '#10b981' },
     { name: '4 Stars', value: evaluationData.ratingDistribution?.overall?.[4] || 0, color: '#3b82f6' },
@@ -803,7 +787,6 @@ export default function AdminReportsPage() {
 
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* KPI Cards Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
@@ -831,15 +814,11 @@ export default function AdminReportsPage() {
               </div>
             </div>
 
-            {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-800">Training Hours by Department</h3>
-                  <button 
-                    onClick={() => setShowFullscreenChart('department')}
-                    className="text-gray-400 hover:text-gray-600 transition"
-                  >
+                  <button onClick={() => setShowFullscreenChart('department')} className="text-gray-400 hover:text-gray-600 transition">
                     <Maximize2 size={16} />
                   </button>
                 </div>
@@ -857,10 +836,7 @@ export default function AdminReportsPage() {
               <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-800">Top Facilitators</h3>
-                  <button 
-                    onClick={() => setShowFullscreenChart('facilitators')}
-                    className="text-gray-400 hover:text-gray-600 transition"
-                  >
+                  <button onClick={() => setShowFullscreenChart('facilitators')} className="text-gray-400 hover:text-gray-600 transition">
                     <Maximize2 size={16} />
                   </button>
                 </div>
@@ -876,7 +852,6 @@ export default function AdminReportsPage() {
               </div>
             </div>
 
-            {/* Monthly Trends */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">Monthly Performance Trends</h3>
@@ -901,7 +876,6 @@ export default function AdminReportsPage() {
               </ResponsiveContainer>
             </div>
 
-            {/* Evaluation Insights */}
             {stats.totalEvaluations > 0 && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
@@ -945,7 +919,6 @@ export default function AdminReportsPage() {
 
         {activeTab === 'training' && (
           <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
-            {/* Filter Bar */}
             <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -976,7 +949,6 @@ export default function AdminReportsPage() {
                 </div>
               </div>
               
-              {/* Filters Panel */}
               {showFilters && (
                 <div className="mt-5 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   <div>
@@ -1032,7 +1004,6 @@ export default function AdminReportsPage() {
               )}
             </div>
             
-            {/* Records Table */}
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
@@ -1048,7 +1019,7 @@ export default function AdminReportsPage() {
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hours</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Source</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                   </tr>
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredRecords.map((record: any) => (
@@ -1098,7 +1069,6 @@ export default function AdminReportsPage() {
 
         {activeTab === 'evaluations' && (
           <div className="space-y-6">
-            {/* Evaluation Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="bg-white rounded-xl shadow-lg p-5 text-center border border-gray-100">
                 <p className="text-sm text-gray-500">Total Evaluations</p>
@@ -1123,7 +1093,6 @@ export default function AdminReportsPage() {
               </div>
             </div>
 
-            {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Rating Distribution</h3>
@@ -1173,7 +1142,6 @@ export default function AdminReportsPage() {
               </div>
             </div>
 
-            {/* Word Cloud */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Word Cloud - One Word Feedback</h3>
               <div className="flex flex-wrap gap-2 min-h-[180px] items-center justify-center p-6 bg-gradient-to-br from-gray-50 to-white rounded-xl">
@@ -1196,7 +1164,6 @@ export default function AdminReportsPage() {
               </div>
             </div>
 
-            {/* Recent Evaluations Table */}
             <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
               <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                 <h3 className="text-lg font-semibold text-gray-800">Recent Evaluations</h3>
@@ -1316,7 +1283,8 @@ export default function AdminReportsPage() {
                           {Object.keys(importPreview[0]).slice(0, 6).map(key => (
                             <th key={key} className="px-3 py-2 border text-left text-xs font-medium text-gray-500">{key}</th>
                           ))}
-                        </thead>
+                        </tr>
+                      </thead>
                       <tbody>
                         {importPreview.map((row, idx) => (
                           <tr key={idx}>
