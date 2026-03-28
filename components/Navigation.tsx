@@ -15,11 +15,8 @@ import {
   X,
   ChevronDown,
   User,
-  Settings,
   HelpCircle,
-  Award,
-  TrendingUp,
-  Users
+  Award
 } from 'lucide-react'
 
 interface NavigationProps {
@@ -40,27 +37,7 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
     router.push('/login')
   }
 
-  const navigationItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, current: pathname === '/dashboard' },
-    { name: 'My Courses', href: '/dashboard/courses', icon: BookOpen, current: pathname === '/dashboard/courses' },
-  ]
-
-  const adminItems = [
-    { name: 'Analytics Overview', href: '/admin/reports', icon: BarChart3, current: pathname === '/admin/reports' },
-    { name: 'Training Records', href: '/admin/reports?tab=training', icon: FileSpreadsheet, current: pathname?.includes('training') && pathname === '/admin/reports' },
-    { name: 'Evaluations', href: '/admin/reports?tab=evaluations', icon: Star, current: pathname?.includes('evaluations') && pathname === '/admin/reports' },
-  ]
-
-  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
-  const userInitial = userName.charAt(0).toUpperCase()
-
-  // Handle tab navigation with query params
-  const handleAdminNavigation = (href: string) => {
-    setAdminDropdownOpen(false)
-    router.push(href)
-  }
-
-  // Check if current tab is active based on URL params
+  // Helper to check if a tab is active based on URL params
   const isTabActive = (tabName: string) => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
@@ -68,6 +45,35 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
     }
     return false
   }
+
+  const navigationItems = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, current: pathname === '/dashboard' },
+    { name: 'My Courses', href: '/dashboard/courses', icon: BookOpen, current: pathname === '/dashboard/courses' },
+  ]
+
+  const adminItems = [
+    { 
+      name: 'Analytics Overview', 
+      href: '/admin/reports', 
+      icon: BarChart3, 
+      current: pathname === '/admin/reports' && !isTabActive('training') && !isTabActive('evaluations') 
+    },
+    { 
+      name: 'Training Records', 
+      href: '/admin/reports?tab=training', 
+      icon: FileSpreadsheet, 
+      current: pathname === '/admin/reports' && isTabActive('training') 
+    },
+    { 
+      name: 'Evaluations', 
+      href: '/admin/reports?tab=evaluations', 
+      icon: Star, 
+      current: pathname === '/admin/reports' && isTabActive('evaluations') 
+    },
+  ]
+
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
+  const userInitial = userName.charAt(0).toUpperCase()
 
   return (
     <>
@@ -132,7 +138,7 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
                               router.push(item.href)
                             }}
                             className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-all text-left ${
-                              item.current || (item.name === 'Analytics Overview' && pathname === '/admin/reports' && !isTabActive('training') && !isTabActive('evaluations'))
+                              item.current
                                 ? 'bg-blue-50 text-blue-700 border-l-3 border-blue-600'
                                 : 'text-gray-700 hover:bg-gray-50'
                             }`}
