@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase' // ← Use browser client, NOT supabase-server
+import { createClient } from '@/lib/supabase'
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, color: 'blue' },
@@ -40,20 +40,57 @@ const navItems = [
 export default function DashboardSidebar() {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUserEmail(user?.email || null)
+    const getUserProfile = async () => {
+      try {
+        // Get the current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        
+        if (userError || !user) {
+          console.error('Error getting user:', userError)
+          setLoading(false)
+          return
+        }
+        
+        setUserEmail(user.email || null)
+        
+        // Get the user's profile from the profiles table
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle()
+        
+        if (profileError) {
+          console.error('Error fetching profile:', profileError)
+        }
+        
+        // Set the role from profile or default to 'user'
+        const role = profile?.role || 'user'
+        setUserRole(role)
+        
+        console.log('User role:', role) // Debug log
+        
+      } catch (error) {
+        console.error('Error in getUserProfile:', error)
+      } finally {
+        setLoading(false)
+      }
     }
-    getUser()
+    
+    getUserProfile()
   }, [supabase])
 
-  // Admin email - update to your email
-  const ADMIN_EMAIL = 'sbyiadom88@gmail.com'
-  const isAdmin = userEmail === ADMIN_EMAIL
+  // Check if user is admin (from database role)
+  const isAdmin = userRole === 'admin'
+  
+  // Check if user is supervisor
+  const isSupervisor = userRole === 'supervisor' || isAdmin
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -92,6 +129,31 @@ export default function DashboardSidebar() {
     return colorMap[color] || 'text-gray-500'
   }
 
+  // Get user display name from email
+  const userDisplayName = userEmail?.split('@')[0] || 'User'
+  
+  // Get role badge color
+  const getRoleBadgeClass = () => {
+    switch(userRole) {
+      case 'admin': return 'bg-red-500/20 text-red-300'
+      case 'supervisor': return 'bg-blue-500/20 text-blue-300'
+      default: return 'bg-gray-500/20 text-gray-300'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className={cn(
+        "bg-gradient-to-b from-gray-900 to-gray-800 text-white transition-all duration-300 h-screen sticky top-0 shadow-xl",
+        collapsed ? 'w-20' : 'w-64'
+      )}>
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div 
       className={cn(
@@ -108,6 +170,25 @@ export default function DashboardSidebar() {
                 <GraduationCap className="text-white" size={18} />
               </div>
               <span className="font-semibold text-white">StrataVax</span>
+            </div>
+          </div>
+        )}
+
+        {/* User Info Area */}
+        {!collapsed && (
+          <div className="px-4 py-3 mb-2 border-b border-gray-700">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-medium">
+                  {userDisplayName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">{userDisplayName}</p>
+                <p className={`text-xs ${getRoleBadgeClass()} rounded-full px-2 py-0.5 inline-block mt-1`}>
+                  {userRole === 'admin' ? 'Admin' : userRole === 'supervisor' ? 'Supervisor' : 'User'}
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -153,7 +234,7 @@ export default function DashboardSidebar() {
           </ul>
         </nav>
 
-        {/* Admin Section */}
+        {/* Admin Section - Only visible to admins */}
         {isAdmin && (
           <div className="px-3 pt-4 pb-2 border-t border-gray-700">
             {!collapsed && (
@@ -165,6 +246,23 @@ export default function DashboardSidebar() {
               </div>
             )}
             <ul className="space-y-1">
+              <li>
+                <Link
+                  href="/admin/reports"
+                  className={cn(
+                    "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                    collapsed && 'justify-center'
+                  )}
+                >
+                  <BarChart3 className={cn(
+                    "h-5 w-5 transition-colors",
+                    collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
+                  )} />
+                  {!collapsed && (
+                    <span className="ml-3 text-sm font-medium">Analytics</span>
+                  )}
+                </Link>
+              </li>
               <li>
                 <Link
                   href="/dashboard/admin/resources"
@@ -196,6 +294,39 @@ export default function DashboardSidebar() {
                   )} />
                   {!collapsed && (
                     <span className="ml-3 text-sm font-medium">Upload Content</span>
+                  )}
+                </Link>
+              </li>
+            </ul>
+          </div>
+        )}
+
+        {/* Supervisor Section - Visible to supervisors and admins */}
+        {isSupervisor && !isAdmin && (
+          <div className="px-3 pt-4 pb-2 border-t border-gray-700">
+            {!collapsed && (
+              <div className="px-3 mb-2 flex items-center gap-2">
+                <Shield className="h-3 w-3 text-blue-400" />
+                <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
+                  Supervisor Tools
+                </span>
+              </div>
+            )}
+            <ul className="space-y-1">
+              <li>
+                <Link
+                  href="/admin/reports"
+                  className={cn(
+                    "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                    collapsed && 'justify-center'
+                  )}
+                >
+                  <FileSpreadsheet className={cn(
+                    "h-5 w-5 transition-colors",
+                    collapsed ? 'text-blue-400' : 'text-gray-400 group-hover:text-blue-400'
+                  )} />
+                  {!collapsed && (
+                    <span className="ml-3 text-sm font-medium">Training Records</span>
                   )}
                 </Link>
               </li>
