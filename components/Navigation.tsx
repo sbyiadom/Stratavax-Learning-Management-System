@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import {
   LayoutDashboard, 
@@ -16,7 +16,10 @@ import {
   ChevronDown,
   User,
   Settings,
-  HelpCircle
+  HelpCircle,
+  Award,
+  TrendingUp,
+  Users
 } from 'lucide-react'
 
 interface NavigationProps {
@@ -26,13 +29,15 @@ interface NavigationProps {
 
 export default function Navigation({ user, isAdmin = false }: NavigationProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [adminDropdownOpen, setAdminDropdownOpen] = useState(false)
   const supabase = createClient()
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    window.location.href = '/login'
+    router.push('/login')
   }
 
   const navigationItems = [
@@ -41,13 +46,28 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
   ]
 
   const adminItems = [
-    { name: 'Analytics', href: '/admin/reports', icon: BarChart3, current: pathname === '/admin/reports' },
-    { name: 'Training Records', href: '/admin/reports?tab=training', icon: FileSpreadsheet, current: pathname?.includes('training') },
-    { name: 'Evaluations', href: '/admin/reports?tab=evaluations', icon: Star, current: pathname?.includes('evaluations') },
+    { name: 'Analytics Overview', href: '/admin/reports', icon: BarChart3, current: pathname === '/admin/reports' },
+    { name: 'Training Records', href: '/admin/reports?tab=training', icon: FileSpreadsheet, current: pathname?.includes('training') && pathname === '/admin/reports' },
+    { name: 'Evaluations', href: '/admin/reports?tab=evaluations', icon: Star, current: pathname?.includes('evaluations') && pathname === '/admin/reports' },
   ]
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
   const userInitial = userName.charAt(0).toUpperCase()
+
+  // Handle tab navigation with query params
+  const handleAdminNavigation = (href: string) => {
+    setAdminDropdownOpen(false)
+    router.push(href)
+  }
+
+  // Check if current tab is active based on URL params
+  const isTabActive = (tabName: string) => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      return params.get('tab') === tabName
+    }
+    return false
+  }
 
   return (
     <>
@@ -57,8 +77,8 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
           <div className="flex justify-between h-16">
             {/* Logo */}
             <div className="flex items-center">
-              <Link href="/dashboard" className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+              <Link href="/dashboard" className="flex items-center gap-2 group">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm group-hover:shadow transition">
                   <BarChart3 className="text-white" size={18} />
                 </div>
                 <span className="font-semibold text-gray-900">Stratavax LMS</span>
@@ -66,12 +86,12 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
             </div>
 
             {/* Desktop Navigation Links */}
-            <div className="hidden md:flex items-center space-x-4">
+            <div className="hidden md:flex items-center space-x-1">
               {navigationItems.map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                     item.current
                       ? 'bg-blue-50 text-blue-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -84,29 +104,46 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
                 </Link>
               ))}
               
+              {/* Admin Dropdown */}
               {isAdmin && (
-                <div className="relative group">
-                  <button className="px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 flex items-center gap-1">
-                    <span className="flex items-center gap-2">
-                      <BarChart3 size={16} />
-                      Admin
-                    </span>
-                    <ChevronDown size={14} />
+                <div className="relative">
+                  <button
+                    onClick={() => setAdminDropdownOpen(!adminDropdownOpen)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                      pathname === '/admin/reports'
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <BarChart3 size={16} />
+                    Admin
+                    <ChevronDown size={14} className={`transition-transform ${adminDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                    {adminItems.map((item) => (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
-                      >
-                        <span className="flex items-center gap-2">
-                          <item.icon size={14} />
-                          {item.name}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
+                  
+                  {adminDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setAdminDropdownOpen(false)} />
+                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 z-50 overflow-hidden">
+                        {adminItems.map((item) => (
+                          <button
+                            key={item.name}
+                            onClick={() => {
+                              setAdminDropdownOpen(false)
+                              router.push(item.href)
+                            }}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-all text-left ${
+                              item.current || (item.name === 'Analytics Overview' && pathname === '/admin/reports' && !isTabActive('training') && !isTabActive('evaluations'))
+                                ? 'bg-blue-50 text-blue-700 border-l-3 border-blue-600'
+                                : 'text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            <item.icon size={16} className={item.current ? 'text-blue-600' : 'text-gray-400'} />
+                            <span>{item.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -141,7 +178,7 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 transition"
                 >
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm">
                     {userInitial}
                   </div>
                   <ChevronDown size={16} className="text-gray-500" />
@@ -150,7 +187,7 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
                 {userMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 z-50 overflow-hidden">
                       <div className="px-4 py-3 border-b border-gray-100">
                         <p className="text-sm font-medium text-gray-900">{userName}</p>
                         <p className="text-xs text-gray-500 truncate">{user?.email}</p>
@@ -158,6 +195,7 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
                       <div className="py-1">
                         <Link
                           href="/dashboard/profile"
+                          onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                         >
                           <User size={14} />
@@ -165,6 +203,7 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
                         </Link>
                         <Link
                           href="/dashboard/help"
+                          onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                         >
                           <HelpCircle size={14} />
@@ -173,6 +212,7 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
                         {isAdmin && (
                           <Link
                             href="/admin/reports"
+                            onClick={() => setUserMenuOpen(false)}
                             className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                           >
                             <BarChart3 size={14} />
@@ -207,14 +247,14 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-200">
+          <div className="md:hidden bg-white border-t border-gray-200 shadow-lg">
             <div className="px-2 pt-2 pb-3 space-y-1">
               {navigationItems.map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium ${
+                  className={`block px-3 py-2 rounded-lg text-base font-medium ${
                     item.current
                       ? 'bg-blue-50 text-blue-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -237,7 +277,7 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
                       key={item.name}
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
-                      className="block pl-9 pr-3 py-2 rounded-md text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                      className="block pl-9 pr-3 py-2 rounded-lg text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                     >
                       <span className="flex items-center gap-2">
                         <item.icon size={16} />
@@ -251,7 +291,7 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
               <div className="pt-4 mt-4 border-t border-gray-200">
                 <div className="px-3 py-2">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-medium">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-medium shadow-sm">
                       {userInitial}
                     </div>
                     <div>
@@ -261,11 +301,21 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
                   </div>
                 </div>
                 <div className="mt-2 space-y-1">
+                  <Link
+                    href="/dashboard/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg"
+                  >
+                    <span className="flex items-center gap-2">
+                      <User size={14} />
+                      Profile Settings
+                    </span>
+                  </Link>
                   <a
                     href="https://docs.google.com/forms/d/e/1FAIpQLSfyGkgfb5PQM_7O8XwJ0d9mfqj2t9w4ryJDMpFf2zD5R1lmNw/viewform"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block px-3 py-2 text-sm text-green-600 hover:bg-green-50"
+                    className="block px-3 py-2 text-sm text-green-600 hover:bg-green-50 rounded-lg"
                   >
                     📋 Training Registration
                   </a>
@@ -273,15 +323,18 @@ export default function Navigation({ user, isAdmin = false }: NavigationProps) {
                     href="https://docs.google.com/forms/d/e/1FAIpQLSeCifdHaoX89Cn8THhaBEai3MLrY_Ln7JKnH-tzXwai8LKLkg/viewform"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block px-3 py-2 text-sm text-blue-600 hover:bg-blue-50"
+                    className="block px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
                   >
                     ➕ Request Course
                   </a>
                   <button
                     onClick={handleSignOut}
-                    className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                    className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
                   >
-                    Sign Out
+                    <span className="flex items-center gap-2">
+                      <LogOut size={14} />
+                      Sign Out
+                    </span>
                   </button>
                 </div>
               </div>
