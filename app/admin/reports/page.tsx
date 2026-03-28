@@ -121,8 +121,11 @@ export default function AdminReportsPage() {
       
       if (data.success && data.users) {
         setAllUsers(data.users)
+      } else if (Array.isArray(data)) {
+        setAllUsers(data)
+      } else if (data.data && Array.isArray(data.data)) {
+        setAllUsers(data.data)
       } else {
-        console.error('Failed to load users:', data)
         setAllUsers([])
       }
     } catch (error) {
@@ -671,24 +674,23 @@ export default function AdminReportsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b">
-                    <tr><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Date</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Facilitator</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Dept</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Hours</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Source</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Actions</th></tr>
-                  </thead>
+                    <tr><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Date</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Facilitator</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Dept</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Hours</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Source</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Actions</th> </thead>
                   <tbody>
                     {filteredRecords.map((r: any) => (
                       <tr key={r.id} className="hover:bg-gray-50">
-                        <td className="px-5 py-3 text-sm">{new Date(r.training_date).toLocaleDateString()}</td>
-                        <td className="px-5 py-3 text-sm font-medium">{r.attendee_name || '-'}</td>
-                        <td className="px-5 py-3 text-sm">{r.role || '-'}</td>
-                        <td className="px-5 py-3 text-sm">{r.course}</td>
-                        <td className="px-5 py-3 text-sm">{r.facilitator || '-'}</td>
-                        <td className="px-5 py-3 text-sm">{r.department || '-'}</td>
-                        <td className="px-5 py-3 text-sm">{r.duration_hours}</td>
-                        <td className="px-5 py-3"><span className={`px-2 py-1 rounded-full text-xs ${r.source === 'google_form' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{r.source || 'manual'}</span></td>
-                        <td className="px-5 py-3"><div className="flex gap-2">{canEditRecords && <button onClick={() => setEditingRecord(r)} className="text-blue-500 hover:text-blue-700"><Edit size={16} /></button>}{canDeleteRecords && <button onClick={() => handleDeleteRecord(r.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>}</div></td>
-                      </tr>
+                        <td className="px-5 py-3 text-sm">{new Date(r.training_date).toLocaleDateString()}宜昌
+                        <td className="px-5 py-3 text-sm font-medium">{r.attendee_name || '-'}宜昌
+                        <td className="px-5 py-3 text-sm">{r.role || '-'}宜昌
+                        <td className="px-5 py-3 text-sm">{r.course}宜昌
+                        <td className="px-5 py-3 text-sm">{r.facilitator || '-'}宜昌
+                        <td className="px-5 py-3 text-sm">{r.department || '-'}宜昌
+                        <td className="px-5 py-3 text-sm">{r.duration_hours}宜昌
+                        <td className="px-5 py-3"><span className={`px-2 py-1 rounded-full text-xs ${r.source === 'google_form' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{r.source || 'manual'}</span>宜昌
+                        <td className="px-5 py-3"><div className="flex gap-2">{canEditRecords && <button onClick={() => setEditingRecord(r)} className="text-blue-500 hover:text-blue-700"><Edit size={16} /></button>}{canDeleteRecords && <button onClick={() => handleDeleteRecord(r.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>}</div>宜昌
+                       </tr>
                     ))}
                   </tbody>
-                </table>
+                 </table>
               </div>
             </div>
           )}
@@ -746,20 +748,19 @@ export default function AdminReportsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
-                      <tr><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Rating</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">One Word</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Comments</th></tr>
-                    </thead>
+                      <tr><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Rating</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">One Word</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Comments</th> </thead>
                     <tbody>
                       {evaluationData.recentEvaluations?.slice(0,8).map((e: any) => (
                         <tr key={e.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-3 text-sm">{e.attendee_name || 'Anonymous'}</td>
-                          <td className="px-6 py-3 text-sm">{e.course}</td>
-                          <td className="px-6 py-3"><div className="flex items-center gap-1"><span className="font-semibold">{e.overall}</span><Star size={12} className="text-yellow-500 fill-yellow-500" /></div></td>
-                          <td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{e.one_word || '-'}</span></td>
-                          <td className="px-6 py-3 text-sm text-gray-500 max-w-xs truncate">{e.comments || '-'}</td>
-                        </tr>
+                          <td className="px-6 py-3 text-sm">{e.attendee_name || 'Anonymous'}宜昌
+                          <td className="px-6 py-3 text-sm">{e.course}宜昌
+                          <td className="px-6 py-3"><div className="flex items-center gap-1"><span className="font-semibold">{e.overall}</span><Star size={12} className="text-yellow-500 fill-yellow-500" /></div>宜昌
+                          <td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{e.one_word || '-'}</span>宜昌
+                          <td className="px-6 py-3 text-sm text-gray-500 max-w-xs truncate">{e.comments || '-'}宜昌
+                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                   </table>
                 </div>
               </div>
             </div>
@@ -780,25 +781,41 @@ export default function AdminReportsPage() {
               </div>
               <div className="overflow-x-auto">
                 {usersLoading ? (
-                  <div className="p-8 text-center text-gray-500">Loading users...</div>
+                  <div className="p-8 text-center text-gray-500">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                    Loading users...
+                  </div>
                 ) : allUsers.length === 0 ? (
-                  <div className="p-8 text-center text-gray-400">No users found</div>
+                  <div className="p-12 text-center text-gray-400">
+                    <Users size={48} className="mx-auto mb-3 text-gray-300" />
+                    <p>No users found</p>
+                    <p className="text-xs mt-1">Users will appear here when they register</p>
+                  </div>
                 ) : (
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b">
-                      <tr><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Current Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Change Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User ID</th></tr>
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Current Role</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Change Role</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Joined</th>
+                       </tr>
                     </thead>
                     <tbody className="divide-y">
                       {allUsers.map((u: any) => (
                         <tr key={u.id} className="hover:bg-gray-50">
                           <td className="px-5 py-4 text-sm font-medium text-gray-900">{u.email}</td>
+                          <td className="px-5 py-4 text-sm text-gray-600">
+                            {u.first_name || u.last_name ? `${u.first_name || ''} ${u.last_name || ''}`.trim() || '-' : '-'}
+                          </td>
                           <td className="px-5 py-4">
                             {u.role === 'admin' ? (
-                              <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium flex items-center gap-1 w-fit"><Crown size={12} /> Admin</span>
+                              <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium inline-flex items-center gap-1"><Crown size={12} /> Admin</span>
                             ) : u.role === 'supervisor' ? (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium flex items-center gap-1 w-fit"><UserCog size={12} /> Supervisor</span>
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium inline-flex items-center gap-1"><UserCog size={12} /> Supervisor</span>
                             ) : (
-                              <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium flex items-center gap-1 w-fit"><Eye size={12} /> Viewer</span>
+                              <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium inline-flex items-center gap-1"><Eye size={12} /> Viewer</span>
                             )}
                           </td>
                           <td className="px-5 py-4">
@@ -808,7 +825,9 @@ export default function AdminReportsPage() {
                               <button onClick={() => updateUserRole(u.id, 'admin')} disabled={u.role === 'admin'} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1 ${u.role === 'admin' ? 'bg-red-200 text-red-700 cursor-not-allowed' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}><Crown size={12} /> Admin</button>
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-xs text-gray-400 font-mono">{u.id.slice(0, 8)}...</td>
+                          <td className="px-5 py-4 text-xs text-gray-500">
+                            {u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
