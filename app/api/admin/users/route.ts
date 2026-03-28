@@ -5,36 +5,56 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('=== API /api/admin/users called ===')
+    
     const supabase = await createClient()
     
     // Get the current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
+    console.log('Auth getUser result:', { user: user?.email, error: authError?.message })
+    
     if (authError || !user) {
-      console.error('Auth error:', authError)
+      console.log('Auth failed:', authError?.message)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
+    console.log('User email:', user.email)
     console.log('User ID:', user.id)
-    console.log('User Email:', user.email)
     
-    // Get the user's profile to check role
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
+    // Hardcoded admin check for your email
+    const ADMIN_EMAILS = ['sbyiadom88@gmail.com']
+    const isHardcodedAdmin = ADMIN_EMAILS.includes(user.email || '')
     
-    console.log('Profile:', profile)
-    console.log('Profile error:', profileError)
+    console.log('Is hardcoded admin?', isHardcodedAdmin)
     
-    // Check if user is admin
-    const isAdmin = profile?.role === 'admin'
+    let isAdmin = isHardcodedAdmin
+    
+    // If not hardcoded admin, check profile
+    if (!isHardcodedAdmin) {
+      console.log('Checking profile for admin role...')
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+      
+      console.log('Profile result:', profile, profileError)
+      
+      if (profile?.role === 'admin') {
+        isAdmin = true
+        console.log('User is admin from profile')
+      } else {
+        console.log('User is not admin. Role:', profile?.role)
+      }
+    }
     
     if (!isAdmin) {
-      console.log('User is not admin. Role:', profile?.role)
+      console.log('Access denied - not admin')
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
+    
+    console.log('Admin access granted, fetching all users...')
     
     // Get all users from profiles table
     const { data: users, error: usersError } = await supabase
@@ -47,7 +67,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
     }
     
-    console.log('Users found:', users?.length)
+    console.log(`Successfully fetched ${users?.length || 0} users`)
     
     return NextResponse.json({ success: true, users })
     
@@ -67,24 +87,29 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'User ID and role are required' }, { status: 400 })
     }
     
-    // Get the current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    // Check if current user is admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
+    const ADMIN_EMAILS = ['sbyiadom88@gmail.com']
+    const isHardcodedAdmin = ADMIN_EMAILS.includes(user.email || '')
     
-    if (!profile || profile.role !== 'admin') {
+    let isAdmin = isHardcodedAdmin
+    
+    if (!isHardcodedAdmin) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+      isAdmin = profile?.role === 'admin'
+    }
+    
+    if (!isAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
     
-    // Update the target user's role
     const { data: updatedUser, error: updateError } = await supabase
       .from('profiles')
       .update({ role })
