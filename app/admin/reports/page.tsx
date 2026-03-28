@@ -8,7 +8,8 @@ import * as XLSX from 'xlsx'
 import {
   BarChart3, Download, ChevronRight, Users, BookOpen, CheckCircle, Clock, Award, TrendingUp,
   LogOut, Upload, FileSpreadsheet, Activity, Star, Trash2, Plus, Edit, Filter, RefreshCw,
-  Maximize2, GraduationCap, Settings, HelpCircle, LayoutDashboard, Calendar, UserCheck, PieChart
+  Maximize2, GraduationCap, Settings, HelpCircle, LayoutDashboard, Calendar, UserCheck, PieChart,
+  ExternalLink, Shield, Lock, Unlock, UserCog, Eye, Pencil, UserPlus, UserMinus, Crown
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -17,17 +18,27 @@ import {
 
 export default function AdminReportsPage() {
   const [user, setUser] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
   const [records, setRecords] = useState<any[]>([])
   const [filteredRecords, setFilteredRecords] = useState<any[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showRequestCourseModal, setShowRequestCourseModal] = useState(false)
+  const [showUserManagementModal, setShowUserManagementModal] = useState(false)
   const [editingRecord, setEditingRecord] = useState<any>(null)
   const [importData, setImportData] = useState<any[]>([])
   const [importPreview, setImportPreview] = useState<any[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [dateRangePreset, setDateRangePreset] = useState('all')
+  const [allUsers, setAllUsers] = useState<any[]>([])
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [requestCourse, setRequestCourse] = useState({
+    course_title: '',
+    available_from: '',
+    available_until: ''
+  })
   const [evaluationData, setEvaluationData] = useState<any>({
     total: 0,
     averages: { content: 0, facilitator: 0, logistics: 0, engagement: 0, applicability: 0, overall: 0 },
@@ -65,10 +76,24 @@ export default function AdminReportsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
+  
+  // Determine user role and permissions from database
+  const userRole = userProfile?.role || 'user'
+  const isAdmin = userRole === 'admin'
+  const isSupervisor = userRole === 'supervisor' || isAdmin
+  const canAddManualRecords = isSupervisor
+  const canRequestCourses = isSupervisor
+  const canImport = isAdmin
+  const canViewCourseManagement = isAdmin
+  const canManageUsers = isAdmin
+  const canEditRecords = isSupervisor
+  const canDeleteRecords = isAdmin
+  const canViewAllData = true
 
   useEffect(() => {
     if (tabParam === 'training') setActiveTab('training')
     else if (tabParam === 'evaluations') setActiveTab('evaluations')
+    else if (tabParam === 'users') setActiveTab('users')
     else setActiveTab('overview')
   }, [tabParam])
 
@@ -77,13 +102,61 @@ export default function AdminReportsPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUser(user)
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, first_name, last_name')
+        .eq('id', user.id)
+        .maybeSingle()
+      setUserProfile(profile)
+      
       await loadAllData()
+      if (isAdmin) {
+        await loadAllUsers()
+      }
       setLoading(false)
     }
     init()
   }, [])
 
   useEffect(() => { applyFilters() }, [records, filters])
+
+  const loadAllUsers = async () => {
+    setUsersLoading(true)
+    try {
+      const response = await fetch('/api/admin/users')
+      const data = await response.json()
+      if (data.success) {
+        setAllUsers(data.users)
+      }
+    } catch (error) {
+      console.error('Error loading users:', error)
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
+  const updateUserRole = async (userId: string, newRole: string) => {
+    if (!confirm(`Change user role to ${newRole.toUpperCase()}?`)) return
+    
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, role: newRole })
+      })
+      const data = await response.json()
+      if (data.success) {
+        await loadAllUsers()
+        alert(`User role updated to ${newRole.toUpperCase()}`)
+      } else {
+        alert('Failed to update user role')
+      }
+    } catch (error) {
+      console.error('Error updating user role:', error)
+      alert('Error updating user role')
+    }
+  }
 
   const loadAllData = async () => {
     await Promise.all([
@@ -210,7 +283,21 @@ export default function AdminReportsPage() {
     }
   }
 
+  const handleRequestCourse = async () => {
+    if (!canRequestCourses) {
+      alert('You do not have permission to request courses.')
+      return
+    }
+    window.open('https://docs.google.com/forms/d/e/1FAIpQLSeCifdHaoX89Cn8THhaBEai3MLrY_Ln7JKnH-tzXwai8LKLkg/viewform', '_blank')
+    setShowRequestCourseModal(false)
+    alert('Course request form opened.')
+  }
+
   const handleAddRecord = async () => {
+    if (!canAddManualRecords) {
+      alert('Only supervisors and administrators can add manual records.')
+      return
+    }
     if (!newRecord.attendee_name || !newRecord.course) { alert('Please fill in attendee name and course'); return }
     const { error } = await supabase.from('training_records').insert({ ...newRecord, source: 'manual' })
     if (!error) { await loadAllData(); setShowAddModal(false); setNewRecord({ training_date: new Date().toISOString().split('T')[0], attendee_name: '', role: '', course: '', facilitator: '', supervisor: '', department: '', duration_hours: 0 }); alert('Record added successfully') }
@@ -218,6 +305,10 @@ export default function AdminReportsPage() {
   }
 
   const handleUpdateRecord = async () => {
+    if (!canEditRecords) {
+      alert('Only supervisors and administrators can edit records.')
+      return
+    }
     if (!editingRecord) return
     const { error } = await supabase.from('training_records').update(editingRecord).eq('id', editingRecord.id)
     if (!error) { await loadAllData(); setEditingRecord(null); alert('Record updated successfully') }
@@ -225,6 +316,10 @@ export default function AdminReportsPage() {
   }
 
   const handleDeleteRecord = async (id: string) => {
+    if (!canDeleteRecords) {
+      alert('Only administrators can delete records.')
+      return
+    }
     if (confirm('Delete this record?')) {
       await supabase.from('training_evaluations').delete().eq('training_record_id', id)
       const { error } = await supabase.from('training_records').delete().eq('id', id)
@@ -239,6 +334,10 @@ export default function AdminReportsPage() {
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canImport) {
+      alert('Only administrators can import records.')
+      return
+    }
     const file = event.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
@@ -297,9 +396,12 @@ export default function AdminReportsPage() {
   ].filter(item => item.value > 0)
 
   const navItems = [
-    { id: 'overview', name: 'Overview', icon: LayoutDashboard, color: 'blue' },
-    { id: 'training', name: 'Training Records', icon: FileSpreadsheet, color: 'green' },
-    { id: 'evaluations', name: 'Evaluations', icon: Star, color: 'purple' }
+    { id: 'overview', name: 'Overview', icon: LayoutDashboard, color: 'blue', adminOnly: false },
+    { id: 'training', name: 'Training Records', icon: FileSpreadsheet, color: 'green', adminOnly: false },
+    { id: 'evaluations', name: 'Evaluations', icon: Star, color: 'purple', adminOnly: false },
+    { id: 'users', name: 'User Management', icon: Users, color: 'indigo', adminOnly: true },
+    { id: 'request_course', name: 'Request Course', icon: Plus, color: 'blue', adminOnly: false, action: true },
+    { id: 'course_management', name: 'Course Management', icon: FileSpreadsheet, color: 'green', adminOnly: true, external: true, url: 'https://docs.google.com/spreadsheets/d/1OgX1neXfczqEzZ_DQXTRwxZpZ7eDZh3mgQeYWlbB8xs/edit' }
   ]
 
   if (loading) {
@@ -310,9 +412,25 @@ export default function AdminReportsPage() {
     )
   }
 
+  const getRoleBadge = (role: string) => {
+    switch(role) {
+      case 'admin': return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium flex items-center gap-1"><Crown size={12} /> Admin</span>
+      case 'supervisor': return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium flex items-center gap-1"><UserCog size={12} /> Supervisor</span>
+      default: return <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium flex items-center gap-1"><Eye size={12} /> Viewer</span>
+    }
+  }
+
+  const getRoleBadgeForCurrentUser = () => {
+    switch(userRole) {
+      case 'admin': return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium flex items-center gap-1"><Crown size={12} /> Admin</span>
+      case 'supervisor': return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium flex items-center gap-1"><UserCog size={12} /> Supervisor</span>
+      default: return <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium flex items-center gap-1"><Eye size={12} /> Viewer</span>
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Full-width Color Header */}
+      {/* Header */}
       <header className="bg-gradient-to-r from-blue-700 to-indigo-800 shadow-lg">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -324,14 +442,35 @@ export default function AdminReportsPage() {
                 <h1 className="text-xl font-bold text-white">Executive Analytics</h1>
                 <p className="text-blue-100 text-sm">Training intelligence & performance metrics</p>
               </div>
+              <div className="ml-3">{getRoleBadgeForCurrentUser()}</div>
             </div>
             <div className="flex items-center gap-3">
+              <button onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfyGkgfb5PQM_7O8XwJ0d9mfqj2t9w4ryJDMpFf2zD5R1lmNw/viewform', '_blank')} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                <FileSpreadsheet size={16} /> Training Registration
+              </button>
+              {canRequestCourses && (
+                <button onClick={() => setShowRequestCourseModal(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                  <Plus size={16} /> Request Course
+                </button>
+              )}
+              {canAddManualRecords && (
+                <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                  <Plus size={16} /> Add Manual Record
+                </button>
+              )}
+              {canViewCourseManagement && (
+                <button onClick={() => window.open('https://docs.google.com/spreadsheets/d/1OgX1neXfczqEzZ_DQXTRwxZpZ7eDZh3mgQeYWlbB8xs/edit', '_blank')} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                  <FileSpreadsheet size={16} /> Course Management
+                </button>
+              )}
               <button onClick={exportToExcel} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition flex items-center gap-2">
                 <Download size={16} /> Export
               </button>
-              <button onClick={() => setShowImportModal(true)} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition flex items-center gap-2">
-                <Upload size={16} /> Import
-              </button>
+              {canImport && (
+                <button onClick={() => setShowImportModal(true)} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition flex items-center gap-2">
+                  <Upload size={16} /> Import
+                </button>
+              )}
               <button onClick={handleSignOut} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition flex items-center gap-2">
                 <LogOut size={16} /> Sign Out
               </button>
@@ -344,7 +483,7 @@ export default function AdminReportsPage() {
       </header>
 
       <div className="flex">
-        {/* Vertical Navigation Sidebar */}
+        {/* Sidebar */}
         <aside className="w-72 bg-white border-r border-gray-200 shadow-sm min-h-[calc(100vh-80px)]">
           <div className="p-6">
             <div className="mb-6">
@@ -355,7 +494,8 @@ export default function AdminReportsPage() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Welcome back</p>
-                    <p className="font-semibold text-gray-800">{user?.email?.split('@')[0] || 'Admin'}</p>
+                    <p className="font-semibold text-gray-800">{user?.email?.split('@')[0] || 'User'}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 capitalize">{userRole}</p>
                   </div>
                 </div>
               </div>
@@ -363,24 +503,31 @@ export default function AdminReportsPage() {
             
             <nav className="space-y-1">
               {navItems.map((item) => {
-                const isActive = activeTab === item.id
-                const colorClasses = {
+                if (item.adminOnly && !isAdmin) return null
+                const isActive = activeTab === item.id && !item.external && !item.action
+                const colorClasses: Record<string, string> = {
                   blue: isActive ? 'bg-blue-50 text-blue-700 border-blue-500' : 'text-gray-600 hover:bg-gray-50',
                   green: isActive ? 'bg-green-50 text-green-700 border-green-500' : 'text-gray-600 hover:bg-gray-50',
-                  purple: isActive ? 'bg-purple-50 text-purple-700 border-purple-500' : 'text-gray-600 hover:bg-gray-50'
+                  purple: isActive ? 'bg-purple-50 text-purple-700 border-purple-500' : 'text-gray-600 hover:bg-gray-50',
+                  indigo: isActive ? 'bg-indigo-50 text-indigo-700 border-indigo-500' : 'text-gray-600 hover:bg-gray-50'
+                }
+                if (item.external) {
+                  return (
+                    <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-600 hover:bg-gray-50">
+                      <item.icon size={20} /> <span>{item.name}</span> <ExternalLink size={14} className="ml-auto text-gray-400" />
+                    </a>
+                  )
+                }
+                if (item.action) {
+                  return (
+                    <button key={item.id} onClick={() => { if (item.id === 'request_course') setShowRequestCourseModal(true) }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-600 hover:bg-gray-50">
+                      <item.icon size={20} /> <span>{item.name}</span>
+                    </button>
+                  )
                 }
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveTab(item.id)
-                      router.push(`/admin/reports${item.id !== 'overview' ? `?tab=${item.id}` : ''}`)
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${colorClasses[item.color as keyof typeof colorClasses]} ${isActive ? 'border-l-4 font-medium' : ''}`}
-                  >
-                    <item.icon size={20} />
-                    <span>{item.name}</span>
-                    {isActive && <ChevronRight size={16} className="ml-auto" />}
+                  <button key={item.id} onClick={() => { setActiveTab(item.id); router.push(`/admin/reports${item.id !== 'overview' ? `?tab=${item.id}` : ''}`) }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${colorClasses[item.color]} ${isActive ? 'border-l-4 font-medium' : ''}`}>
+                    <item.icon size={20} /> <span>{item.name}</span> {isActive && <ChevronRight size={16} className="ml-auto" />}
                   </button>
                 )
               })}
@@ -388,20 +535,12 @@ export default function AdminReportsPage() {
 
             <div className="mt-8 pt-6 border-t border-gray-200">
               <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar size={14} className="text-gray-500" />
-                  <p className="text-xs font-medium text-gray-500">Training Summary</p>
-                </div>
+                <div className="flex items-center gap-2 mb-2"><Calendar size={14} className="text-gray-500" /><p className="text-xs font-medium text-gray-500">Training Summary</p></div>
                 <p className="text-2xl font-bold text-gray-800">{stats.totalRecords}</p>
                 <p className="text-xs text-gray-500">Total training records</p>
                 <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Completion Rate</span>
-                    <span className="font-semibold text-gray-700">{stats.completionRate}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                    <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${stats.completionRate}%` }}></div>
-                  </div>
+                  <div className="flex justify-between text-xs"><span className="text-gray-500">Completion Rate</span><span className="font-semibold text-gray-700">{stats.completionRate}%</span></div>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1"><div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${stats.completionRate}%` }}></div></div>
                 </div>
               </div>
             </div>
@@ -410,129 +549,36 @@ export default function AdminReportsPage() {
 
         {/* Main Content */}
         <main className="flex-1 p-8">
-          {/* Stats Cards Row */}
+          {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition">
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm text-gray-500 font-medium">Training Hours</p><p className="text-2xl font-bold text-gray-800">{stats.totalHours}</p><p className="text-xs text-green-600 mt-1">+{stats.monthlyGrowth.toFixed(1)}%</p></div>
-                <div className="p-3 bg-blue-50 rounded-xl"><Clock className="text-blue-600" size={24} /></div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition">
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm text-gray-500 font-medium">Total Records</p><p className="text-2xl font-bold text-gray-800">{stats.totalRecords}</p><p className="text-xs text-gray-500 mt-1">{stats.totalDepartments} departments</p></div>
-                <div className="p-3 bg-purple-50 rounded-xl"><FileSpreadsheet className="text-purple-600" size={24} /></div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition">
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm text-gray-500 font-medium">Avg. Rating</p><p className="text-2xl font-bold text-yellow-600">{stats.averageRating}</p><p className="text-xs text-gray-500 mt-1">out of 5.0</p></div>
-                <div className="p-3 bg-yellow-50 rounded-xl"><Star className="text-yellow-600" size={24} fill="currentColor" /></div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition">
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm text-gray-500 font-medium">Completion Rate</p><p className="text-2xl font-bold text-green-600">{stats.completionRate}%</p><p className="text-xs text-gray-500 mt-1">{stats.completedCourses} completed</p></div>
-                <div className="p-3 bg-green-50 rounded-xl"><CheckCircle className="text-green-600" size={24} /></div>
-              </div>
-            </div>
+            <div className="bg-white rounded-xl shadow-sm p-5 border"><div className="flex justify-between"><div><p className="text-sm text-gray-500">Training Hours</p><p className="text-2xl font-bold">{stats.totalHours}</p><p className="text-xs text-green-600">+{stats.monthlyGrowth.toFixed(1)}%</p></div><div className="p-3 bg-blue-50 rounded-xl"><Clock className="text-blue-600" size={24} /></div></div></div>
+            <div className="bg-white rounded-xl shadow-sm p-5 border"><div className="flex justify-between"><div><p className="text-sm text-gray-500">Total Records</p><p className="text-2xl font-bold">{stats.totalRecords}</p><p className="text-xs text-gray-500">{stats.totalDepartments} depts</p></div><div className="p-3 bg-purple-50 rounded-xl"><FileSpreadsheet className="text-purple-600" size={24} /></div></div></div>
+            <div className="bg-white rounded-xl shadow-sm p-5 border"><div className="flex justify-between"><div><p className="text-sm text-gray-500">Avg. Rating</p><p className="text-2xl font-bold text-yellow-600">{stats.averageRating}</p><p className="text-xs text-gray-500">out of 5</p></div><div className="p-3 bg-yellow-50 rounded-xl"><Star className="text-yellow-600" size={24} fill="currentColor" /></div></div></div>
+            <div className="bg-white rounded-xl shadow-sm p-5 border"><div className="flex justify-between"><div><p className="text-sm text-gray-500">Completion Rate</p><p className="text-2xl font-bold text-green-600">{stats.completionRate}%</p><p className="text-xs text-gray-500">{stats.completedCourses} completed</p></div><div className="p-3 bg-green-50 rounded-xl"><CheckCircle className="text-green-600" size={24} /></div></div></div>
           </div>
 
-          {/* Overview Tab Content */}
+          {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-                  <div className="flex items-center justify-between mb-3"><span className="text-sm font-medium text-blue-700">Active Learners</span><Users className="text-blue-600" size={22} /></div>
-                  <p className="text-3xl font-bold text-gray-800">{stats.activeUsers}</p><p className="text-xs text-gray-500 mt-1">of {stats.totalUsers} total users</p>
-                </div>
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
-                  <div className="flex items-center justify-between mb-3"><span className="text-sm font-medium text-green-700">Course Engagement</span><BookOpen className="text-green-600" size={22} /></div>
-                  <p className="text-3xl font-bold text-gray-800">{stats.totalEnrollments}</p><p className="text-xs text-gray-500 mt-1">across {stats.totalCourses} courses</p>
-                </div>
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
-                  <div className="flex items-center justify-between mb-3"><span className="text-sm font-medium text-purple-700">Certificates Issued</span><Award className="text-purple-600" size={22} /></div>
-                  <p className="text-3xl font-bold text-gray-800">{stats.certificatesIssued}</p><p className="text-xs text-gray-500 mt-1">+{stats.completedCourses} this period</p>
-                </div>
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6"><div className="flex justify-between mb-3"><span className="text-sm font-medium text-blue-700">Active Learners</span><Users className="text-blue-600" size={22} /></div><p className="text-3xl font-bold">{stats.activeUsers}</p><p className="text-xs text-gray-500">of {stats.totalUsers} total users</p></div>
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6"><div className="flex justify-between mb-3"><span className="text-sm font-medium text-green-700">Course Engagement</span><BookOpen className="text-green-600" size={22} /></div><p className="text-3xl font-bold">{stats.totalEnrollments}</p><p className="text-xs text-gray-500">across {stats.totalCourses} courses</p></div>
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6"><div className="flex justify-between mb-3"><span className="text-sm font-medium text-purple-700">Certificates Issued</span><Award className="text-purple-600" size={22} /></div><p className="text-3xl font-bold">{stats.certificatesIssued}</p><p className="text-xs text-gray-500">+{stats.completedCourses} this period</p></div>
               </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Training Hours by Department</h3>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={departmentData} layout="vertical"><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" /><YAxis type="category" dataKey="name" width={100} /><Tooltip /><Bar dataKey="hours" fill="#3b82f6" radius={[0, 8, 8, 0]} /></BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Top Facilitators</h3>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={facilitatorData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Bar dataKey="hours" fill="#10b981" radius={[8, 8, 0, 0]} /></BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Training Hours by Department</h3><ResponsiveContainer height={280}><BarChart data={departmentData} layout="vertical"><CartesianGrid /><XAxis type="number" /><YAxis type="category" dataKey="name" width={100} /><Tooltip /><Bar dataKey="hours" fill="#3b82f6" radius={[0,8,8,0]} /></BarChart></ResponsiveContainer></div>
+                <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Top Facilitators</h3><ResponsiveContainer height={280}><BarChart data={facilitatorData}><CartesianGrid /><XAxis dataKey="name" /><YAxis /><Tooltip /><Bar dataKey="hours" fill="#10b981" radius={[8,8,0,0]} /></BarChart></ResponsiveContainer></div>
               </div>
-
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Monthly Performance Trends</h3>
-                <ResponsiveContainer width="100%" height={320}>
-                  <ComposedChart data={monthlyData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" /><YAxis yAxisId="left" /><YAxis yAxisId="right" orientation="right" /><Tooltip /><Legend /><Bar yAxisId="left" dataKey="enrollments" fill="#3b82f6" name="Enrollments" /><Bar yAxisId="left" dataKey="completions" fill="#10b981" name="Completions" /><Line yAxisId="right" type="monotone" dataKey="trainingHours" stroke="#f59e0b" name="Training Hours" strokeWidth={2} /></ComposedChart>
-                </ResponsiveContainer>
-              </div>
-
-              {stats.totalEvaluations > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Training Effectiveness</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <RadarChart data={radarData}><PolarGrid /><PolarAngleAxis dataKey="subject" /><PolarRadiusAxis domain={[0, 5]} /><Radar name="Rating" dataKey="rating" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} /><Tooltip /></RadarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Feedback Word Cloud</h3>
-                    <div className="flex flex-wrap gap-2 min-h-[250px] items-center justify-center p-4 bg-gray-50 rounded-xl">
-                      {evaluationData.wordCloud?.length > 0 ? evaluationData.wordCloud.map((item: any, idx: number) => (
-                        <span key={idx} className="px-3 py-1 bg-blue-50 text-gray-700 rounded-full" style={{ fontSize: `${Math.max(12, Math.min(28, 12 + item.count * 4))}px` }}>{item.word} ({item.count})</span>
-                      )) : <p className="text-gray-400">No feedback yet</p>}
-                    </div>
-                  </div>
-                </div>
-              )}
+              <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Monthly Trends</h3><ResponsiveContainer height={320}><ComposedChart data={monthlyData}><CartesianGrid /><XAxis dataKey="month" /><YAxis yAxisId="left" /><YAxis yAxisId="right" orientation="right" /><Tooltip /><Legend /><Bar yAxisId="left" dataKey="enrollments" fill="#3b82f6" name="Enrollments" /><Bar yAxisId="left" dataKey="completions" fill="#10b981" name="Completions" /><Line yAxisId="right" type="monotone" dataKey="trainingHours" stroke="#f59e0b" name="Hours" /></ComposedChart></ResponsiveContainer></div>
+              {stats.totalEvaluations > 0 && <div className="grid grid-cols-1 lg:grid-cols-2 gap-6"><div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Effectiveness Radar</h3><ResponsiveContainer height={300}><RadarChart data={radarData}><PolarGrid /><PolarAngleAxis dataKey="subject" /><PolarRadiusAxis domain={[0,5]} /><Radar dataKey="rating" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} /></RadarChart></ResponsiveContainer></div><div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Word Cloud</h3><div className="flex flex-wrap gap-2 justify-center p-4 bg-gray-50 rounded-lg min-h-[250px]">{evaluationData.wordCloud?.length > 0 ? evaluationData.wordCloud.map((w: any, i: number) => (<span key={i} className="px-3 py-1 bg-blue-50 rounded-full" style={{ fontSize: `${12 + w.count * 2}px` }}>{w.word} ({w.count})</span>)) : <p className="text-gray-400">No feedback</p>}</div></div></div>}
             </div>
           )}
 
           {/* Training Records Tab */}
           {activeTab === 'training' && (
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
-              <div className="p-5 border-b border-gray-100 bg-gray-50">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div><h2 className="text-lg font-semibold text-gray-800">Training Records</h2><p className="text-sm text-gray-500">{filteredRecords.length} records • {stats.totalHours} total hours</p></div>
-                  <div className="flex flex-wrap gap-2">
-                    <div className="flex gap-1 bg-white rounded-lg p-1 border"><button onClick={() => setDateRange('week')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'week' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}>Week</button><button onClick={() => setDateRange('month')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'month' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}>Month</button><button onClick={() => setDateRange('quarter')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'quarter' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}>Quarter</button><button onClick={() => setDateRange('all')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'all' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}>All</button></div>
-                    <button onClick={() => setShowFilters(!showFilters)} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-2"><Filter size={14} /> Filters</button>
-                    <button onClick={clearFilters} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-2"><RefreshCw size={14} /> Clear</button>
-                    <button onClick={() => setShowAddModal(true)} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2"><Plus size={14} /> Add</button>
-                    <button onClick={() => setShowImportModal(true)} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2"><Upload size={14} /> Import</button>
-                  </div>
-                </div>
-                {showFilters && (
-                  <div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <select value={filters.attendee} onChange={(e) => setFilters({...filters, attendee: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Attendees</option>{filterOptions.attendees.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>
-                    <select value={filters.role} onChange={(e) => setFilters({...filters, role: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Roles</option>{filterOptions.roles.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>
-                    <select value={filters.course} onChange={(e) => setFilters({...filters, course: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Courses</option>{filterOptions.courses.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>
-                    <select value={filters.department} onChange={(e) => setFilters({...filters, department: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Departments</option>{filterOptions.departments.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>
-                  </div>
-                )}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b"><tr>{['Date', 'Attendee', 'Role', 'Course', 'Facilitator', 'Dept', 'Hours', 'Source', 'Actions'].map(h => <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>)}</tr></thead>
-                  <tbody className="divide-y">
-                    {filteredRecords.map((r: any) => (
-                      <tr key={r.id} className="hover:bg-gray-50"><td className="px-5 py-3 text-sm">{new Date(r.training_date).toLocaleDateString()}</td><td className="px-5 py-3 text-sm font-medium">{r.attendee_name || '-'}</td><td className="px-5 py-3 text-sm">{r.role || '-'}</td><td className="px-5 py-3 text-sm">{r.course}</td><td className="px-5 py-3 text-sm">{r.facilitator || '-'}</td><td className="px-5 py-3 text-sm">{r.department || '-'}</td><td className="px-5 py-3 text-sm">{r.duration_hours}</td><td className="px-5 py-3"><span className={`px-2 py-1 rounded-full text-xs ${r.source === 'google_form' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{r.source || 'manual'}</span></td><td className="px-5 py-3"><div className="flex gap-2"><button onClick={() => setEditingRecord(r)} className="text-blue-500 hover:text-blue-700"><Edit size={16} /></button><button onClick={() => handleDeleteRecord(r.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button></div></td></tr>
-                    ))}
-                    {filteredRecords.length === 0 && <tr><td colSpan={9} className="px-5 py-12 text-center text-gray-400">No records found</td></tr>}
-                  </tbody>
-                </table>
-              </div>
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden border">
+              <div className="p-5 border-b bg-gray-50"><div className="flex justify-between items-center flex-wrap gap-3"><div><h2 className="font-semibold">Training Records</h2><p className="text-sm text-gray-500">{filteredRecords.length} records • {stats.totalHours} hours</p></div><div className="flex gap-2"><div className="flex gap-1 bg-white rounded-lg p-1 border"><button onClick={() => setDateRange('week')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'week' ? 'bg-blue-600 text-white' : ''}`}>Week</button><button onClick={() => setDateRange('month')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'month' ? 'bg-blue-600 text-white' : ''}`}>Month</button><button onClick={() => setDateRange('quarter')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'quarter' ? 'bg-blue-600 text-white' : ''}`}>Quarter</button><button onClick={() => setDateRange('all')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'all' ? 'bg-blue-600 text-white' : ''}`}>All</button></div><button onClick={() => setShowFilters(!showFilters)} className="px-3 py-1.5 bg-gray-100 rounded-lg text-sm flex items-center gap-2"><Filter size={14} /> Filters</button><button onClick={clearFilters} className="px-3 py-1.5 bg-gray-100 rounded-lg text-sm"><RefreshCw size={14} /></button></div></div>{showFilters && (<div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-4 gap-3"><select value={filters.attendee} onChange={(e) => setFilters({...filters, attendee: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Attendees</option>{filterOptions.attendees.map(opt => <option key={opt}>{opt}</option>)}</select><select value={filters.role} onChange={(e) => setFilters({...filters, role: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Roles</option>{filterOptions.roles.map(opt => <option key={opt}>{opt}</option>)}</select><select value={filters.course} onChange={(e) => setFilters({...filters, course: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Courses</option>{filterOptions.courses.map(opt => <option key={opt}>{opt}</option>)}</select><select value={filters.department} onChange={(e) => setFilters({...filters, department: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Depts</option>{filterOptions.departments.map(opt => <option key={opt}>{opt}</option>)}</select></div>)}</div>
+              <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 border-b"><table><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Date</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Facilitator</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Dept</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Hours</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Source</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Actions</th></thead><tbody>{filteredRecords.map((r: any) => (<tr key={r.id} className="hover:bg-gray-50"><td className="px-5 py-3 text-sm">{new Date(r.training_date).toLocaleDateString()}</td><td className="px-5 py-3 text-sm font-medium">{r.attendee_name || '-'}</td><td className="px-5 py-3 text-sm">{r.role || '-'}</td><td className="px-5 py-3 text-sm">{r.course}</td><td className="px-5 py-3 text-sm">{r.facilitator || '-'}</td><td className="px-5 py-3 text-sm">{r.department || '-'}</td><td className="px-5 py-3 text-sm">{r.duration_hours}</td><td className="px-5 py-3"><span className={`px-2 py-1 rounded-full text-xs ${r.source === 'google_form' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{r.source || 'manual'}</span></td><td className="px-5 py-3"><div className="flex gap-2">{canEditRecords && <button onClick={() => setEditingRecord(r)} className="text-blue-500 hover:text-blue-700"><Edit size={16} /></button>}{canDeleteRecords && <button onClick={() => handleDeleteRecord(r.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>}</div></td></tr>))}</tbody></table></div>
             </div>
           )}
 
@@ -546,24 +592,154 @@ export default function AdminReportsPage() {
                 <div className="bg-white rounded-xl p-5 text-center border"><p className="text-sm text-gray-500">Facilitator</p><p className="text-xl font-bold text-green-600">{evaluationData.averages.facilitator}</p></div>
                 <div className="bg-white rounded-xl p-5 text-center border"><p className="text-sm text-gray-500">Engagement</p><p className="text-xl font-bold text-purple-600">{evaluationData.averages.engagement}</p></div>
               </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Rating Distribution</h3><ResponsiveContainer width="100%" height={260}><RePieChart><Pie data={ratingDistributionData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>{ratingDistributionData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip /></RePieChart></ResponsiveContainer></div>
-                <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Course Performance</h3><div className="space-y-3 max-h-[260px] overflow-auto">{evaluationData.byCourse?.slice(0, 5).map((c: any, i: number) => (<div key={i} className="flex justify-between items-center p-2 bg-gray-50 rounded"><span className="text-sm">{c.course}</span><div className="flex items-center gap-2"><Star size={14} className="text-yellow-500" /><span className="font-semibold">{c.overall}</span><div className="w-16 bg-gray-200 rounded-full h-1"><div className="bg-green-500 h-1 rounded-full" style={{ width: `${(c.overall / 5) * 100}%` }} /></div></div></div>))}</div></div>
+                <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Rating Distribution</h3><ResponsiveContainer height={260}><RePieChart><Pie data={ratingDistributionData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>{ratingDistributionData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip /></RePieChart></ResponsiveContainer></div>
+                <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Course Performance</h3><div className="space-y-3 max-h-[260px] overflow-auto">{evaluationData.byCourse?.slice(0,5).map((c: any, i: number) => (<div key={i} className="flex justify-between items-center p-2 bg-gray-50 rounded"><span className="text-sm">{c.course}</span><div className="flex items-center gap-2"><Star size={14} className="text-yellow-500" /><span className="font-semibold">{c.overall}</span><div className="w-16 bg-gray-200 rounded-full h-1"><div className="bg-green-500 h-1 rounded-full" style={{ width: `${(c.overall/5)*100}%` }} /></div></div></div>))}</div></div>
               </div>
+              <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Word Cloud</h3><div className="flex flex-wrap gap-2 justify-center p-6 bg-gray-50 rounded-lg">{evaluationData.wordCloud?.length > 0 ? evaluationData.wordCloud.map((w: any, i: number) => (<span key={i} className="px-3 py-1.5 bg-blue-50 rounded-full" style={{ fontSize: `${12 + w.count * 2}px` }}>{w.word} ({w.count})</span>)) : <p className="text-gray-400">No feedback</p>}</div></div>
+              <div className="bg-white rounded-xl overflow-hidden border"><div className="px-6 py-4 bg-gray-50 border-b"><h3 className="font-semibold">Recent Evaluations</h3></div><div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Rating</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">One Word</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Comments</th></tr></thead><tbody>{evaluationData.recentEvaluations?.slice(0,8).map((e: any) => (<tr key={e.id} className="hover:bg-gray-50"><td className="px-6 py-3 text-sm">{e.attendee_name || 'Anonymous'}</td><td className="px-6 py-3 text-sm">{e.course}</td><td className="px-6 py-3"><div className="flex items-center gap-1"><span className="font-semibold">{e.overall}</span><Star size={12} className="text-yellow-500 fill-yellow-500" /></div></td><td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{e.one_word || '-'}</span></td><td className="px-6 py-3 text-sm text-gray-500 max-w-xs truncate">{e.comments || '-'}</td></tr>))}</tbody></table></div></div>
+            </div>
+          )}
 
-              <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Word Cloud</h3><div className="flex flex-wrap gap-2 justify-center p-4 bg-gray-50 rounded-lg">{evaluationData.wordCloud?.length > 0 ? evaluationData.wordCloud.map((w: any, i: number) => (<span key={i} className="px-3 py-1 bg-blue-50 rounded-full" style={{ fontSize: `${12 + w.count * 2}px` }}>{w.word} ({w.count})</span>)) : <p className="text-gray-400">No feedback</p>}</div></div>
-
-              <div className="bg-white rounded-xl overflow-hidden border"><div className="px-6 py-4 bg-gray-50 border-b"><h3 className="font-semibold">Recent Evaluations</h3></div><div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Rating</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">One Word</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Comments</th></tr></thead><tbody>{evaluationData.recentEvaluations?.slice(0, 8).map((e: any) => (<tr key={e.id} className="hover:bg-gray-50"><td className="px-6 py-3 text-sm">{e.attendee_name || 'Anonymous'}</td><td className="px-6 py-3 text-sm">{e.course}</td><td className="px-6 py-3"><div className="flex items-center gap-1"><span className="font-semibold">{e.overall}</span><Star size={12} className="text-yellow-500 fill-yellow-500" /></div></td><td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{e.one_word || '-'}</span></td><td className="px-6 py-3 text-sm text-gray-500 max-w-xs truncate">{e.comments || '-'}</td></tr>))}</tbody></table></div></div>
+          {/* User Management Tab - Only for Admin */}
+          {activeTab === 'users' && isAdmin && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden border">
+              <div className="p-5 border-b bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-800">User Management</h2>
+                    <p className="text-sm text-gray-500">Manage user roles and permissions</p>
+                  </div>
+                  <button onClick={loadAllUsers} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700">
+                    <RefreshCw size={14} /> Refresh
+                  </button>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Current Role</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Change Role</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User ID</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {usersLoading ? (
+                      <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">Loading users...</td></tr>
+                    ) : allUsers.length === 0 ? (
+                      <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">No users found</td></tr>
+                    ) : (
+                      allUsers.map((u: any) => (
+                        <tr key={u.id} className="hover:bg-gray-50">
+                          <td className="px-5 py-4 text-sm font-medium text-gray-900">{u.email}</td>
+                          <td className="px-5 py-4">{getRoleBadge(u.role || 'user')}</td>
+                          <td className="px-5 py-4">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => updateUserRole(u.id, 'user')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${u.role === 'user' ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                disabled={u.role === 'user'}
+                              >
+                                <Eye size={12} className="inline mr-1" /> Viewer
+                              </button>
+                              <button
+                                onClick={() => updateUserRole(u.id, 'supervisor')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${u.role === 'supervisor' ? 'bg-blue-200 text-blue-700 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
+                                disabled={u.role === 'supervisor'}
+                              >
+                                <UserCog size={12} className="inline mr-1" /> Supervisor
+                              </button>
+                              <button
+                                onClick={() => updateUserRole(u.id, 'admin')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${u.role === 'admin' ? 'bg-red-200 text-red-700 cursor-not-allowed' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}
+                                disabled={u.role === 'admin'}
+                              >
+                                <Crown size={12} className="inline mr-1" /> Admin
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 text-xs text-gray-400 font-mono">{u.id.slice(0, 8)}...</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="p-4 border-t bg-gray-50">
+                <div className="text-sm text-gray-500">
+                  <strong>Permission Levels:</strong>
+                  <ul className="mt-2 space-y-1 text-xs">
+                    <li><span className="inline-flex items-center gap-1"><Eye size={12} className="text-gray-500" /> Viewer</span> - Can view all data and submit training registrations via Google Forms</li>
+                    <li><span className="inline-flex items-center gap-1"><UserCog size={12} className="text-blue-500" /> Supervisor</span> - Viewer permissions + Can add manual records and request courses</li>
+                    <li><span className="inline-flex items-center gap-1"><Crown size={12} className="text-red-500" /> Admin</span> - Full access to everything including user management, imports, and course management</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           )}
         </main>
       </div>
 
       {/* Modals */}
-      {showAddModal && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-auto"><div className="p-5 border-b"><h2 className="text-xl font-semibold">Add Training Record</h2></div><div className="p-5 space-y-3">{/* form fields */}<button onClick={() => setShowAddModal(false)}>Cancel</button><button onClick={handleAddRecord}>Add</button></div></div></div>)}
-      {editingRecord && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white rounded-2xl max-w-md w-full"><div className="p-5 border-b"><h2>Edit Record</h2></div><div className="p-5 space-y-3">{/* edit fields */}<button onClick={() => setEditingRecord(null)}>Cancel</button><button onClick={handleUpdateRecord}>Save</button></div></div></div>)}
-      {showImportModal && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white rounded-2xl max-w-2xl w-full"><div className="p-5 border-b"><h2>Import Excel</h2></div><div className="p-5">{importPreview.length > 0 && <div>Preview ({importData.length} records)</div>}<button onClick={() => setShowImportModal(false)}>Cancel</button><button onClick={confirmImport}>Import</button></div></div></div>)}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-auto">
+            <div className="p-5 border-b"><h2 className="text-xl font-semibold">Add Training Record</h2></div>
+            <div className="p-5 space-y-3">
+              <input type="date" value={newRecord.training_date} onChange={(e) => setNewRecord({...newRecord, training_date: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="text" placeholder="Attendee Name *" value={newRecord.attendee_name} onChange={(e) => setNewRecord({...newRecord, attendee_name: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="text" placeholder="Role" value={newRecord.role} onChange={(e) => setNewRecord({...newRecord, role: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="text" placeholder="Course *" value={newRecord.course} onChange={(e) => setNewRecord({...newRecord, course: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="text" placeholder="Facilitator" value={newRecord.facilitator} onChange={(e) => setNewRecord({...newRecord, facilitator: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="text" placeholder="Supervisor" value={newRecord.supervisor} onChange={(e) => setNewRecord({...newRecord, supervisor: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="text" placeholder="Department" value={newRecord.department} onChange={(e) => setNewRecord({...newRecord, department: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="number" step="0.5" placeholder="Duration Hours" value={newRecord.duration_hours} onChange={(e) => setNewRecord({...newRecord, duration_hours: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" />
+            </div>
+            <div className="flex justify-end gap-3 p-5 border-t"><button onClick={() => setShowAddModal(false)} className="px-4 py-2 border rounded">Cancel</button><button onClick={handleAddRecord} className="px-4 py-2 bg-blue-600 text-white rounded">Add</button></div>
+          </div>
+        </div>
+      )}
+      
+      {showRequestCourseModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="p-5 border-b"><h2 className="text-xl font-semibold">Request a Course</h2><p className="text-sm text-gray-500">You will be redirected to the Google Form</p></div>
+            <div className="p-5"><p>Click continue to open the course request form where you can submit new course details.</p></div>
+            <div className="flex justify-end gap-3 p-5 border-t"><button onClick={() => setShowRequestCourseModal(false)} className="px-4 py-2 border rounded">Cancel</button><button onClick={handleRequestCourse} className="px-4 py-2 bg-blue-600 text-white rounded">Continue to Form</button></div>
+          </div>
+        </div>
+      )}
+      
+      {editingRecord && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="p-5 border-b"><h2 className="text-xl font-semibold">Edit Record</h2></div>
+            <div className="p-5 space-y-3">
+              <input type="date" value={editingRecord.training_date} onChange={(e) => setEditingRecord({...editingRecord, training_date: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="text" value={editingRecord.attendee_name} onChange={(e) => setEditingRecord({...editingRecord, attendee_name: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="text" value={editingRecord.role || ''} onChange={(e) => setEditingRecord({...editingRecord, role: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="text" value={editingRecord.course} onChange={(e) => setEditingRecord({...editingRecord, course: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="text" value={editingRecord.facilitator} onChange={(e) => setEditingRecord({...editingRecord, facilitator: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="text" value={editingRecord.supervisor || ''} onChange={(e) => setEditingRecord({...editingRecord, supervisor: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="text" value={editingRecord.department} onChange={(e) => setEditingRecord({...editingRecord, department: e.target.value})} className="w-full p-2 border rounded" />
+              <input type="number" step="0.5" value={editingRecord.duration_hours} onChange={(e) => setEditingRecord({...editingRecord, duration_hours: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" />
+            </div>
+            <div className="flex justify-end gap-3 p-5 border-t"><button onClick={() => setEditingRecord(null)} className="px-4 py-2 border rounded">Cancel</button><button onClick={handleUpdateRecord} className="px-4 py-2 bg-blue-600 text-white rounded">Save</button></div>
+          </div>
+        </div>
+      )}
+      
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl max-w-2xl w-full">
+            <div className="p-5 border-b"><h2 className="text-xl font-semibold">Import Excel</h2></div>
+            <div className="p-5">{importPreview.length > 0 && <div>Preview ({importData.length} records)</div>}</div>
+            <div className="flex justify-end gap-3 p-5 border-t"><button onClick={() => setShowImportModal(false)} className="px-4 py-2 border rounded">Cancel</button><button onClick={confirmImport} className="px-4 py-2 bg-green-600 text-white rounded">Import</button></div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
