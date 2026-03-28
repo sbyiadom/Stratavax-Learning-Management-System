@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import Navigation from '@/components/Navigation'
+import DashboardSidebar from '@/components/dashboard/Sidebar'
 import * as XLSX from 'xlsx'
 import {
   BarChart3, Download, ChevronRight, ChevronLeft,
@@ -14,7 +14,8 @@ import {
   FileDown, FileUp, Trash2, Plus, Edit, ThumbsUp, MessageSquare,
   Filter, Calendar, User, Briefcase, Bookmark, Users2, MapPin, RefreshCw,
   PieChart, Target, Zap, Brain, Globe, Shield, Sparkles,
-  TrendingDown, AlertCircle, Info, Maximize2, Minimize2
+  TrendingDown, AlertCircle, Info, Maximize2, Minimize2,
+  GraduationCap, Medal, Trophy, LineChart
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area,
@@ -331,10 +332,6 @@ export default function AdminReportsPage() {
     const { count: totalUsers } = await supabase.from('profiles').select('*', { count: 'exact', head: true })
     const { count: totalCourses } = await supabase.from('courses').select('*', { count: 'exact', head: true }).eq('is_published', true)
     const { data: enrollments } = await supabase.from('enrollments').select('progress_percentage, completed_at, user_id, enrolled_at')
-    const { data: previousMonthRecords } = await supabase
-      .from('training_records')
-      .select('created_at')
-      .gte('created_at', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString())
 
     const totalEnrollments = enrollments?.length || 0
     const completedCourses = enrollments?.filter(e => e.completed_at).length || 0
@@ -664,7 +661,7 @@ export default function AdminReportsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-500">Loading analytics...</p>
@@ -674,15 +671,17 @@ export default function AdminReportsPage() {
   }
 
   return (
-    <>
-      <Navigation user={user} isAdmin={true} />
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
+      <DashboardSidebar />
+      
+      <div className="flex-1">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          
           {/* Page Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
                   Executive Analytics
                 </h1>
                 <p className="text-gray-500 mt-1">Comprehensive training intelligence & performance metrics</p>
@@ -708,11 +707,11 @@ export default function AdminReportsPage() {
 
           {/* Quick Stats Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+            <div className="bg-white rounded-xl shadow-lg p-5 border border-gray-100 hover:shadow-xl transition">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Total Training Hours</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalHours}</p>
+                  <p className="text-3xl font-bold text-gray-800 mt-1">{stats.totalHours}</p>
                   <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                     <TrendingUp size={12} /> +{stats.monthlyGrowth.toFixed(1)}% from last month
                   </p>
@@ -722,11 +721,11 @@ export default function AdminReportsPage() {
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+            <div className="bg-white rounded-xl shadow-lg p-5 border border-gray-100 hover:shadow-xl transition">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Total Records</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalRecords}</p>
+                  <p className="text-3xl font-bold text-gray-800 mt-1">{stats.totalRecords}</p>
                   <p className="text-xs text-gray-500 mt-1">{stats.totalDepartments} departments</p>
                 </div>
                 <div className="p-3 bg-purple-50 rounded-xl">
@@ -734,7 +733,7 @@ export default function AdminReportsPage() {
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+            <div className="bg-white rounded-xl shadow-lg p-5 border border-gray-100 hover:shadow-xl transition">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Avg. Rating</p>
@@ -746,7 +745,7 @@ export default function AdminReportsPage() {
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+            <div className="bg-white rounded-xl shadow-lg p-5 border border-gray-100 hover:shadow-xl transition">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Completion Rate</p>
@@ -769,7 +768,7 @@ export default function AdminReportsPage() {
               }}
               className={`flex items-center gap-2 px-5 py-3 text-sm font-medium rounded-t-lg transition ${
                 activeTab === 'overview'
-                  ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                  ? 'bg-white text-blue-600 border-b-2 border-blue-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -783,7 +782,7 @@ export default function AdminReportsPage() {
               }}
               className={`flex items-center gap-2 px-5 py-3 text-sm font-medium rounded-t-lg transition ${
                 activeTab === 'training'
-                  ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                  ? 'bg-white text-blue-600 border-b-2 border-blue-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -797,7 +796,7 @@ export default function AdminReportsPage() {
               }}
               className={`flex items-center gap-2 px-5 py-3 text-sm font-medium rounded-t-lg transition ${
                 activeTab === 'evaluations'
-                  ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                  ? 'bg-white text-blue-600 border-b-2 border-blue-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -810,37 +809,37 @@ export default function AdminReportsPage() {
             <div className="space-y-6">
               {/* KPI Cards Row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 shadow-sm">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium text-blue-700">Active Learners</span>
-                    <Users className="text-blue-600" size={20} />
+                    <Users className="text-blue-600" size={22} />
                   </div>
-                  <p className="text-3xl font-bold text-gray-900">{stats.activeUsers}</p>
+                  <p className="text-3xl font-bold text-gray-800">{stats.activeUsers}</p>
                   <p className="text-xs text-gray-500 mt-1">of {stats.totalUsers} total users</p>
                 </div>
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100">
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100 shadow-sm">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium text-green-700">Course Engagement</span>
-                    <BookOpen className="text-green-600" size={20} />
+                    <BookOpen className="text-green-600" size={22} />
                   </div>
-                  <p className="text-3xl font-bold text-gray-900">{stats.totalEnrollments}</p>
+                  <p className="text-3xl font-bold text-gray-800">{stats.totalEnrollments}</p>
                   <p className="text-xs text-gray-500 mt-1">total enrollments across {stats.totalCourses} courses</p>
                 </div>
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-100">
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100 shadow-sm">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium text-purple-700">Certificates Issued</span>
-                    <Award className="text-purple-600" size={20} />
+                    <Award className="text-purple-600" size={22} />
                   </div>
-                  <p className="text-3xl font-bold text-gray-900">{stats.certificatesIssued}</p>
+                  <p className="text-3xl font-bold text-gray-800">{stats.certificatesIssued}</p>
                   <p className="text-xs text-gray-500 mt-1">+{stats.completedCourses} this period</p>
                 </div>
               </div>
 
               {/* Charts Row */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+                <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Training Hours by Department</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">Training Hours by Department</h3>
                     <button 
                       onClick={() => setShowFullscreenChart('department')}
                       className="text-gray-400 hover:text-gray-600 transition"
@@ -859,9 +858,9 @@ export default function AdminReportsPage() {
                   </ResponsiveContainer>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+                <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Top Facilitators</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">Top Facilitators</h3>
                     <button 
                       onClick={() => setShowFullscreenChart('facilitators')}
                       className="text-gray-400 hover:text-gray-600 transition"
@@ -882,9 +881,9 @@ export default function AdminReportsPage() {
               </div>
 
               {/* Monthly Trends */}
-              <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Monthly Performance Trends</h3>
+                  <h3 className="text-lg font-semibold text-gray-800">Monthly Performance Trends</h3>
                   <div className="flex gap-2">
                     <span className="text-xs text-gray-400 flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-500"></div> Enrollments</span>
                     <span className="text-xs text-gray-400 flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-green-500"></div> Completions</span>
@@ -909,8 +908,8 @@ export default function AdminReportsPage() {
               {/* Evaluation Insights */}
               {stats.totalEvaluations > 0 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Training Effectiveness Radar</h3>
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Training Effectiveness Radar</h3>
                     <ResponsiveContainer width="100%" height={300}>
                       <RadarChart data={radarData}>
                         <PolarGrid stroke="#e5e7eb" />
@@ -922,8 +921,8 @@ export default function AdminReportsPage() {
                     </ResponsiveContainer>
                   </div>
 
-                  <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Feedback Word Cloud</h3>
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Feedback Word Cloud</h3>
                     <div className="flex flex-wrap gap-2 min-h-[250px] items-center justify-center p-4 bg-gradient-to-br from-gray-50 to-white rounded-xl">
                       {evaluationData.wordCloud && evaluationData.wordCloud.length > 0 ? (
                         evaluationData.wordCloud.map((item: any, idx: number) => (
@@ -949,12 +948,12 @@ export default function AdminReportsPage() {
           )}
 
           {activeTab === 'training' && (
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
               {/* Filter Bar */}
               <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Training Records</h2>
+                    <h2 className="text-lg font-semibold text-gray-800">Training Records</h2>
                     <p className="text-sm text-gray-500 mt-0.5">
                       {filteredRecords.length} records • {stats.totalHours} total hours
                     </p>
@@ -1105,24 +1104,24 @@ export default function AdminReportsPage() {
             <div className="space-y-6">
               {/* Evaluation Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="bg-white rounded-2xl shadow-sm p-5 text-center border border-gray-100">
+                <div className="bg-white rounded-xl shadow-lg p-5 text-center border border-gray-100">
                   <p className="text-sm text-gray-500">Total Evaluations</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{evaluationData.total}</p>
+                  <p className="text-3xl font-bold text-gray-800 mt-1">{evaluationData.total}</p>
                 </div>
-                <div className="bg-white rounded-2xl shadow-sm p-5 text-center border border-gray-100">
+                <div className="bg-white rounded-xl shadow-lg p-5 text-center border border-gray-100">
                   <p className="text-sm text-gray-500">Overall Rating</p>
                   <p className="text-3xl font-bold text-yellow-600 mt-1">{evaluationData.averages.overall}</p>
                   <p className="text-xs text-gray-400">/5.0</p>
                 </div>
-                <div className="bg-white rounded-2xl shadow-sm p-5 text-center border border-gray-100">
+                <div className="bg-white rounded-xl shadow-lg p-5 text-center border border-gray-100">
                   <p className="text-sm text-gray-500">Content Quality</p>
                   <p className="text-2xl font-bold text-blue-600 mt-1">{evaluationData.averages.content}</p>
                 </div>
-                <div className="bg-white rounded-2xl shadow-sm p-5 text-center border border-gray-100">
+                <div className="bg-white rounded-xl shadow-lg p-5 text-center border border-gray-100">
                   <p className="text-sm text-gray-500">Facilitator</p>
                   <p className="text-2xl font-bold text-green-600 mt-1">{evaluationData.averages.facilitator}</p>
                 </div>
-                <div className="bg-white rounded-2xl shadow-sm p-5 text-center border border-gray-100">
+                <div className="bg-white rounded-xl shadow-lg p-5 text-center border border-gray-100">
                   <p className="text-sm text-gray-500">Engagement</p>
                   <p className="text-2xl font-bold text-purple-600 mt-1">{evaluationData.averages.engagement}</p>
                 </div>
@@ -1130,8 +1129,8 @@ export default function AdminReportsPage() {
 
               {/* Charts Row */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Rating Distribution</h3>
+                <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Rating Distribution</h3>
                   <ResponsiveContainer width="100%" height={280}>
                     <RePieChart>
                       <Pie
@@ -1154,8 +1153,8 @@ export default function AdminReportsPage() {
                   </ResponsiveContainer>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Course Performance</h3>
+                <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Course Performance</h3>
                   <div className="space-y-3 max-h-[280px] overflow-y-auto pr-2">
                     {evaluationData.byCourse && evaluationData.byCourse.slice(0, 5).map((course: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
@@ -1179,8 +1178,8 @@ export default function AdminReportsPage() {
               </div>
 
               {/* Word Cloud */}
-              <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Word Cloud - One Word Feedback</h3>
+              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Word Cloud - One Word Feedback</h3>
                 <div className="flex flex-wrap gap-2 min-h-[180px] items-center justify-center p-6 bg-gradient-to-br from-gray-50 to-white rounded-xl">
                   {evaluationData.wordCloud && evaluationData.wordCloud.length > 0 ? (
                     evaluationData.wordCloud.map((item: any, idx: number) => (
@@ -1202,9 +1201,9 @@ export default function AdminReportsPage() {
               </div>
 
               {/* Recent Evaluations Table */}
-              <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
                 <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-                  <h3 className="text-lg font-semibold text-gray-900">Recent Evaluations</h3>
+                  <h3 className="text-lg font-semibold text-gray-800">Recent Evaluations</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -1345,6 +1344,6 @@ export default function AdminReportsPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
