@@ -8,8 +8,8 @@ import * as XLSX from 'xlsx'
 import {
   BarChart3, Download, ChevronRight, Users, BookOpen, CheckCircle, Clock, Award, TrendingUp,
   LogOut, Upload, FileSpreadsheet, Activity, Star, Trash2, Plus, Edit, Filter, RefreshCw,
-  Maximize2, GraduationCap, Settings, HelpCircle, LayoutDashboard, Calendar, UserCheck, PieChart,
-  ExternalLink, Shield, Lock, Unlock, UserCog, Eye, Pencil, UserPlus, UserMinus, Crown
+  GraduationCap, LayoutDashboard, Calendar, UserCheck,
+  ExternalLink, Shield, UserCog, Eye, Crown
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -26,7 +26,6 @@ export default function AdminReportsPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showRequestCourseModal, setShowRequestCourseModal] = useState(false)
-  const [showUserManagementModal, setShowUserManagementModal] = useState(false)
   const [editingRecord, setEditingRecord] = useState<any>(null)
   const [importData, setImportData] = useState<any[]>([])
   const [importPreview, setImportPreview] = useState<any[]>([])
@@ -34,11 +33,6 @@ export default function AdminReportsPage() {
   const [dateRangePreset, setDateRangePreset] = useState('all')
   const [allUsers, setAllUsers] = useState<any[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
-  const [requestCourse, setRequestCourse] = useState({
-    course_title: '',
-    available_from: '',
-    available_until: ''
-  })
   const [evaluationData, setEvaluationData] = useState<any>({
     total: 0,
     averages: { content: 0, facilitator: 0, logistics: 0, engagement: 0, applicability: 0, overall: 0 },
@@ -77,7 +71,6 @@ export default function AdminReportsPage() {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
   
-  // Determine user role and permissions from database
   const userRole = userProfile?.role || 'user'
   const isAdmin = userRole === 'admin'
   const isSupervisor = userRole === 'supervisor' || isAdmin
@@ -88,7 +81,6 @@ export default function AdminReportsPage() {
   const canManageUsers = isAdmin
   const canEditRecords = isSupervisor
   const canDeleteRecords = isAdmin
-  const canViewAllData = true
 
   useEffect(() => {
     if (tabParam === 'training') setActiveTab('training')
@@ -430,7 +422,6 @@ export default function AdminReportsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
       <header className="bg-gradient-to-r from-blue-700 to-indigo-800 shadow-lg">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -483,7 +474,6 @@ export default function AdminReportsPage() {
       </header>
 
       <div className="flex">
-        {/* Sidebar */}
         <aside className="w-72 bg-white border-r border-gray-200 shadow-sm min-h-[calc(100vh-80px)]">
           <div className="p-6">
             <div className="mb-6">
@@ -547,9 +537,7 @@ export default function AdminReportsPage() {
           </div>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 p-8">
-          {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
             <div className="bg-white rounded-xl shadow-sm p-5 border"><div className="flex justify-between"><div><p className="text-sm text-gray-500">Training Hours</p><p className="text-2xl font-bold">{stats.totalHours}</p><p className="text-xs text-green-600">+{stats.monthlyGrowth.toFixed(1)}%</p></div><div className="p-3 bg-blue-50 rounded-xl"><Clock className="text-blue-600" size={24} /></div></div></div>
             <div className="bg-white rounded-xl shadow-sm p-5 border"><div className="flex justify-between"><div><p className="text-sm text-gray-500">Total Records</p><p className="text-2xl font-bold">{stats.totalRecords}</p><p className="text-xs text-gray-500">{stats.totalDepartments} depts</p></div><div className="p-3 bg-purple-50 rounded-xl"><FileSpreadsheet className="text-purple-600" size={24} /></div></div></div>
@@ -557,7 +545,6 @@ export default function AdminReportsPage() {
             <div className="bg-white rounded-xl shadow-sm p-5 border"><div className="flex justify-between"><div><p className="text-sm text-gray-500">Completion Rate</p><p className="text-2xl font-bold text-green-600">{stats.completionRate}%</p><p className="text-xs text-gray-500">{stats.completedCourses} completed</p></div><div className="p-3 bg-green-50 rounded-xl"><CheckCircle className="text-green-600" size={24} /></div></div></div>
           </div>
 
-          {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -574,15 +561,13 @@ export default function AdminReportsPage() {
             </div>
           )}
 
-          {/* Training Records Tab */}
           {activeTab === 'training' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden border">
               <div className="p-5 border-b bg-gray-50"><div className="flex justify-between items-center flex-wrap gap-3"><div><h2 className="font-semibold">Training Records</h2><p className="text-sm text-gray-500">{filteredRecords.length} records • {stats.totalHours} hours</p></div><div className="flex gap-2"><div className="flex gap-1 bg-white rounded-lg p-1 border"><button onClick={() => setDateRange('week')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'week' ? 'bg-blue-600 text-white' : ''}`}>Week</button><button onClick={() => setDateRange('month')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'month' ? 'bg-blue-600 text-white' : ''}`}>Month</button><button onClick={() => setDateRange('quarter')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'quarter' ? 'bg-blue-600 text-white' : ''}`}>Quarter</button><button onClick={() => setDateRange('all')} className={`px-3 py-1 text-xs rounded ${dateRangePreset === 'all' ? 'bg-blue-600 text-white' : ''}`}>All</button></div><button onClick={() => setShowFilters(!showFilters)} className="px-3 py-1.5 bg-gray-100 rounded-lg text-sm flex items-center gap-2"><Filter size={14} /> Filters</button><button onClick={clearFilters} className="px-3 py-1.5 bg-gray-100 rounded-lg text-sm"><RefreshCw size={14} /></button></div></div>{showFilters && (<div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-4 gap-3"><select value={filters.attendee} onChange={(e) => setFilters({...filters, attendee: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Attendees</option>{filterOptions.attendees.map(opt => <option key={opt}>{opt}</option>)}</select><select value={filters.role} onChange={(e) => setFilters({...filters, role: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Roles</option>{filterOptions.roles.map(opt => <option key={opt}>{opt}</option>)}</select><select value={filters.course} onChange={(e) => setFilters({...filters, course: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Courses</option>{filterOptions.courses.map(opt => <option key={opt}>{opt}</option>)}</select><select value={filters.department} onChange={(e) => setFilters({...filters, department: e.target.value})} className="px-2 py-1.5 text-sm border rounded"><option value="">All Depts</option>{filterOptions.departments.map(opt => <option key={opt}>{opt}</option>)}</select></div>)}</div>
-              <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 border-b"><table><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Date</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Facilitator</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Dept</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Hours</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Source</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Actions</th></thead><tbody>{filteredRecords.map((r: any) => (<tr key={r.id} className="hover:bg-gray-50"><td className="px-5 py-3 text-sm">{new Date(r.training_date).toLocaleDateString()}</td><td className="px-5 py-3 text-sm font-medium">{r.attendee_name || '-'}</td><td className="px-5 py-3 text-sm">{r.role || '-'}</td><td className="px-5 py-3 text-sm">{r.course}</td><td className="px-5 py-3 text-sm">{r.facilitator || '-'}</td><td className="px-5 py-3 text-sm">{r.department || '-'}</td><td className="px-5 py-3 text-sm">{r.duration_hours}</td><td className="px-5 py-3"><span className={`px-2 py-1 rounded-full text-xs ${r.source === 'google_form' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{r.source || 'manual'}</span></td><td className="px-5 py-3"><div className="flex gap-2">{canEditRecords && <button onClick={() => setEditingRecord(r)} className="text-blue-500 hover:text-blue-700"><Edit size={16} /></button>}{canDeleteRecords && <button onClick={() => handleDeleteRecord(r.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>}</div></td></tr>))}</tbody></table></div>
+              <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 border-b"><tr><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Date</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Facilitator</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Dept</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Hours</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Source</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Actions</th></thead><tbody>{filteredRecords.map((r: any) => (<tr key={r.id} className="hover:bg-gray-50"><td className="px-5 py-3 text-sm">{new Date(r.training_date).toLocaleDateString()}宜昌<td className="px-5 py-3 text-sm font-medium">{r.attendee_name || '-'}宜昌<td className="px-5 py-3 text-sm">{r.role || '-'}宜昌<td className="px-5 py-3 text-sm">{r.course}宜昌<td className="px-5 py-3 text-sm">{r.facilitator || '-'}宜昌<td className="px-5 py-3 text-sm">{r.department || '-'}宜昌<td className="px-5 py-3 text-sm">{r.duration_hours}宜昌<td className="px-5 py-3"><span className={`px-2 py-1 rounded-full text-xs ${r.source === 'google_form' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{r.source || 'manual'}</span>宜昌<td className="px-5 py-3"><div className="flex gap-2">{canEditRecords && <button onClick={() => setEditingRecord(r)} className="text-blue-500 hover:text-blue-700"><Edit size={16} /></button>}{canDeleteRecords && <button onClick={() => handleDeleteRecord(r.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>}</div>宜昌</tr>))}</tbody>}</div>
             </div>
           )}
 
-          {/* Evaluations Tab */}
           {activeTab === 'evaluations' && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -597,73 +582,38 @@ export default function AdminReportsPage() {
                 <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Course Performance</h3><div className="space-y-3 max-h-[260px] overflow-auto">{evaluationData.byCourse?.slice(0,5).map((c: any, i: number) => (<div key={i} className="flex justify-between items-center p-2 bg-gray-50 rounded"><span className="text-sm">{c.course}</span><div className="flex items-center gap-2"><Star size={14} className="text-yellow-500" /><span className="font-semibold">{c.overall}</span><div className="w-16 bg-gray-200 rounded-full h-1"><div className="bg-green-500 h-1 rounded-full" style={{ width: `${(c.overall/5)*100}%` }} /></div></div></div>))}</div></div>
               </div>
               <div className="bg-white rounded-xl p-6 border"><h3 className="font-semibold mb-4">Word Cloud</h3><div className="flex flex-wrap gap-2 justify-center p-6 bg-gray-50 rounded-lg">{evaluationData.wordCloud?.length > 0 ? evaluationData.wordCloud.map((w: any, i: number) => (<span key={i} className="px-3 py-1.5 bg-blue-50 rounded-full" style={{ fontSize: `${12 + w.count * 2}px` }}>{w.word} ({w.count})</span>)) : <p className="text-gray-400">No feedback</p>}</div></div>
-              <div className="bg-white rounded-xl overflow-hidden border"><div className="px-6 py-4 bg-gray-50 border-b"><h3 className="font-semibold">Recent Evaluations</h3></div><div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Rating</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">One Word</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Comments</th></tr></thead><tbody>{evaluationData.recentEvaluations?.slice(0,8).map((e: any) => (<tr key={e.id} className="hover:bg-gray-50"><td className="px-6 py-3 text-sm">{e.attendee_name || 'Anonymous'}</td><td className="px-6 py-3 text-sm">{e.course}</td><td className="px-6 py-3"><div className="flex items-center gap-1"><span className="font-semibold">{e.overall}</span><Star size={12} className="text-yellow-500 fill-yellow-500" /></div></td><td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{e.one_word || '-'}</span></td><td className="px-6 py-3 text-sm text-gray-500 max-w-xs truncate">{e.comments || '-'}</td></tr>))}</tbody></table></div></div>
+              <div className="bg-white rounded-xl overflow-hidden border"><div className="px-6 py-4 bg-gray-50 border-b"><h3 className="font-semibold">Recent Evaluations</h3></div><div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Rating</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">One Word</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Comments</th> </thead><tbody>{evaluationData.recentEvaluations?.slice(0,8).map((e: any) => (<tr key={e.id} className="hover:bg-gray-50"><td className="px-6 py-3 text-sm">{e.attendee_name || 'Anonymous'}宜昌<td className="px-6 py-3 text-sm">{e.course}宜昌<td className="px-6 py-3"><div className="flex items-center gap-1"><span className="font-semibold">{e.overall}</span><Star size={12} className="text-yellow-500 fill-yellow-500" /></div>宜昌<td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{e.one_word || '-'}</span>宜昌<td className="px-6 py-3 text-sm text-gray-500 max-w-xs truncate">{e.comments || '-'}宜昌</tr>))}</tbody> </div></div>
             </div>
           )}
 
-          {/* User Management Tab - Only for Admin */}
           {activeTab === 'users' && isAdmin && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden border">
               <div className="p-5 border-b bg-gray-50">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-800">User Management</h2>
-                    <p className="text-sm text-gray-500">Manage user roles and permissions</p>
-                  </div>
-                  <button onClick={loadAllUsers} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700">
-                    <RefreshCw size={14} /> Refresh
-                  </button>
+                  <div><h2 className="text-lg font-semibold text-gray-800">User Management</h2><p className="text-sm text-gray-500">Manage user roles and permissions</p></div>
+                  <button onClick={loadAllUsers} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700"><RefreshCw size={14} /> Refresh</button>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Current Role</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Change Role</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User ID</th>
-                    </tr>
+                    <tr><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Current Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Change Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User ID</th></tr>
                   </thead>
                   <tbody className="divide-y">
-                    {usersLoading ? (
-                      <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">Loading users...</td></tr>
-                    ) : allUsers.length === 0 ? (
-                      <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">No users found</td></tr>
-                    ) : (
-                      allUsers.map((u: any) => (
-                        <tr key={u.id} className="hover:bg-gray-50">
-                          <td className="px-5 py-4 text-sm font-medium text-gray-900">{u.email}</td>
-                          <td className="px-5 py-4">{getRoleBadge(u.role || 'user')}</td>
-                          <td className="px-5 py-4">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => updateUserRole(u.id, 'user')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${u.role === 'user' ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                                disabled={u.role === 'user'}
-                              >
-                                <Eye size={12} className="inline mr-1" /> Viewer
-                              </button>
-                              <button
-                                onClick={() => updateUserRole(u.id, 'supervisor')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${u.role === 'supervisor' ? 'bg-blue-200 text-blue-700 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
-                                disabled={u.role === 'supervisor'}
-                              >
-                                <UserCog size={12} className="inline mr-1" /> Supervisor
-                              </button>
-                              <button
-                                onClick={() => updateUserRole(u.id, 'admin')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${u.role === 'admin' ? 'bg-red-200 text-red-700 cursor-not-allowed' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}
-                                disabled={u.role === 'admin'}
-                              >
-                                <Crown size={12} className="inline mr-1" /> Admin
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 text-xs text-gray-400 font-mono">{u.id.slice(0, 8)}...</td>
-                        </tr>
-                      ))
-                    )}
+                    {usersLoading ? <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">Loading users...</td></tr> : allUsers.length === 0 ? <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">No users found</td></tr> : allUsers.map((u: any) => (
+                      <tr key={u.id} className="hover:bg-gray-50">
+                        <td className="px-5 py-4 text-sm font-medium text-gray-900">{u.email}</td>
+                        <td className="px-5 py-4">{getRoleBadge(u.role || 'user')}</td>
+                        <td className="px-5 py-4">
+                          <div className="flex gap-2">
+                            <button onClick={() => updateUserRole(u.id, 'user')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${u.role === 'user' ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} disabled={u.role === 'user'}><Eye size={12} className="inline mr-1" /> Viewer</button>
+                            <button onClick={() => updateUserRole(u.id, 'supervisor')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${u.role === 'supervisor' ? 'bg-blue-200 text-blue-700 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`} disabled={u.role === 'supervisor'}><UserCog size={12} className="inline mr-1" /> Supervisor</button>
+                            <button onClick={() => updateUserRole(u.id, 'admin')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${u.role === 'admin' ? 'bg-red-200 text-red-700 cursor-not-allowed' : 'bg-red-50 text-red-600 hover:bg-red-100'}`} disabled={u.role === 'admin'}><Crown size={12} className="inline mr-1" /> Admin</button>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-xs text-gray-400 font-mono">{u.id.slice(0, 8)}...</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
