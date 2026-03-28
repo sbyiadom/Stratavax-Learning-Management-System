@@ -7,21 +7,38 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
     
+    console.log('=== API Debug ===')
+    
     // Check if user is authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log('Auth user:', user?.email)
+    console.log('Auth error:', authError)
+    
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    // Check if user is admin
-    const { data: profile } = await supabase
+    // Check user's profile
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, email')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
+    
+    console.log('Profile found:', profile)
+    console.log('Profile error:', profileError)
+    console.log('User role from profile:', profile?.role)
+    console.log('Is admin?', profile?.role === 'admin')
     
     if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+      return NextResponse.json({ 
+        error: 'Admin access required',
+        debug: { 
+          userEmail: user.email,
+          userRole: profile?.role,
+          profileExists: !!profile
+        }
+      }, { status: 403 })
     }
     
     // Get all users from profiles table
@@ -29,6 +46,8 @@ export async function GET(request: NextRequest) {
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false })
+    
+    console.log('Users found:', users?.length)
     
     if (usersError) {
       console.error('Error fetching users:', usersError)
@@ -53,24 +72,21 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'User ID and role are required' }, { status: 400 })
     }
     
-    // Check if user is authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    // Check if user is admin
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
     
     if (profile?.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
     
-    // Update user role
     const { data: updatedUser, error: updateError } = await supabase
       .from('profiles')
       .update({ role })
