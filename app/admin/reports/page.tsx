@@ -818,9 +818,6 @@ export default function AdminReportsPage() {
               <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-800">Training Hours by Department</h3>
-                  <button onClick={() => setShowFullscreenChart('department')} className="text-gray-400 hover:text-gray-600 transition">
-                    <Maximize2 size={16} />
-                  </button>
                 </div>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={departmentData} layout="vertical">
@@ -836,9 +833,6 @@ export default function AdminReportsPage() {
               <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-800">Top Facilitators</h3>
-                  <button onClick={() => setShowFullscreenChart('facilitators')} className="text-gray-400 hover:text-gray-600 transition">
-                    <Maximize2 size={16} />
-                  </button>
                 </div>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={facilitatorData}>
@@ -1019,8 +1013,7 @@ export default function AdminReportsPage() {
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hours</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Source</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
+                   </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredRecords.map((record: any) => (
                     <tr key={record.id} className="hover:bg-gray-50 transition">
