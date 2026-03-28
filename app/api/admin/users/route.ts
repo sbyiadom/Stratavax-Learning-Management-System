@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
     
-    // Get all users with their profiles
+    // Get all users from profiles table
     const { data: users, error: usersError } = await supabase
       .from('profiles')
       .select('*')
