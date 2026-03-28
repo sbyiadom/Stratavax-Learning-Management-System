@@ -417,9 +417,9 @@ export default function AdminReportsPage() {
 
   const getRoleBadgeForCurrentUser = () => {
     switch(userRole) {
-      case 'admin': return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium flex items-center gap-1"><Crown size={12} /> Admin</span>
-      case 'supervisor': return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium flex items-center gap-1"><UserCog size={12} /> Supervisor</span>
-      default: return <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium flex items-center gap-1"><Eye size={12} /> Viewer</span>
+      case 'admin': return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium inline-flex items-center gap-1"><Crown size={12} /> Admin</span>
+      case 'supervisor': return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium inline-flex items-center gap-1"><UserCog size={12} /> Supervisor</span>
+      default: return <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium inline-flex items-center gap-1"><Eye size={12} /> Viewer</span>
     }
   }
 
@@ -429,7 +429,7 @@ export default function AdminReportsPage() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
                 <BarChart3 className="text-white" size={22} />
               </div>
               <div>
@@ -593,7 +593,10 @@ export default function AdminReportsPage() {
                   <h3 className="font-semibold mb-4">Training Hours by Department</h3>
                   <ResponsiveContainer height={280}>
                     <BarChart data={departmentData} layout="vertical">
-                      <CartesianGrid /><XAxis type="number" /><YAxis type="category" dataKey="name" width={100} /><Tooltip />
+                      <CartesianGrid />
+                      <XAxis type="number" />
+                      <YAxis type="category" dataKey="name" width={100} />
+                      <Tooltip />
                       <Bar dataKey="hours" fill="#3b82f6" radius={[0,8,8,0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -602,7 +605,10 @@ export default function AdminReportsPage() {
                   <h3 className="font-semibold mb-4">Top Facilitators</h3>
                   <ResponsiveContainer height={280}>
                     <BarChart data={facilitatorData}>
-                      <CartesianGrid /><XAxis dataKey="name" /><YAxis /><Tooltip />
+                      <CartesianGrid />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
                       <Bar dataKey="hours" fill="#10b981" radius={[8,8,0,0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -613,8 +619,12 @@ export default function AdminReportsPage() {
                 <h3 className="font-semibold mb-4">Monthly Trends</h3>
                 <ResponsiveContainer height={320}>
                   <ComposedChart data={monthlyData}>
-                    <CartesianGrid /><XAxis dataKey="month" /><YAxis yAxisId="left" /><YAxis yAxisId="right" orientation="right" />
-                    <Tooltip /><Legend />
+                    <CartesianGrid />
+                    <XAxis dataKey="month" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Legend />
                     <Bar yAxisId="left" dataKey="enrollments" fill="#3b82f6" name="Enrollments" />
                     <Bar yAxisId="left" dataKey="completions" fill="#10b981" name="Completions" />
                     <Line yAxisId="right" type="monotone" dataKey="trainingHours" stroke="#f59e0b" name="Hours" />
@@ -628,7 +638,9 @@ export default function AdminReportsPage() {
                     <h3 className="font-semibold mb-4">Effectiveness Radar</h3>
                     <ResponsiveContainer height={300}>
                       <RadarChart data={radarData}>
-                        <PolarGrid /><PolarAngleAxis dataKey="subject" /><PolarRadiusAxis domain={[0,5]} />
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="subject" />
+                        <PolarRadiusAxis domain={[0,5]} />
                         <Radar dataKey="rating" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
                       </RadarChart>
                     </ResponsiveContainer>
@@ -674,23 +686,24 @@ export default function AdminReportsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b">
-                    <tr><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Date</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Facilitator</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Dept</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Hours</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Source</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Actions</th> </thead>
+                    <tr><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Date</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Role</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Facilitator</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Dept</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Hours</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Source</th><th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Actions</th></tr>
+                  </thead>
                   <tbody>
                     {filteredRecords.map((r: any) => (
                       <tr key={r.id} className="hover:bg-gray-50">
-                        <td className="px-5 py-3 text-sm">{new Date(r.training_date).toLocaleDateString()}宜昌
-                        <td className="px-5 py-3 text-sm font-medium">{r.attendee_name || '-'}宜昌
-                        <td className="px-5 py-3 text-sm">{r.role || '-'}宜昌
-                        <td className="px-5 py-3 text-sm">{r.course}宜昌
-                        <td className="px-5 py-3 text-sm">{r.facilitator || '-'}宜昌
-                        <td className="px-5 py-3 text-sm">{r.department || '-'}宜昌
-                        <td className="px-5 py-3 text-sm">{r.duration_hours}宜昌
-                        <td className="px-5 py-3"><span className={`px-2 py-1 rounded-full text-xs ${r.source === 'google_form' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{r.source || 'manual'}</span>宜昌
-                        <td className="px-5 py-3"><div className="flex gap-2">{canEditRecords && <button onClick={() => setEditingRecord(r)} className="text-blue-500 hover:text-blue-700"><Edit size={16} /></button>}{canDeleteRecords && <button onClick={() => handleDeleteRecord(r.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>}</div>宜昌
-                       </tr>
+                        <td className="px-5 py-3 text-sm">{new Date(r.training_date).toLocaleDateString()}</td>
+                        <td className="px-5 py-3 text-sm font-medium">{r.attendee_name || '-'}</td>
+                        <td className="px-5 py-3 text-sm">{r.role || '-'}</td>
+                        <td className="px-5 py-3 text-sm">{r.course}</td>
+                        <td className="px-5 py-3 text-sm">{r.facilitator || '-'}</td>
+                        <td className="px-5 py-3 text-sm">{r.department || '-'}</td>
+                        <td className="px-5 py-3 text-sm">{r.duration_hours}</td>
+                        <td className="px-5 py-3"><span className={`px-2 py-1 rounded-full text-xs ${r.source === 'google_form' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{r.source || 'manual'}</span></td>
+                        <td className="px-5 py-3"><div className="flex gap-2">{canEditRecords && <button onClick={() => setEditingRecord(r)} className="text-blue-500 hover:text-blue-700"><Edit size={16} /></button>}{canDeleteRecords && <button onClick={() => handleDeleteRecord(r.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>}</div></td>
+                      </tr>
                     ))}
                   </tbody>
-                 </table>
+                </table>
               </div>
             </div>
           )}
@@ -748,19 +761,20 @@ export default function AdminReportsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
-                      <tr><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Rating</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">One Word</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Comments</th> </thead>
+                      <tr><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Attendee</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Course</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Rating</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">One Word</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-500">Comments</th></tr>
+                    </thead>
                     <tbody>
                       {evaluationData.recentEvaluations?.slice(0,8).map((e: any) => (
                         <tr key={e.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-3 text-sm">{e.attendee_name || 'Anonymous'}宜昌
-                          <td className="px-6 py-3 text-sm">{e.course}宜昌
-                          <td className="px-6 py-3"><div className="flex items-center gap-1"><span className="font-semibold">{e.overall}</span><Star size={12} className="text-yellow-500 fill-yellow-500" /></div>宜昌
-                          <td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{e.one_word || '-'}</span>宜昌
-                          <td className="px-6 py-3 text-sm text-gray-500 max-w-xs truncate">{e.comments || '-'}宜昌
-                         </tr>
+                          <td className="px-6 py-3 text-sm">{e.attendee_name || 'Anonymous'}</td>
+                          <td className="px-6 py-3 text-sm">{e.course}</td>
+                          <td className="px-6 py-3"><div className="flex items-center gap-1"><span className="font-semibold">{e.overall}</span><Star size={12} className="text-yellow-500 fill-yellow-500" /></div></td>
+                          <td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{e.one_word || '-'}</span></td>
+                          <td className="px-6 py-3 text-sm text-gray-500 max-w-xs truncate">{e.comments || '-'}</td>
+                        </tr>
                       ))}
                     </tbody>
-                   </table>
+                  </table>
                 </div>
               </div>
             </div>
@@ -800,7 +814,7 @@ export default function AdminReportsPage() {
                         <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Current Role</th>
                         <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Change Role</th>
                         <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Joined</th>
-                       </tr>
+                      </tr>
                     </thead>
                     <tbody className="divide-y">
                       {allUsers.map((u: any) => (
