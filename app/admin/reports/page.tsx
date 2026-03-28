@@ -15,10 +15,10 @@ import {
   Filter, Calendar, User, Briefcase, Bookmark, Users2, MapPin, RefreshCw,
   PieChart, Target, Zap, Brain, Globe, Shield, Sparkles,
   TrendingDown, AlertCircle, Info, Maximize2, Minimize2,
-  GraduationCap, Medal, Trophy, LineChart
+  GraduationCap, Medal, Trophy
 } from 'lucide-react'
 import {
-  BarChart, Bar, LineChart, Line, AreaChart, Area,
+  BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   PieChart as RePieChart, Pie, Cell, ComposedChart
