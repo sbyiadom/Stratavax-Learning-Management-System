@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
@@ -115,9 +116,19 @@ export default function AdminReportsPage() {
   
   const supabase = createClient()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get('tab')
 
-  // Color palette for charts
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec489a', '#06b6d4', '#84cc16']
+  // Handle tab navigation from URL
+  useEffect(() => {
+    if (tabParam === 'training') {
+      setActiveTab('training')
+    } else if (tabParam === 'evaluations') {
+      setActiveTab('evaluations')
+    } else {
+      setActiveTab('overview')
+    }
+  }, [tabParam])
 
   useEffect(() => {
     const init = async () => {
@@ -751,24 +762,48 @@ export default function AdminReportsPage() {
 
           {/* Tabs */}
           <div className="flex gap-2 mb-6 border-b border-gray-200">
-            {[
-              { id: 'overview', label: 'Overview', icon: BarChart3 },
-              { id: 'training', label: 'Training Records', icon: FileSpreadsheet },
-              { id: 'evaluations', label: 'Evaluations', icon: Star }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium rounded-t-lg transition ${
-                  activeTab === tab.id
-                    ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <tab.icon size={18} />
-                {tab.label}
-              </button>
-            ))}
+            <button
+              onClick={() => {
+                setActiveTab('overview')
+                router.push('/admin/reports')
+              }}
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium rounded-t-lg transition ${
+                activeTab === 'overview'
+                  ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <BarChart3 size={18} />
+              Overview
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('training')
+                router.push('/admin/reports?tab=training')
+              }}
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium rounded-t-lg transition ${
+                activeTab === 'training'
+                  ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <FileSpreadsheet size={18} />
+              Training Records
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('evaluations')
+                router.push('/admin/reports?tab=evaluations')
+              }}
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium rounded-t-lg transition ${
+                activeTab === 'evaluations'
+                  ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Star size={18} />
+              Evaluations
+            </button>
           </div>
 
           {activeTab === 'overview' && (
@@ -1213,7 +1248,7 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Modals remain the same */}
+      {/* Add Record Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
@@ -1239,6 +1274,7 @@ export default function AdminReportsPage() {
         </div>
       )}
 
+      {/* Edit Record Modal */}
       {editingRecord && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
@@ -1264,6 +1300,7 @@ export default function AdminReportsPage() {
         </div>
       )}
 
+      {/* Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl max-w-2xl w-full shadow-xl">
