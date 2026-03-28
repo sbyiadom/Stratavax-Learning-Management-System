@@ -1,13 +1,12 @@
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import Navigation from '@/components/Navigation'
+import DashboardSidebar from '@/components/dashboard/Sidebar'
+import InsightCard from '@/components/InsightCard'
 import { 
   BookOpen, Clock, Award, TrendingUp, ChevronRight, 
-  FileSpreadsheet, Plus, ExternalLink, Sparkles, 
-  Zap, Target, Brain, Star, Calendar, CheckCircle2,
-  ArrowRight, BarChart3, Users, GraduationCap, Trophy,
-  Flame, Rocket, Coffee, Heart, Globe, Lightbulb
+  FileSpreadsheet, Plus, ExternalLink, ArrowRight,
+  BarChart3
 } from 'lucide-react'
 
 export default async function DashboardPage() {
@@ -62,21 +61,12 @@ export default async function DashboardPage() {
   ]
   const randomQuote = quotes[Math.floor(Math.random() * quotes.length)]
   
-  // Professional tips
-  const tips = [
-    "Set aside 30 minutes daily for focused learning",
-    "Complete one module at a time for better retention",
-    "Review completed materials to reinforce understanding",
-    "Take structured notes during course sessions",
-    "Consistent practice yields the best results",
-  ]
-  const randomTip = tips[Math.floor(Math.random() * tips.length)]
-  
   return (
-    <>
-      <Navigation user={user} isAdmin={isAdmin} />
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="flex min-h-screen bg-gray-50">
+      <DashboardSidebar />
+      
+      <div className="flex-1 ml-0 transition-all duration-300">
+        <div className="max-w-6xl mx-auto px-6 py-8">
           
           {/* Hero Section - Professional */}
           <div className="relative mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 p-8 shadow-xl">
@@ -108,21 +98,8 @@ export default async function DashboardPage() {
             </div>
           </div>
           
-          {/* Daily Insight Banner - Professional */}
-          <div className="mb-8 bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="text-gray-600" size={18} />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Insight</p>
-                <p className="text-sm text-gray-700">{randomTip}</p>
-              </div>
-            </div>
-            <button className="text-gray-400 text-xs hover:text-gray-600 flex items-center gap-1">
-              View all insights <ArrowRight size={12} />
-            </button>
-          </div>
+          {/* Interactive Insight Card - Now interactive! */}
+          <InsightCard />
           
           {/* Quick Actions Cards */}
           <div className="mb-10">
@@ -237,7 +214,7 @@ export default async function DashboardPage() {
             
             {validEnrollments.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {validEnrollments.map((enrollment: any, index: number) => {
+                {validEnrollments.map((enrollment: any) => {
                   const progress = enrollment.progress_percentage || 0
                   
                   return (
@@ -325,6 +302,6 @@ export default async function DashboardPage() {
           )}
         </div>
       </div>
-    </>
+    </div>
   )
 }
