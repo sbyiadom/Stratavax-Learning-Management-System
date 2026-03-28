@@ -17,22 +17,25 @@ import {
   Shield,
   Database,
   Upload,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Award,
+  TrendingUp,
+  Sparkles
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
 
 const navItems = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'My Courses', href: '/dashboard/courses', icon: BookOpen },
-  { name: 'Explore', href: '/dashboard/explore', icon: Compass },
-  { name: 'Progress', href: '/dashboard/progress', icon: BarChart3 },
-  { name: 'Assignments', href: '/dashboard/assignments', icon: FileText },
-  { name: 'Community', href: '/dashboard/community', icon: Users },
-  { name: 'Certificates', href: '/dashboard/certificates', icon: GraduationCap },
-  { name: 'Reports', href: '/admin/reports', icon: FileSpreadsheet },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { name: 'Dashboard', href: '/dashboard', icon: Home, color: 'blue' },
+  { name: 'My Courses', href: '/dashboard/courses', icon: BookOpen, color: 'green' },
+  { name: 'Explore', href: '/dashboard/explore', icon: Compass, color: 'purple' },
+  { name: 'Progress', href: '/dashboard/progress', icon: TrendingUp, color: 'orange' },
+  { name: 'Assignments', href: '/dashboard/assignments', icon: FileText, color: 'indigo' },
+  { name: 'Community', href: '/dashboard/community', icon: Users, color: 'pink' },
+  { name: 'Certificates', href: '/dashboard/certificates', icon: Award, color: 'yellow' },
+  { name: 'Reports', href: '/admin/reports', icon: FileSpreadsheet, color: 'teal' },
+  { name: 'Settings', href: '/dashboard/settings', icon: Settings, color: 'gray' },
 ]
 
 export default function DashboardSidebar() {
@@ -53,39 +56,91 @@ export default function DashboardSidebar() {
   const ADMIN_EMAIL = 'sbyiadom88@gmail.com'
   const isAdmin = userEmail === ADMIN_EMAIL
 
+  const getActiveStyles = (isActive: boolean, color: string) => {
+    if (!isActive) return ''
+    const colorMap: Record<string, string> = {
+      blue: 'bg-blue-50 text-blue-700 border-l-4 border-blue-600',
+      green: 'bg-green-50 text-green-700 border-l-4 border-green-600',
+      purple: 'bg-purple-50 text-purple-700 border-l-4 border-purple-600',
+      orange: 'bg-orange-50 text-orange-700 border-l-4 border-orange-600',
+      indigo: 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-600',
+      pink: 'bg-pink-50 text-pink-700 border-l-4 border-pink-600',
+      yellow: 'bg-yellow-50 text-yellow-700 border-l-4 border-yellow-600',
+      teal: 'bg-teal-50 text-teal-700 border-l-4 border-teal-600',
+      gray: 'bg-gray-100 text-gray-800 border-l-4 border-gray-500',
+    }
+    return colorMap[color] || 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
+  }
+
+  const getIconColor = (isActive: boolean, color: string) => {
+    if (isActive) return ''
+    const colorMap: Record<string, string> = {
+      blue: 'text-blue-500',
+      green: 'text-green-500',
+      purple: 'text-purple-500',
+      orange: 'text-orange-500',
+      indigo: 'text-indigo-500',
+      pink: 'text-pink-500',
+      yellow: 'text-yellow-600',
+      teal: 'text-teal-500',
+      gray: 'text-gray-500',
+    }
+    return colorMap[color] || 'text-gray-500'
+  }
+
   return (
     <div 
       className={cn(
-        "bg-white border-r transition-all duration-300 h-[calc(100vh-73px)] sticky top-[73px]",
+        "bg-gradient-to-b from-gray-50 to-white border-r border-gray-200 transition-all duration-300 h-[calc(100vh-73px)] sticky top-[73px] shadow-sm",
         collapsed ? 'w-20' : 'w-64'
       )}
     >
       <div className="flex flex-col h-full">
+        {/* Logo Area */}
+        {!collapsed && (
+          <div className="px-4 pt-4 pb-2 mb-2 border-b border-gray-200">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
+                <GraduationCap className="text-white" size={18} />
+              </div>
+              <span className="font-semibold text-gray-800">Stratavax</span>
+            </div>
+          </div>
+        )}
+
         {/* Navigation */}
-        <nav className="flex-1 p-4">
-          <ul className="space-y-2">
+        <nav className="flex-1 p-3 overflow-y-auto">
+          <ul className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+              const activeStyles = getActiveStyles(isActive, item.color)
+              const iconColor = getIconColor(isActive, item.color)
               
               return (
                 <li key={item.name}>
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center rounded-lg px-3 py-2 transition-colors",
-                      isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-700 hover:bg-gray-100',
+                      "flex items-center rounded-lg px-3 py-2.5 transition-all duration-200 group",
+                      isActive 
+                        ? activeStyles
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
                       collapsed && 'justify-center'
                     )}
                   >
                     <Icon className={cn(
-                      "h-5 w-5",
-                      isActive ? 'text-blue-700' : 'text-gray-500'
+                      "h-5 w-5 transition-colors",
+                      isActive ? 'text-current' : iconColor,
+                      !isActive && 'group-hover:text-gray-700'
                     )} />
                     {!collapsed && (
-                      <span className="ml-3 font-medium">{item.name}</span>
+                      <span className={cn(
+                        "ml-3 text-sm font-medium",
+                        isActive ? 'text-current' : 'text-gray-600'
+                      )}>
+                        {item.name}
+                      </span>
                     )}
                   </Link>
                 </li>
@@ -94,26 +149,32 @@ export default function DashboardSidebar() {
           </ul>
         </nav>
 
-        {/* Admin Section - Only visible to admin */}
+        {/* Admin Section - Enhanced with gradient */}
         {isAdmin && (
-          <div className="px-4 pt-4 border-t">
+          <div className="px-3 pt-4 pb-2 border-t border-gray-200">
             {!collapsed && (
-              <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Admin
-              </h3>
+              <div className="px-3 mb-2 flex items-center gap-2">
+                <Shield className="h-3 w-3 text-indigo-500" />
+                <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+                  Administration
+                </span>
+              </div>
             )}
-            <ul className="space-y-2">
+            <ul className="space-y-1">
               <li>
                 <Link
                   href="/dashboard/admin/resources"
                   className={cn(
-                    "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-700 hover:bg-gray-100",
+                    "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 group",
                     collapsed && 'justify-center'
                   )}
                 >
-                  <Database className="h-5 w-5 text-gray-500" />
+                  <Database className={cn(
+                    "h-5 w-5 transition-colors",
+                    collapsed ? 'text-indigo-500' : 'text-gray-500 group-hover:text-indigo-600'
+                  )} />
                   {!collapsed && (
-                    <span className="ml-3 font-medium">Manage Resources</span>
+                    <span className="ml-3 text-sm font-medium">Manage Resources</span>
                   )}
                 </Link>
               </li>
@@ -121,13 +182,16 @@ export default function DashboardSidebar() {
                 <Link
                   href="/dashboard/admin/upload"
                   className={cn(
-                    "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-700 hover:bg-gray-100",
+                    "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 group",
                     collapsed && 'justify-center'
                   )}
                 >
-                  <Upload className="h-5 w-5 text-gray-500" />
+                  <Upload className={cn(
+                    "h-5 w-5 transition-colors",
+                    collapsed ? 'text-indigo-500' : 'text-gray-500 group-hover:text-indigo-600'
+                  )} />
                   {!collapsed && (
-                    <span className="ml-3 font-medium">Upload Content</span>
+                    <span className="ml-3 text-sm font-medium">Upload Content</span>
                   )}
                 </Link>
               </li>
@@ -136,12 +200,12 @@ export default function DashboardSidebar() {
         )}
 
         {/* Bottom Section */}
-        <div className="p-4 border-t mt-auto">
-          {/* Toggle Button */}
+        <div className="p-3 border-t border-gray-200 mt-auto">
+          {/* Collapse Button */}
           <button
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
-              "flex items-center w-full py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors",
+              "flex items-center w-full py-2.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all",
               collapsed ? 'justify-center' : 'px-3'
             )}
           >
@@ -150,7 +214,7 @@ export default function DashboardSidebar() {
             ) : (
               <>
                 <ChevronLeft className="h-5 w-5" />
-                <span className="ml-2 text-sm">Collapse</span>
+                <span className="ml-2 text-sm">Collapse menu</span>
               </>
             )}
           </button>
