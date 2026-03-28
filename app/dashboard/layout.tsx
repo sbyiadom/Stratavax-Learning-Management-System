@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import DashboardHeader from '@/components/dashboard/Header'
-import DashboardSidebar from '@/components/dashboard/Sidebar'
 
 export default function DashboardLayout({
   children,
@@ -13,6 +11,7 @@ export default function DashboardLayout({
 }) {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const router = useRouter()
 
   useEffect(() => {
     const getUser = async () => {
@@ -39,15 +38,6 @@ export default function DashboardLayout({
     return null
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader user={user} />
-      <div className="flex">
-        <DashboardSidebar />
-        <main className="flex-1 p-6 lg:p-8">
-          {children}
-        </main>
-      </div>
-    </div>
-  )
+  // Just return children - the sidebar is already in the page component
+  return <>{children}</>
 }
