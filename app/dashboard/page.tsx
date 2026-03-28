@@ -63,11 +63,11 @@ export default async function DashboardPage() {
   
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar - Only one sidebar now */}
+      {/* Only ONE sidebar - the dark one */}
       <DashboardSidebar />
       
-      {/* Main Content */}
-      <div className="flex-1 ml-0">
+      {/* Main Content Area */}
+      <div className="flex-1">
         <div className="max-w-7xl mx-auto px-6 py-8">
           
           {/* Hero Section */}
