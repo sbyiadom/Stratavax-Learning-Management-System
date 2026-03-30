@@ -6,7 +6,7 @@ import InsightCard from '@/components/InsightCard'
 import { 
   BookOpen, Clock, Award, TrendingUp, ChevronRight, 
   FileSpreadsheet, Plus, ExternalLink, ArrowRight,
-  BarChart3, User
+  BarChart3
 } from 'lucide-react'
 
 export default async function DashboardPage() {
@@ -15,12 +15,17 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
   
-  // Get user's profile with name
-  const { data: profile } = await supabase
+  console.log('User email:', user.email) // Debug log
+  
+  // Get user's profile with name - using maybeSingle() to avoid errors
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('first_name, last_name, role')
     .eq('id', user.id)
     .maybeSingle()
+  
+  console.log('Profile data:', profile) // Debug log
+  console.log('Profile error:', profileError) // Debug log
   
   const { data: enrollments } = await supabase
     .from('enrollments')
@@ -44,7 +49,7 @@ export default async function DashboardPage() {
   const totalLessons = lessonProgress?.length || 0
   const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
   
-  // Get user's name - use first_name if available, otherwise email
+  // Get user's name - use first_name if available
   const firstName = profile?.first_name || user.email?.split('@')[0] || 'Learner'
   const lastName = profile?.last_name || ''
   const fullName = lastName ? `${firstName} ${lastName}` : firstName
