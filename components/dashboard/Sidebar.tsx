@@ -67,7 +67,6 @@ export default function DashboardSidebar() {
         
         if (profile) {
           setUserRole(profile.role || 'user')
-          // Use first_name if available, otherwise fallback to email prefix
           setUserName(profile.first_name || user.email?.split('@')[0] || null)
         } else {
           setUserRole('user')
@@ -158,213 +157,217 @@ export default function DashboardSidebar() {
   return (
     <div 
       className={cn(
-        "bg-gradient-to-b from-gray-900 to-gray-800 text-white transition-all duration-300 h-screen sticky top-0 shadow-xl",
+        "bg-gradient-to-b from-gray-900 to-gray-800 text-white transition-all duration-300 h-screen sticky top-0 shadow-xl flex flex-col",
         collapsed ? 'w-20' : 'w-64'
       )}
     >
-      <div className="flex flex-col h-full">
-        {/* Logo Area */}
-        {!collapsed && (
-          <div className="px-4 pt-6 pb-4 mb-2 border-b border-gray-700">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm">
-                <GraduationCap className="text-white" size={18} />
-              </div>
-              <span className="font-semibold text-white">StrataVax</span>
+      {/* Logo Area */}
+      {!collapsed && (
+        <div className="px-4 pt-5 pb-3 mb-1 border-b border-gray-700 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm">
+              <GraduationCap className="text-white" size={18} />
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="font-semibold text-white">Stratavax</span>
+              <span className="text-xs font-medium text-blue-400 bg-blue-500/20 px-1.5 py-0.5 rounded-full">LMS</span>
             </div>
           </div>
-        )}
-
-        {/* User Info Area */}
-        {!collapsed && (
-          <div className="px-4 py-3 mb-2 border-b border-gray-700">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">
-                  {displayName.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{displayName}</p>
-                <p className={`text-xs ${getRoleBadgeClass()} rounded-full px-2 py-0.5 inline-block mt-1`}>
-                  {getRoleDisplay()}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Navigation */}
-        <nav className="flex-1 p-3 overflow-y-auto">
-          <ul className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
-              const activeStyles = getActiveStyles(isActive, item.color)
-              const iconColor = getIconColor(isActive, item.color)
-              
-              return (
-                <li key={item.name}>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex items-center rounded-lg px-3 py-2.5 transition-all duration-200 group",
-                      isActive 
-                        ? activeStyles
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white',
-                      collapsed && 'justify-center'
-                    )}
-                  >
-                    <Icon className={cn(
-                      "h-5 w-5 transition-colors",
-                      isActive ? 'text-current' : iconColor,
-                      !isActive && 'group-hover:text-white'
-                    )} />
-                    {!collapsed && (
-                      <span className={cn(
-                        "ml-3 text-sm font-medium",
-                        isActive ? 'text-current' : 'text-gray-300'
-                      )}>
-                        {item.name}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        </nav>
-
-        {/* Admin Section */}
-        {isAdmin && (
-          <div className="px-3 pt-4 pb-2 border-t border-gray-700">
-            {!collapsed && (
-              <div className="px-3 mb-2 flex items-center gap-2">
-                <Shield className="h-3 w-3 text-indigo-400" />
-                <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
-                  Administration
-                </span>
-              </div>
-            )}
-            <ul className="space-y-1">
-              <li>
-                <Link
-                  href="/admin/reports"
-                  className={cn(
-                    "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                    collapsed && 'justify-center'
-                  )}
-                >
-                  <BarChart3 className={cn(
-                    "h-5 w-5 transition-colors",
-                    collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
-                  )} />
-                  {!collapsed && (
-                    <span className="ml-3 text-sm font-medium">Analytics</span>
-                  )}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/dashboard/admin/resources"
-                  className={cn(
-                    "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                    collapsed && 'justify-center'
-                  )}
-                >
-                  <Database className={cn(
-                    "h-5 w-5 transition-colors",
-                    collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
-                  )} />
-                  {!collapsed && (
-                    <span className="ml-3 text-sm font-medium">Manage Resources</span>
-                  )}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/dashboard/admin/upload"
-                  className={cn(
-                    "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                    collapsed && 'justify-center'
-                  )}
-                >
-                  <Upload className={cn(
-                    "h-5 w-5 transition-colors",
-                    collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
-                  )} />
-                  {!collapsed && (
-                    <span className="ml-3 text-sm font-medium">Upload Content</span>
-                  )}
-                </Link>
-              </li>
-            </ul>
-          </div>
-        )}
-
-        {/* Supervisor Section */}
-        {isSupervisor && !isAdmin && (
-          <div className="px-3 pt-4 pb-2 border-t border-gray-700">
-            {!collapsed && (
-              <div className="px-3 mb-2 flex items-center gap-2">
-                <Shield className="h-3 w-3 text-blue-400" />
-                <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
-                  Supervisor Tools
-                </span>
-              </div>
-            )}
-            <ul className="space-y-1">
-              <li>
-                <Link
-                  href="/admin/reports"
-                  className={cn(
-                    "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                    collapsed && 'justify-center'
-                  )}
-                >
-                  <FileSpreadsheet className={cn(
-                    "h-5 w-5 transition-colors",
-                    collapsed ? 'text-blue-400' : 'text-gray-400 group-hover:text-blue-400'
-                  )} />
-                  {!collapsed && (
-                    <span className="ml-3 text-sm font-medium">Training Records</span>
-                  )}
-                </Link>
-              </li>
-            </ul>
-          </div>
-        )}
-
-        {/* Bottom Section */}
-        <div className="p-3 border-t border-gray-700 mt-auto">
-          <button
-            onClick={handleSignOut}
-            className={cn(
-              "flex items-center w-full py-2.5 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-all mb-2",
-              collapsed ? 'justify-center' : 'px-3'
-            )}
-          >
-            <LogOut className="h-5 w-5" />
-            {!collapsed && <span className="ml-3 text-sm">Sign out</span>}
-          </button>
-          
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className={cn(
-              "flex items-center w-full py-2.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all",
-              collapsed ? 'justify-center' : 'px-3'
-            )}
-          >
-            {collapsed ? (
-              <ChevronRight className="h-5 w-5" />
-            ) : (
-              <>
-                <ChevronLeft className="h-5 w-5" />
-                <span className="ml-2 text-sm">Collapse menu</span>
-              </>
-            )}
-          </button>
         </div>
+      )}
+
+      {/* User Info Area */}
+      {!collapsed && (
+        <div className="px-4 py-2 mb-1 border-b border-gray-700 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-sm font-medium">
+                {displayName.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">{displayName}</p>
+              <p className={`text-xs ${getRoleBadgeClass()} rounded-full px-2 py-0.5 inline-block mt-0.5`}>
+                {getRoleDisplay()}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Navigation - Compact spacing, no overflow scroll needed */}
+      <nav className={cn(
+        "flex-1 px-3 py-2",
+        collapsed && "px-2"
+      )}>
+        <ul className="space-y-0.5">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+            const activeStyles = getActiveStyles(isActive, item.color)
+            const iconColor = getIconColor(isActive, item.color)
+            
+            return (
+              <li key={item.name}>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "flex items-center rounded-lg px-3 py-2 transition-all duration-200 group",
+                    isActive 
+                      ? activeStyles
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white',
+                    collapsed && 'justify-center px-2'
+                  )}
+                >
+                  <Icon className={cn(
+                    "h-5 w-5 transition-colors flex-shrink-0",
+                    isActive ? 'text-current' : iconColor,
+                    !isActive && 'group-hover:text-white'
+                  )} />
+                  {!collapsed && (
+                    <span className={cn(
+                      "ml-3 text-sm font-medium",
+                      isActive ? 'text-current' : 'text-gray-300'
+                    )}>
+                      {item.name}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+
+      {/* Admin Section */}
+      {isAdmin && (
+        <div className="px-3 pt-2 pb-1 border-t border-gray-700 flex-shrink-0">
+          {!collapsed && (
+            <div className="px-3 mb-1 flex items-center gap-2">
+              <Shield className="h-3 w-3 text-indigo-400" />
+              <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+                Administration
+              </span>
+            </div>
+          )}
+          <ul className="space-y-0.5">
+            <li>
+              <Link
+                href="/admin/reports"
+                className={cn(
+                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                  collapsed && 'justify-center px-2'
+                )}
+              >
+                <BarChart3 className={cn(
+                  "h-5 w-5 transition-colors flex-shrink-0",
+                  collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
+                )} />
+                {!collapsed && (
+                  <span className="ml-3 text-sm font-medium">Analytics</span>
+                )}
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/dashboard/admin/resources"
+                className={cn(
+                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                  collapsed && 'justify-center px-2'
+                )}
+              >
+                <Database className={cn(
+                  "h-5 w-5 transition-colors flex-shrink-0",
+                  collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
+                )} />
+                {!collapsed && (
+                  <span className="ml-3 text-sm font-medium">Manage Resources</span>
+                )}
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/dashboard/admin/upload"
+                className={cn(
+                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                  collapsed && 'justify-center px-2'
+                )}
+              >
+                <Upload className={cn(
+                  "h-5 w-5 transition-colors flex-shrink-0",
+                  collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
+                )} />
+                {!collapsed && (
+                  <span className="ml-3 text-sm font-medium">Upload Content</span>
+                )}
+              </Link>
+            </li>
+          </ul>
+        </div>
+      )}
+
+      {/* Supervisor Section */}
+      {isSupervisor && !isAdmin && (
+        <div className="px-3 pt-2 pb-1 border-t border-gray-700 flex-shrink-0">
+          {!collapsed && (
+            <div className="px-3 mb-1 flex items-center gap-2">
+              <Shield className="h-3 w-3 text-blue-400" />
+              <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
+                Supervisor Tools
+              </span>
+            </div>
+          )}
+          <ul className="space-y-0.5">
+            <li>
+              <Link
+                href="/admin/reports"
+                className={cn(
+                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                  collapsed && 'justify-center px-2'
+                )}
+              >
+                <FileSpreadsheet className={cn(
+                  "h-5 w-5 transition-colors flex-shrink-0",
+                  collapsed ? 'text-blue-400' : 'text-gray-400 group-hover:text-blue-400'
+                )} />
+                {!collapsed && (
+                  <span className="ml-3 text-sm font-medium">Training Records</span>
+                )}
+              </Link>
+            </li>
+          </ul>
+        </div>
+      )}
+
+      {/* Bottom Section */}
+      <div className="p-3 border-t border-gray-700 flex-shrink-0 mt-auto">
+        <button
+          onClick={handleSignOut}
+          className={cn(
+            "flex items-center w-full py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-all mb-1",
+            collapsed ? 'justify-center' : 'px-3'
+          )}
+        >
+          <LogOut className="h-5 w-5 flex-shrink-0" />
+          {!collapsed && <span className="ml-3 text-sm">Sign out</span>}
+        </button>
+        
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className={cn(
+            "flex items-center w-full py-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all",
+            collapsed ? 'justify-center' : 'px-3'
+          )}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-5 w-5 flex-shrink-0" />
+          ) : (
+            <>
+              <ChevronLeft className="h-5 w-5 flex-shrink-0" />
+              <span className="ml-2 text-sm">Collapse menu</span>
+            </>
+          )}
+        </button>
       </div>
     </div>
   )
