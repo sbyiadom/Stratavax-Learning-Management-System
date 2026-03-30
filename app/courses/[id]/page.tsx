@@ -6,25 +6,15 @@ import CourseImage from '@/components/shared/CourseImage'
 
 // Approved course slugs
 const APPROVED_COURSE_SLUGS = [
-  'electrical-engineering', 
-  'microsoft-office', 
-  'programming-fundamentals',
-  'web-development', 
-  'data-analysis', 
-  'ai-fundamentals',
-  'entrepreneurship-pathway',
-  'financial-literacy', 
-  'business-model-design', 
-  'business-plan-development',
-  'marketing-sales', 
-  'digital-marketing', 
-  'business-growth-strategy',
-  'leadership', 
-  'basic-mechanical-engineering'
+  'electrical-engineering', 'microsoft-office', 'programming-fundamentals',
+  'web-development', 'data-analysis', 'ai-fundamentals', 'entrepreneurship-pathway',
+  'financial-literacy', 'business-model-design', 'business-plan-development',
+  'marketing-sales', 'digital-marketing', 'business-growth-strategy',
+  'leadership', 'basic-mechanical-engineering'
 ]
 
-// Map slugs to local image paths (images are in public/images/)
-const getLocalImagePath = (slug: string, title: string): string | null => {
+// ADD THIS FUNCTION - Maps course slugs to local images
+const getLocalImage = (slug: string): string | null => {
   const imageMap: Record<string, string> = {
     'business-model-design': '/images/business-model-design.jpg',
     'business-plan-development': '/images/business-plan-development.jpg',
@@ -39,7 +29,6 @@ const getLocalImagePath = (slug: string, title: string): string | null => {
     'marketing-sales': '/images/marketing-&-sale.jpg',
     'programming-fundamentals': '/images/programming-fundamental.jpg',
   }
-  
   return imageMap[slug] || null
 }
 
@@ -58,14 +47,6 @@ type Course = {
   is_published: boolean | null
   created_at: string | null
   updated_at: string | null
-}
-
-type Module = {
-  id: string
-  title: string
-  description: string | null
-  module_order: number
-  lesson_count: number
 }
 
 export default async function CourseDetailPage({
@@ -119,7 +100,7 @@ export default async function CourseDetailPage({
     .order('module_order', { ascending: true })
 
   // Get lesson counts
-  const modulesWithCount: Module[] = []
+  const modulesWithCount = []
   if (modules) {
     for (const module of modules) {
       const { count } = await supabase
@@ -140,9 +121,8 @@ export default async function CourseDetailPage({
 
   const totalLessons = modulesWithCount.reduce((acc, m) => acc + m.lesson_count, 0)
   
-  // Get local image path or use thumbnail_url from database
-  const localImage = getLocalImagePath(course.slug, course.title)
-  const imageToUse = localImage || course.thumbnail_url
+  // USE LOCAL IMAGE IF AVAILABLE - ADD THIS LINE
+  const imageSource = getLocalImage(course.slug) || course.thumbnail_url
 
   // Enrollment action
   async function enrollInCourse() {
@@ -189,18 +169,6 @@ export default async function CourseDetailPage({
     redirect(`/dashboard/learn/${course.slug}`)
   }
 
-  // Helper function to get category badge color
-  const getCategoryColor = (category: string | null) => {
-    if (!category) return 'bg-blue-500'
-    const cat = category.toLowerCase()
-    if (cat.includes('business')) return 'bg-green-500'
-    if (cat.includes('data') || cat.includes('ai')) return 'bg-purple-500'
-    if (cat.includes('engineering')) return 'bg-orange-500'
-    if (cat.includes('financial')) return 'bg-emerald-500'
-    if (cat.includes('marketing')) return 'bg-pink-500'
-    return 'bg-blue-500'
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -217,10 +185,10 @@ export default async function CourseDetailPage({
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col md:flex-row gap-8">
-            {/* Thumbnail */}
-            <div className="md:w-64 h-48 rounded-lg overflow-hidden shadow-lg bg-gray-800">
+            {/* Thumbnail - UPDATE THIS SECTION */}
+            <div className="md:w-64 h-48 rounded-lg overflow-hidden shadow-lg">
               <CourseImage 
-                src={imageToUse}
+                src={imageSource}
                 alt={course.title}
                 title={course.title}
                 className="w-full h-full object-cover"
@@ -230,7 +198,7 @@ export default async function CourseDetailPage({
             {/* Course Info */}
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-3">
-                <span className={`${getCategoryColor(course.category)} bg-opacity-30 text-white text-xs px-3 py-1 rounded-full`}>
+                <span className="bg-blue-500 bg-opacity-30 text-white text-xs px-3 py-1 rounded-full">
                   {course.category?.split(' ')[0] || 'Course'}
                 </span>
                 {course.is_featured && (
@@ -240,7 +208,7 @@ export default async function CourseDetailPage({
                 )}
               </div>
               <h1 className="text-4xl font-bold mb-4">{course.title}</h1>
-              <p className="text-xl text-blue-100 mb-6">{course.short_description || course.description?.split('.')[0] || 'Master the fundamentals of this subject with hands-on training'}</p>
+              <p className="text-xl text-blue-100 mb-6">{course.short_description || course.description}</p>
               
               <div className="flex flex-wrap gap-6 mb-6">
                 <div className="flex items-center gap-2">
@@ -293,8 +261,8 @@ export default async function CourseDetailPage({
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Course Content</h2>
                 <div className="space-y-4">
-                  {modulesWithCount.map((module: Module) => (
-                    <div key={module.id} className="border border-gray-100 rounded-lg p-4 hover:border-gray-200 transition">
+                  {modulesWithCount.map((module: any) => (
+                    <div key={module.id} className="border border-gray-100 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="font-medium text-gray-900">Module {module.module_order}: {module.title}</h3>
@@ -317,7 +285,7 @@ export default async function CourseDetailPage({
               <h3 className="font-semibold text-gray-900 mb-4">Instructor</h3>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                  {course.title.charAt(0)}
+                  {course.title[0]}
                 </div>
                 <div>
                   <p className="font-medium text-gray-900">Stratavax Learning</p>
@@ -342,7 +310,6 @@ export default async function CourseDetailPage({
                 <li>• No prior experience needed</li>
                 <li>• Basic computer skills</li>
                 <li>• Internet connection</li>
-                <li>• Willingness to learn</li>
               </ul>
             </div>
 
