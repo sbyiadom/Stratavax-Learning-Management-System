@@ -13,6 +13,25 @@ const APPROVED_COURSE_SLUGS = [
   'leadership', 'basic-mechanical-engineering'
 ]
 
+// ADD THIS FUNCTION - Maps course slugs to local images
+const getLocalImage = (slug: string): string | null => {
+  const imageMap: Record<string, string> = {
+    'business-model-design': '/images/business-model-design.jpg',
+    'business-plan-development': '/images/business-plan-development.jpg',
+    'data-analysis': '/images/data-analysis.jpg',
+    'digital-marketing': '/images/digital-marketing.jpg',
+    'ai-fundamentals': '/images/AI-Fundamentals.jpg',
+    'microsoft-office': '/images/microsoft-office.jpg',
+    'basic-mechanical-engineering': '/images/basic-mechanical-engineering.jpg',
+    'electrical-engineering': '/images/electrical-engineering.jpg',
+    'financial-literacy': '/images/financial-literacy.jpg',
+    'leadership': '/images/leadership.jpg',
+    'marketing-sales': '/images/marketing-&-sale.jpg',
+    'programming-fundamentals': '/images/programming-fundamental.jpg',
+  }
+  return imageMap[slug] || null
+}
+
 type Course = {
   id: string
   title: string
@@ -101,6 +120,9 @@ export default async function CourseDetailPage({
   }
 
   const totalLessons = modulesWithCount.reduce((acc, m) => acc + m.lesson_count, 0)
+  
+  // USE LOCAL IMAGE IF AVAILABLE - ADD THIS LINE
+  const imageSource = getLocalImage(course.slug) || course.thumbnail_url
 
   // Enrollment action
   async function enrollInCourse() {
@@ -163,10 +185,10 @@ export default async function CourseDetailPage({
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col md:flex-row gap-8">
-            {/* Thumbnail */}
+            {/* Thumbnail - UPDATE THIS SECTION */}
             <div className="md:w-64 h-48 rounded-lg overflow-hidden shadow-lg">
               <CourseImage 
-                src={course.thumbnail_url}
+                src={imageSource}
                 alt={course.title}
                 title={course.title}
                 className="w-full h-full object-cover"
