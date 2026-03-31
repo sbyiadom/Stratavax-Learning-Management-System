@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
+import CourseImage from '@/components/shared/CourseImage'
+import { getCourseImage } from '@/lib/courseImages'
 import { 
   BookOpen, Clock, Users, Search, Filter, 
   Grid, List, SlidersHorizontal, ChevronRight,
@@ -496,32 +498,36 @@ function CoursesPageContent({
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {courses.map((course) => {
                     const isEnrolled = enrolledCourseIds.has(course.id)
+                    const courseImage = getCourseImage(course.slug, course.title)
                     
                     return (
                       <Link
                         key={course.id}
                         href={isEnrolled ? `/dashboard/learn/${course.slug}` : `/dashboard/courses/${course.slug}`}
-                        className="group bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-200"
+                        className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200 hover:border-blue-200"
                       >
-                        {/* Course Image with Gradient */}
-                        <div className="h-40 bg-gradient-to-br from-blue-600 to-purple-600 relative">
-                          {/* Category Icon Overlay */}
-                          <div className="absolute inset-0 flex items-center justify-center opacity-10">
-                            <span className="text-6xl transform group-hover:scale-110 transition-transform duration-300">
-                              {categories.find(c => c.id === course.category)?.icon || '📚'}
-                            </span>
-                          </div>
+                        {/* Course Image - REPLACED WITH ACTUAL IMAGES */}
+                        <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                          <CourseImage
+                            src={courseImage}
+                            alt={course.title}
+                            title={course.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          
+                          {/* Overlay gradient for better text visibility */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
                           {/* Badges */}
-                          <div className="absolute top-3 left-3 flex gap-2">
+                          <div className="absolute top-3 left-3 flex gap-2 z-10">
                             {course.is_featured && (
-                              <span className="bg-amber-400 text-amber-900 text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                              <span className="bg-amber-400 text-amber-900 text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg">
                                 <Star size={12} />
                                 Featured
                               </span>
                             )}
                             {isEnrolled && (
-                              <span className="bg-emerald-500 text-white text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                              <span className="bg-emerald-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg">
                                 <CheckCircle size={12} />
                                 Enrolled
                               </span>
@@ -530,11 +536,21 @@ function CoursesPageContent({
 
                           {/* Difficulty Badge */}
                           {course.difficulty_level && (
-                            <div className="absolute bottom-3 left-3">
-                              <span className={`px-2 py-1 rounded-lg text-xs font-medium border border-white/20 backdrop-blur-sm ${
+                            <div className="absolute bottom-3 left-3 z-10">
+                              <span className={`px-2.5 py-1 rounded-lg text-xs font-medium shadow-lg backdrop-blur-sm ${
                                 difficultyColors[course.difficulty_level as keyof typeof difficultyColors]
                               }`}>
                                 {course.difficulty_level}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Duration Badge */}
+                          {course.duration_hours && (
+                            <div className="absolute bottom-3 right-3 z-10">
+                              <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-black/70 text-white backdrop-blur-sm flex items-center gap-1 shadow-lg">
+                                <Clock size={12} />
+                                {course.duration_hours}h
                               </span>
                             </div>
                           )}
@@ -553,23 +569,20 @@ function CoursesPageContent({
                           </h3>
 
                           <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                            {course.short_description || course.description?.substring(0, 100) || 'No description available'}
+                            {course.short_description || course.description?.substring(0, 100) || 'Start learning today and build your skills'}
                           </p>
 
                           {/* Course Stats */}
                           <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                             <div className="flex items-center gap-3 text-xs text-gray-500">
                               <span className="flex items-center gap-1">
-                                <BookOpen size={14} />
-                                {course.duration_hours || '?'}h
-                              </span>
-                              <span className="flex items-center gap-1">
                                 <Users size={14} />
                                 {course.enrollment_count || 0}
                               </span>
                             </div>
-                            <span className="text-blue-600 text-sm font-medium group-hover:translate-x-1 transition-transform">
-                              {isEnrolled ? 'Continue →' : 'Explore →'}
+                            <span className="text-blue-600 text-sm font-medium group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                              {isEnrolled ? 'Continue' : 'Explore'}
+                              <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                             </span>
                           </div>
                         </div>
