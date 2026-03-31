@@ -52,17 +52,20 @@ type Course = {
   title: string
   slug: string
   description: string
-  short_description: string
-  category: string
+  short_description: string | null
+  category: string | null
   difficulty_level: 'beginner' | 'intermediate' | 'advanced'
-  duration_hours: number
-  learning_objectives?: string[]
-  prerequisites?: string[]
+  duration_hours: number | null
+  learning_objectives?: string[] | null
+  prerequisites?: string[] | null
   modules?: Module[]
   enrollments?: any[]
-  enrollment_count?: number
-  instructor?: string
-  last_updated?: string
+  enrollment_count?: number | null
+  instructor?: string | null
+  last_updated?: string | null
+  is_featured?: boolean | null
+  is_published?: boolean | null
+  thumbnail_url?: string | null
 }
 
 // Difficulty level badges with enhanced styling
@@ -192,7 +195,14 @@ export default async function CourseDetailPage({
     'No prior experience required'
   ]
 
-  const difficulty = difficultyConfig[typedCourse.difficulty_level] || difficultyConfig.beginner
+  const difficulty = typedCourse.difficulty_level 
+    ? difficultyConfig[typedCourse.difficulty_level] 
+    : difficultyConfig.beginner
+
+  const enrollmentCount = typedCourse.enrollment_count || 0
+  const durationHours = typedCourse.duration_hours || 0
+  const category = typedCourse.category?.split(' ')[0] || 'Course'
+  const isFeatured = typedCourse.is_featured || false
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
@@ -215,12 +225,12 @@ export default async function CourseDetailPage({
             <div className="lg:col-span-2">
               <div className="flex items-center gap-3 mb-4 flex-wrap">
                 <span className="text-xs font-medium px-3 py-1 bg-white/20 rounded-full backdrop-blur-sm">
-                  {typedCourse.category?.split(' ')[0] || 'Course'}
+                  {category}
                 </span>
                 <span className={`text-xs font-medium px-3 py-1 rounded-full backdrop-blur-sm ${difficulty.color}`}>
                   {difficulty.icon} {difficulty.label}
                 </span>
-                {typedCourse.is_featured && (
+                {isFeatured && (
                   <span className="text-xs font-medium px-3 py-1 bg-amber-500/20 text-amber-200 rounded-full backdrop-blur-sm flex items-center gap-1">
                     <Star size={12} />
                     Featured
@@ -236,7 +246,7 @@ export default async function CourseDetailPage({
               <div className="flex flex-wrap gap-6 text-sm text-gray-300">
                 <div className="flex items-center gap-2">
                   <Clock size={16} />
-                  <span>{typedCourse.duration_hours} hours</span>
+                  <span>{durationHours} hours</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <BookOpen size={16} />
@@ -244,7 +254,7 @@ export default async function CourseDetailPage({
                 </div>
                 <div className="flex items-center gap-2">
                   <Users size={16} />
-                  <span>{typedCourse.enrollment_count || 0} enrolled</span>
+                  <span>{enrollmentCount} enrolled</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <GraduationCap size={16} />
@@ -342,7 +352,7 @@ export default async function CourseDetailPage({
                     <span>•</span>
                     <span>{totalLessons} lessons</span>
                     <span>•</span>
-                    <span>{typedCourse.duration_hours} hours</span>
+                    <span>{durationHours} hours</span>
                   </div>
                 </div>
               </div>
@@ -356,7 +366,7 @@ export default async function CourseDetailPage({
                   
                   return (
                     <div key={module.id} className="hover:bg-gray-50 transition">
-                      <div className="px-6 py-4 cursor-pointer">
+                      <div className="px-6 py-4">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-3">
                             <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
@@ -428,7 +438,7 @@ export default async function CourseDetailPage({
                     <Clock size={14} />
                     Duration
                   </span>
-                  <span className="font-medium text-gray-900">{typedCourse.duration_hours} hours</span>
+                  <span className="font-medium text-gray-900">{durationHours} hours</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500 flex items-center gap-2">
@@ -442,7 +452,7 @@ export default async function CourseDetailPage({
                     <Users size={14} />
                     Enrolled Students
                   </span>
-                  <span className="font-medium text-gray-900">{typedCourse.enrollment_count || 0}</span>
+                  <span className="font-medium text-gray-900">{enrollmentCount}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500 flex items-center gap-2">
@@ -518,7 +528,7 @@ export default async function CourseDetailPage({
                 </div>
               </div>
               <p className="text-xs text-gray-500 mt-3">
-                Industry experts with years of practical experience in {typedCourse.category}
+                Industry experts with years of practical experience in {category}
               </p>
             </div>
 
