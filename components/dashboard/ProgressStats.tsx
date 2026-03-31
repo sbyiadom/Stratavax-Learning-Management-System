@@ -1,6 +1,6 @@
 'use client'
 
-import { TrendingUp, Award, Clock, Target, Zap, Calendar } from 'lucide-react'
+import { BookOpen, CheckCircle, Clock, Award, TrendingUp, Zap } from 'lucide-react'
 
 interface ProgressStatsProps {
   totalCourses: number
