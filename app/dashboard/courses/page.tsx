@@ -8,7 +8,7 @@ import {
   Star, Award, GraduationCap,
   CheckCircle, X,
   ArrowLeft, Briefcase, Code, Database, Globe,
-  TrendingUp, Target, BarChart
+  TrendingUp, Target, BarChart, Filter
 } from 'lucide-react'
 
 // Approved course slugs
@@ -309,7 +309,7 @@ function CoursesPageContent({
                 <div className="bg-white rounded-lg border border-gray-200 p-4 sticky top-20">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="font-medium text-gray-900 text-sm flex items-center gap-1.5">
-                      <SlidersHorizontal size={14} className="text-gray-500" />
+                      <Filter size={14} className="text-gray-500" />
                       Filters
                     </h2>
                     {(searchParams.category || searchParams.difficulty || searchParams.search) && (
@@ -450,7 +450,7 @@ function CoursesPageContent({
                         href={isEnrolled ? `/dashboard/learn/${course.slug}` : `/dashboard/courses/${course.slug}`}
                         className="group bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-200 hover:border-gray-300"
                       >
-                        {/* Course Image */}
+                        {/* Course Image with Actual Images */}
                         <div className="relative h-36 w-full overflow-hidden bg-gray-100">
                           <CourseImage
                             src={courseImage}
