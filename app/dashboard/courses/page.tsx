@@ -78,17 +78,17 @@ export default async function DashboardCoursesPage({
 
   const enrolledCourseIds = new Set(enrollments?.map(e => e.course_id) || [])
   
-  // Build category counts from your data
-  const categoryCounts = {
-    'Business & Entrepreneurship': 6,
-    'Data Science & AI': 2,
-    'Digital & Technology Skills': 1,
-    'Engineering & Technical Skills': 2,
-    'Financial Literacy': 1,
-    'Leadership & Personal Development': 1,
-    'Programming & Development': 1,
-    'Web Development': 1,
-  }
+  // Build category counts from your data - Update with new courses
+const categoryCounts = {
+  'Business & Entrepreneurship': 7, // Added business-growth-strategy
+  'Data Science & AI': 2,
+  'Digital & Technology Skills': 1,
+  'Engineering & Technical Skills': 2,
+  'Financial Literacy': 1,
+  'Leadership & Personal Development': 1,
+  'Programming & Development': 2, // Added web-development
+  'Web Development': 1,
+}
   
   const totalCourses = Object.values(categoryCounts).reduce((a, b) => a + b, 0)
   const enrolledCount = enrolledCourseIds.size
