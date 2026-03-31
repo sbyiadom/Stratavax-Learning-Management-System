@@ -11,25 +11,24 @@ import {
   Settings, ArrowRight
 } from 'lucide-react'
 
-// Approved course slugs
+// Approved course slugs - Add the new ones
 const APPROVED_COURSE_SLUGS = [
   'electrical-engineering',
   'microsoft-office',
   'programming-fundamentals',
-  'web-development',
+  'web-development', // Added
   'data-analysis',
   'ai-fundamentals',
-  'entrepreneurship-pathway',
+  'entrepreneurship-pathway', // Added
   'financial-literacy',
   'business-model-design',
   'business-plan-development',
+  'business-growth-strategy', // Added
   'marketing-sales',
   'digital-marketing',
-  'business-growth-strategy',
   'leadership',
   'basic-mechanical-engineering'
 ]
-
 // Categories matching your database exactly
 const categories = [
   { id: 'all', name: 'All Courses', icon: '📚', color: 'bg-gray-600' },
