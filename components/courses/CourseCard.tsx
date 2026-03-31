@@ -2,6 +2,8 @@
 
 import { Star, Users, Clock, BookOpen, Lock, CheckCircle } from 'lucide-react'
 import { useState } from 'react'
+import CourseImage from '@/components/shared/CourseImage'
+import { getCourseImage } from '@/lib/courseImages'
 
 interface Course {
   id: number
@@ -16,6 +18,7 @@ interface Course {
   price: number
   isEnrolled: boolean
   progress: number
+  slug?: string // Add slug for image mapping
 }
 
 interface CourseCardProps {
@@ -24,6 +27,9 @@ interface CourseCardProps {
 
 export default function CourseCard({ course }: CourseCardProps) {
   const [isEnrolled, setIsEnrolled] = useState(course.isEnrolled)
+  
+  // Get image path using course slug or title
+  const imagePath = getCourseImage(course.slug || '', course.title)
 
   const handleEnroll = () => {
     // In a real app, this would make an API call
@@ -38,18 +44,32 @@ export default function CourseCard({ course }: CourseCardProps) {
   }[course.difficulty] || 'bg-gray-100 text-gray-800'
 
   return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition-shadow duration-300">
-      {/* Course Header */}
-      <div className="p-6">
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition-shadow duration-300 flex flex-col">
+      {/* Course Image - ADD THIS SECTION */}
+      <div className="relative h-48 w-full overflow-hidden bg-gray-100">
+        <CourseImage 
+          src={imagePath}
+          alt={course.title}
+          title={course.title}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+        {/* Difficulty Badge Overlay */}
+        <div className="absolute top-3 left-3">
+          <span className={`px-3 py-1 rounded-full text-xs font-medium shadow-sm ${difficultyColor}`}>
+            {course.difficulty}
+          </span>
+        </div>
+        {/* Category Badge */}
+        <div className="absolute top-3 right-3">
+          <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-gray-700 rounded-full text-xs font-medium shadow-sm">
+            {course.category}
+          </span>
+        </div>
+      </div>
+
+      {/* Course Content */}
+      <div className="p-6 flex-1">
         <div className="flex justify-between items-start mb-4">
-          <div>
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${difficultyColor}`}>
-              {course.difficulty}
-            </span>
-            <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-              {course.category}
-            </span>
-          </div>
           <div className="flex items-center">
             <Star className="h-4 w-4 text-yellow-500 fill-current" />
             <span className="ml-1 text-sm font-medium">{course.rating}</span>
@@ -57,14 +77,14 @@ export default function CourseCard({ course }: CourseCardProps) {
         </div>
 
         {/* Course Title & Description */}
-        <h3 className="text-xl font-bold text-gray-900 mb-2">{course.title}</h3>
+        <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">{course.title}</h3>
         <p className="text-gray-600 mb-4 line-clamp-2">{course.description}</p>
 
         {/* Course Stats */}
         <div className="flex items-center text-sm text-gray-500 mb-6 space-x-4">
           <div className="flex items-center">
             <BookOpen className="h-4 w-4 mr-1" />
-            <span>{course.instructor}</span>
+            <span className="truncate">{course.instructor}</span>
           </div>
           <div className="flex items-center">
             <Clock className="h-4 w-4 mr-1" />
@@ -72,7 +92,7 @@ export default function CourseCard({ course }: CourseCardProps) {
           </div>
           <div className="flex items-center">
             <Users className="h-4 w-4 mr-1" />
-            <span>{course.students.toLocaleString()} students</span>
+            <span>{course.students.toLocaleString()}</span>
           </div>
         </div>
 
@@ -93,7 +113,7 @@ export default function CourseCard({ course }: CourseCardProps) {
         )}
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mt-auto">
           <div>
             {course.price === 0 ? (
               <span className="text-green-600 font-bold text-lg">FREE</span>
@@ -111,7 +131,7 @@ export default function CourseCard({ course }: CourseCardProps) {
                     <span className="font-medium">Completed</span>
                   </div>
                 ) : (
-                  <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                  <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition">
                     Continue Learning
                   </button>
                 )}
