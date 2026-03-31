@@ -6,7 +6,7 @@ import { BookOpen } from 'lucide-react'
 interface CourseImageProps {
   src: string | null
   alt: string
-  title?: string // For generating consistent gradient
+  title?: string
   className?: string
 }
 
