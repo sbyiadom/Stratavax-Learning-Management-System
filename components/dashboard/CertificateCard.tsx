@@ -19,16 +19,19 @@ export default function CertificateCard({
   certificateUrl 
 }: CertificateProps) {
   const handleDownload = () => {
-    // Implement PDF download logic
-    window.open(certificateUrl, '_blank')
+    if (certificateUrl) {
+      window.open(certificateUrl, '_blank')
+    }
   }
 
   const handleShare = () => {
-    navigator.share?.({
-      title: `Certificate of Completion: ${courseTitle}`,
-      text: `I completed ${courseTitle} on Stratavax LMS!`,
-      url: `${window.location.origin}/certificates/${id}`
-    })
+    if (navigator.share) {
+      navigator.share({
+        title: `Certificate of Completion: ${courseTitle}`,
+        text: `I completed ${courseTitle} on Stratavax LMS!`,
+        url: `${window.location.origin}/certificates/${id}`
+      })
+    }
   }
 
   return (
