@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
-import { PlayCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase-client'
+import { BookOpen, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 
 interface EnrollButtonProps {
   courseId: string
@@ -11,80 +11,76 @@ interface EnrollButtonProps {
 }
 
 export default function EnrollButton({ courseId, courseSlug }: EnrollButtonProps) {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
   const handleEnroll = async () => {
-    setLoading(true)
-    setError('')
-
+    setIsLoading(true)
+    setError(null)
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
       
-      if (!user) {
+      if (userError || !user) {
+        setError('Please log in to enroll')
         router.push('/login')
         return
       }
 
-      // Check if already enrolled
-      const { data: existing } = await supabase
+      const { data: existingEnrollment } = await supabase
         .from('enrollments')
         .select('id')
         .eq('user_id', user.id)
         .eq('course_id', courseId)
         .maybeSingle()
 
-      if (existing) {
-        // Already enrolled, just redirect
-        router.push(`/dashboard/learn/${courseSlug}`)
-        router.refresh()
+      if (existingEnrollment) {
+        setError('Already enrolled')
+        setIsLoading(false)
         return
       }
 
-      // Create enrollment - FIXED: progress -> progress_percentage
       const { error: enrollError } = await supabase
         .from('enrollments')
         .insert({
           user_id: user.id,
           course_id: courseId,
+          status: 'active',
+          progress_percentage: 0,
           enrolled_at: new Date().toISOString(),
-          progress_percentage: 0,  // Fixed column name
-          last_accessed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
 
       if (enrollError) {
         console.error('Enrollment error:', enrollError)
-        setError(enrollError.message)
-        setLoading(false)
+        setError('Failed to enroll. Please try again.')
+        setIsLoading(false)
         return
       }
 
-      // Success - redirect to the course learning page
-      router.push(`/dashboard/learn/${courseSlug}`)
-      router.refresh()
+      setSuccess(true)
+      setTimeout(() => router.push(`/dashboard/learn/${courseSlug}`), 1500)
       
-    } catch (err: any) {
-      console.error('Unexpected error:', err)
-      setError(err.message || 'Failed to enroll in course')
-      setLoading(false)
+    } catch (err) {
+      setError('An unexpected error occurred')
+    } finally {
+      setIsLoading(false)
     }
   }
 
+  if (success) {
+    return <div className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl font-medium"><CheckCircle size={18} /> Enrolled! Redirecting...</div>
+  }
+
   return (
-    <div>
-      <button
-        onClick={handleEnroll}
-        disabled={loading}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-      >
-        <PlayCircle size={18} />
-        {loading ? 'Enrolling...' : 'Enroll Now'}
+    <div className="w-full">
+      <button onClick={handleEnroll} disabled={isLoading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition font-medium shadow-sm disabled:opacity-50">
+        {isLoading ? <><Loader2 size={18} className="animate-spin" /> Enrolling...</> : <><BookOpen size={18} /> Enroll Now</>}
       </button>
-      {error && (
-        <p className="text-xs text-red-600 mt-2 text-center">{error}</p>
-      )}
+      {error && <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg flex items-start gap-1"><AlertCircle size={12} className="text-red-500 mt-0.5" /><p className="text-xs text-red-700">{error}</p></div>}
     </div>
   )
 }
