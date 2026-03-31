@@ -13,6 +13,47 @@ import {
   Trophy, Users, Star, CheckCircle2, Activity, Zap
 } from 'lucide-react'
 
+// Define types for better type safety
+type Course = {
+  id: string
+  title: string
+  slug: string
+  duration_hours: number | null
+  category: string | null
+  difficulty_level: string | null
+  thumbnail_url: string | null
+  description: string | null
+}
+
+type Enrollment = {
+  id: string
+  course_id: string
+  progress_percentage: number
+  enrolled_at: string
+  status: string
+  courses: Course | null
+}
+
+type Profile = {
+  first_name: string | null
+  last_name: string | null
+  role: string | null
+  avatar_url: string | null
+}
+
+type Certificate = {
+  id: string
+  user_id: string
+  course_id: string
+  created_at: string
+}
+
+type Progress = {
+  lesson_id: string
+  completed: boolean
+  updated_at: string
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   
@@ -20,14 +61,14 @@ export default async function DashboardPage() {
   if (!user) redirect('/login')
   
   // Get user's profile with name and role
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile } = await supabase
     .from('profiles')
     .select('first_name, last_name, role, avatar_url')
     .eq('id', user.id)
-    .maybeSingle()
+    .maybeSingle() as { data: Profile | null, error: any }
   
   // Get user enrollments with course details
-  const { data: enrollments } = await supabase
+  const { data: enrollmentsData } = await supabase
     .from('enrollments')
     .select(`
       id, 
@@ -49,17 +90,23 @@ export default async function DashboardPage() {
     .eq('user_id', user.id)
     .eq('status', 'active')
   
+  const enrollments = enrollmentsData as unknown as Enrollment[] | null
+  
   // Get certificates
-  const { data: certificates } = await supabase
+  const { data: certificatesData } = await supabase
     .from('certificates')
     .select('*')
     .eq('user_id', user.id)
   
+  const certificates = certificatesData as Certificate[] | null
+  
   // Get lesson progress
-  const { data: lessonProgress } = await supabase
+  const { data: lessonProgressData } = await supabase
     .from('progress')
     .select('completed, lesson_id')
     .eq('user_id', user.id)
+  
+  const lessonProgress = lessonProgressData as Progress[] | null
   
   // Get total lessons across enrolled courses
   let totalLessons = 0
@@ -114,13 +161,18 @@ export default async function DashboardPage() {
   const randomQuote = quotes[Math.floor(Math.random() * quotes.length)]
   
   // Get recent activity (last 3 lessons accessed)
-  const { data: recentProgress } = await supabase
+  const { data: recentProgressData } = await supabase
     .from('progress')
     .select('lesson_id, updated_at, completed')
     .eq('user_id', user.id)
     .order('updated_at', { ascending: false })
     .limit(3)
   
+  const recentProgress = recentProgressData as Progress[] | null
+  
+  // Get first enrolled course for continue learning button
+  const firstEnrolledCourse = validEnrollments[0]?.courses
+
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-gray-50 via-gray-50 to-blue-50/30">
       <DashboardSidebar />
@@ -163,9 +215,9 @@ export default async function DashboardPage() {
                     Continue your professional development journey
                   </p>
                   <div className="flex flex-wrap gap-3">
-                    {validEnrollments.length > 0 && (
+                    {firstEnrolledCourse && firstEnrolledCourse.slug && (
                       <Link 
-                        href={`/dashboard/learn/${validEnrollments[0]?.courses?.slug}`}
+                        href={`/dashboard/learn/${firstEnrolledCourse.slug}`}
                         className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-slate-900 rounded-lg font-medium hover:bg-blue-50 transition shadow-lg"
                       >
                         <PlayCircle size={18} />
@@ -358,9 +410,12 @@ export default async function DashboardPage() {
             
             {validEnrollments.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {validEnrollments.map((enrollment: any) => {
+                {validEnrollments.map((enrollment) => {
                   const progress = enrollment.progress_percentage || 0
                   const course = enrollment.courses
+                  
+                  if (!course) return null
+                  
                   const courseImage = getCourseImage(course.slug, course.title)
                   
                   return (
