@@ -3,50 +3,52 @@ import Link from 'next/link'
 import CourseImage from '@/components/shared/CourseImage'
 import { getCourseImage } from '@/lib/courseImages'
 import { 
-  BookOpen, Clock, Users, Search, Filter, 
-  Grid, List, SlidersHorizontal, ChevronRight,
-  Star, TrendingUp, Award, GraduationCap,
-  Sparkles, Target, CheckCircle, X,
-  ArrowLeft, Home, Compass, BarChart, FileText,
-  Settings, ArrowRight
+  BookOpen, Clock, Users, Search, 
+  SlidersHorizontal, ChevronRight,
+  Star, Award, GraduationCap,
+  CheckCircle, X,
+  ArrowLeft, TrendingUp, BarChart,
+  Briefcase, Code, Database, Globe,
+  Lightbulb, LineChart, Target, Zap
 } from 'lucide-react'
 
-// Approved course slugs - Add the new ones
+// Approved course slugs
 const APPROVED_COURSE_SLUGS = [
   'electrical-engineering',
   'microsoft-office',
   'programming-fundamentals',
-  'web-development', // Added
+  'web-development',
   'data-analysis',
   'ai-fundamentals',
-  'entrepreneurship-pathway', // Added
+  'entrepreneurship-pathway',
   'financial-literacy',
   'business-model-design',
   'business-plan-development',
-  'business-growth-strategy', // Added
+  'business-growth-strategy',
   'marketing-sales',
   'digital-marketing',
   'leadership',
   'basic-mechanical-engineering'
 ]
-// Categories matching your database exactly
+
+// Professional categories without emojis
 const categories = [
-  { id: 'all', name: 'All Courses', icon: '📚', color: 'bg-gray-600' },
-  { id: 'Business & Entrepreneurship', name: '🚀 Business & Entrepreneurship', icon: '🚀', color: 'bg-green-600' },
-  { id: 'Data Science & AI', name: '🤖 Data Science & AI', icon: '🤖', color: 'bg-indigo-600' },
-  { id: 'Digital & Technology Skills', name: '💻 Digital & Technology', icon: '💻', color: 'bg-blue-600' },
-  { id: 'Engineering & Technical Skills', name: '⚙️ Engineering', icon: '⚙️', color: 'bg-orange-600' },
-  { id: 'Financial Literacy', name: '💰 Financial Literacy', icon: '💰', color: 'bg-emerald-600' },
-  { id: 'Leadership & Personal Development', name: '🌟 Leadership', icon: '🌟', color: 'bg-purple-600' },
-  { id: 'Programming & Development', name: '👨‍💻 Programming', icon: '👨‍💻', color: 'bg-pink-600' },
-  { id: 'Web Development', name: '🌐 Web Development', icon: '🌐', color: 'bg-cyan-600' },
+  { id: 'all', name: 'All Courses', icon: BookOpen, color: 'bg-gray-600' },
+  { id: 'Business & Entrepreneurship', name: 'Business & Entrepreneurship', icon: Briefcase, color: 'bg-green-600' },
+  { id: 'Data Science & AI', name: 'Data Science & AI', icon: Database, color: 'bg-indigo-600' },
+  { id: 'Digital & Technology Skills', name: 'Digital & Technology', icon: Code, color: 'bg-blue-600' },
+  { id: 'Engineering & Technical Skills', name: 'Engineering', icon: BarChart, color: 'bg-orange-600' },
+  { id: 'Financial Literacy', name: 'Financial Literacy', icon: TrendingUp, color: 'bg-emerald-600' },
+  { id: 'Leadership & Personal Development', name: 'Leadership', icon: Target, color: 'bg-purple-600' },
+  { id: 'Programming & Development', name: 'Programming', icon: Code, color: 'bg-pink-600' },
+  { id: 'Web Development', name: 'Web Development', icon: Globe, color: 'bg-cyan-600' },
 ]
 
 // Difficulty level badges
 const difficultyColors = {
-  beginner: 'bg-green-100 text-green-800',
-  intermediate: 'bg-yellow-100 text-yellow-800',
-  advanced: 'bg-red-100 text-red-800',
+  beginner: 'bg-green-100 text-green-700',
+  intermediate: 'bg-amber-100 text-amber-700',
+  advanced: 'bg-red-100 text-red-700',
 }
 
 export default async function DashboardCoursesPage({
@@ -56,21 +58,15 @@ export default async function DashboardCoursesPage({
 }) {
   const supabase = await createClient()
   
-  // Check if user is authenticated
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
   
-  if (!user) {
-    return null // Let middleware handle redirect
-  }
-  
-  // Get user profile
   const { data: profile } = await supabase
     .from('profiles')
     .select('first_name, last_name, role')
     .eq('id', user.id)
     .single()
   
-  // Get user's enrolled courses
   const { data: enrollments } = await supabase
     .from('enrollments')
     .select('course_id')
@@ -78,25 +74,21 @@ export default async function DashboardCoursesPage({
 
   const enrolledCourseIds = new Set(enrollments?.map(e => e.course_id) || [])
   
-  // Build category counts from your data - Update with new courses
-const categoryCounts = {
-  'Business & Entrepreneurship': 7, // Added business-growth-strategy
-  'Data Science & AI': 2,
-  'Digital & Technology Skills': 1,
-  'Engineering & Technical Skills': 2,
-  'Financial Literacy': 1,
-  'Leadership & Personal Development': 1,
-  'Programming & Development': 2, // Added web-development
-  'Web Development': 1,
-}
+  const categoryCounts = {
+    'Business & Entrepreneurship': 7,
+    'Data Science & AI': 2,
+    'Digital & Technology Skills': 1,
+    'Engineering & Technical Skills': 2,
+    'Financial Literacy': 1,
+    'Leadership & Personal Development': 1,
+    'Programming & Development': 2,
+    'Web Development': 1,
+  }
   
   const totalCourses = Object.values(categoryCounts).reduce((a, b) => a + b, 0)
   const enrolledCount = enrolledCourseIds.size
-  
-  // Determine which view to show (all courses or my courses)
   const viewMode = searchParams.view || 'all'
   
-  // Build query - Start with approved courses only
   let query = supabase
     .from('courses')
     .select(`
@@ -106,10 +98,8 @@ const categoryCounts = {
     .eq('is_published', true)
     .in('slug', APPROVED_COURSE_SLUGS)
   
-  // If viewing "My Courses", filter to only enrolled courses
   if (viewMode === 'my') {
     if (enrolledCourseIds.size === 0) {
-      // If no enrolled courses, return empty array
       return (
         <CoursesPageContent 
           courses={[]}
@@ -127,23 +117,19 @@ const categoryCounts = {
     query = query.in('id', Array.from(enrolledCourseIds))
   }
   
-  // Apply category filter - with proper decoding
   if (searchParams.category && searchParams.category !== 'all') {
     const decodedCategory = decodeURIComponent(searchParams.category)
     query = query.eq('category', decodedCategory)
   }
   
-  // Apply difficulty filter
   if (searchParams.difficulty) {
     query = query.eq('difficulty_level', searchParams.difficulty)
   }
   
-  // Apply search filter
   if (searchParams.search) {
     query = query.or(`title.ilike.%${searchParams.search}%,description.ilike.%${searchParams.search}%`)
   }
   
-  // Order by featured first, then by title
   query = query.order('is_featured', { ascending: false }).order('title')
   
   const { data: courses, error } = await query
@@ -155,10 +141,7 @@ const categoryCounts = {
         <div className="bg-white rounded-lg shadow-sm p-8 max-w-md text-center">
           <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Courses</h2>
           <p className="text-gray-600 mb-6">There was an error loading the course catalog.</p>
-          <Link
-            href="/dashboard"
-            className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
+          <Link href="/dashboard" className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             Back to Dashboard
           </Link>
         </div>
@@ -181,7 +164,6 @@ const categoryCounts = {
   )
 }
 
-// Separate component for the main content
 function CoursesPageContent({ 
   courses, 
   enrolledCourseIds,
@@ -204,48 +186,39 @@ function CoursesPageContent({
   categoryCounts: any
 }) {
   
-  // Get current category for display
   const currentCategory = searchParams.category && searchParams.category !== 'all'
     ? decodeURIComponent(searchParams.category)
     : 'all'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Stratavax Header */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <Link
-                href="/dashboard"
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
+              <Link href="/dashboard" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                 <ArrowLeft size={20} className="text-gray-600" />
               </Link>
               <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-                    <GraduationCap className="text-white" size={24} />
-                  </div>
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-sm">
+                  <GraduationCap className="text-white" size={22} />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Stratavax
-                  </h1>
+                  <h1 className="text-xl font-semibold text-gray-900">Stratavax</h1>
                   <p className="text-xs text-gray-500">Learning Management System</p>
                 </div>
               </div>
             </div>
 
-            {/* User Welcome */}
             <div className="flex items-center space-x-4">
               <div className="hidden md:block text-right">
-                <p className="text-sm font-medium text-gray-900">Welcome back,</p>
-                <p className="text-sm text-blue-600 font-semibold">
+                <p className="text-sm text-gray-600">Welcome back,</p>
+                <p className="text-sm font-semibold text-gray-900">
                   {profile?.first_name || profile?.last_name || user.email?.split('@')[0]}
                 </p>
               </div>
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-lg shadow-sm">
                 {(profile?.first_name?.[0] || user.email?.charAt(0) || 'U').toUpperCase()}
               </div>
             </div>
@@ -254,28 +227,26 @@ function CoursesPageContent({
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Dashboard Navigation Pills */}
-        <div className="flex items-center gap-4 mb-8 overflow-x-auto pb-2">
+        {/* Navigation Pills */}
+        <div className="flex items-center gap-3 mb-8">
           <Link
             href="/dashboard/courses?view=all"
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
               viewMode === 'all'
-                ? 'bg-blue-600 text-white shadow-md'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
             }`}
           >
-            <BookOpen size={16} />
             All Courses ({totalCourses})
           </Link>
           <Link
             href="/dashboard/courses?view=my"
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
               viewMode === 'my'
-                ? 'bg-blue-600 text-white shadow-md'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
             }`}
           >
-            <CheckCircle size={16} />
             My Courses ({enrolledCount})
           </Link>
         </div>
@@ -283,30 +254,30 @@ function CoursesPageContent({
         {/* Page Title */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            {viewMode === 'all' ? 'Course Catalog' : 'My Courses'}
+            {viewMode === 'all' ? 'Course Catalog' : 'My Learning'}
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-500 mt-1">
             {viewMode === 'all' 
-              ? `Browse and enroll in ${totalCourses} free courses`
-              : `Continue learning from your ${enrolledCount} enrolled courses`}
+              ? `Explore ${totalCourses} professional development courses`
+              : `Continue your learning journey`}
           </p>
         </div>
 
-        {/* Search Bar - Only show for All Courses */}
+        {/* Search Bar */}
         {viewMode === 'all' && (
           <div className="mb-8">
             <form className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
                 name="search"
                 defaultValue={searchParams.search}
-                placeholder="Search courses by title, description, or topic..."
-                className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm"
+                placeholder="Search courses by title, topic, or skill..."
+                className="w-full pl-11 pr-32 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
               />
               <button
                 type="submit"
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 px-5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
               >
                 Search
               </button>
@@ -314,97 +285,80 @@ function CoursesPageContent({
           </div>
         )}
 
-        {/* My Courses Empty State */}
+        {/* Empty State */}
         {viewMode === 'my' && courses.length === 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center mb-8">
-            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="text-blue-600" size={32} />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <BookOpen className="text-gray-400" size={28} />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No enrolled courses yet</h3>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              You haven't enrolled in any courses yet. Browse our catalog to find courses that interest you.
-            </p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No enrolled courses</h3>
+            <p className="text-gray-500 mb-6">Browse our catalog to find courses that interest you.</p>
             <Link
               href="/dashboard/courses?view=all"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
             >
               Browse Courses
-              <ArrowRight size={18} />
             </Link>
           </div>
         )}
 
-        {/* Only show filters for All Courses or when there are results */}
         {(viewMode === 'all' || courses.length > 0) && (
           <div className="flex flex-col lg:flex-row gap-8">
-            {/* Sidebar Filters - Only show for All Courses */}
+            {/* Sidebar Filters */}
             {viewMode === 'all' && (
               <div className="lg:w-72 flex-shrink-0">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-24">
-                  <div className="flex items-center justify-between mb-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sticky top-24">
+                  <div className="flex items-center justify-between mb-5">
                     <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <SlidersHorizontal size={18} className="text-blue-600" />
+                      <SlidersHorizontal size={16} className="text-gray-500" />
                       Filters
                     </h2>
                     {(searchParams.category || searchParams.difficulty || searchParams.search) && (
                       <Link
                         href="/dashboard/courses?view=all"
-                        className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                        className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
                       >
-                        <X size={14} />
-                        Clear all
+                        <X size={12} />
+                        Clear
                       </Link>
                     )}
                   </div>
 
                   {/* Category Filter */}
-                  <div className="mb-8">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3">Category</h3>
+                  <div className="mb-6">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Category</h3>
                     <div className="space-y-1">
-                      {/* All Courses */}
                       <Link
                         href="/dashboard/courses?view=all"
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${
                           currentCategory === 'all' && viewMode === 'all'
-                            ? 'bg-gray-600 text-white shadow-md'
-                            : 'text-gray-600 hover:bg-gray-100'
+                            ? 'bg-gray-100 text-gray-900 font-medium'
+                            : 'text-gray-600 hover:bg-gray-50'
                         }`}
                       >
-                        <span className="text-lg">📚</span>
-                        <span className="flex-1 font-medium">All Courses</span>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          currentCategory === 'all' && viewMode === 'all'
-                            ? 'bg-white bg-opacity-20 text-white'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {totalCourses}
-                        </span>
+                        <BookOpen size={16} className={currentCategory === 'all' ? 'text-blue-600' : 'text-gray-400'} />
+                        <span className="flex-1">All Courses</span>
+                        <span className="text-xs text-gray-400">{totalCourses}</span>
                       </Link>
 
-                      {/* Category List */}
                       {categories.filter(c => c.id !== 'all').map((category) => {
                         const count = categoryCounts[category.id as keyof typeof categoryCounts] || 0
                         const isActive = currentCategory === category.id
+                        const Icon = category.icon
                         
                         return (
                           <Link
                             key={category.id}
                             href={`/dashboard/courses?view=all&category=${encodeURIComponent(category.id)}`}
-                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
+                            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${
                               isActive
-                                ? `${category.color} text-white shadow-md`
-                                : 'text-gray-600 hover:bg-gray-100'
+                                ? 'bg-blue-50 text-blue-700 font-medium'
+                                : 'text-gray-600 hover:bg-gray-50'
                             }`}
                           >
-                            <span className="text-lg">{category.icon}</span>
-                            <span className="flex-1 font-medium">{category.name}</span>
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              isActive
-                                ? 'bg-white bg-opacity-20 text-white'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              {count}
-                            </span>
+                            <Icon size={16} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
+                            <span className="flex-1">{category.name}</span>
+                            <span className="text-xs text-gray-400">{count}</span>
                           </Link>
                         )
                       })}
@@ -412,9 +366,9 @@ function CoursesPageContent({
                   </div>
 
                   {/* Difficulty Filter */}
-                  <div className="mb-6 pt-4 border-t border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3">Difficulty</h3>
-                    <div className="flex flex-col gap-2">
+                  <div className="pt-4 border-t border-gray-100">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Difficulty</h3>
+                    <div className="flex flex-wrap gap-2">
                       {['beginner', 'intermediate', 'advanced'].map((level) => {
                         const params = new URLSearchParams({ view: 'all', ...searchParams })
                         if (params.get('difficulty') === level) {
@@ -427,26 +381,23 @@ function CoursesPageContent({
                           <Link
                             key={level}
                             href={`/dashboard/courses?${params.toString()}`}
-                            className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm capitalize transition ${
+                            className={`px-3 py-1.5 rounded-lg text-sm capitalize transition ${
                               searchParams.difficulty === level
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'text-gray-600 hover:bg-gray-100'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                           >
-                            <span>{level}</span>
-                            {searchParams.difficulty === level && (
-                              <CheckCircle size={16} className="text-white/80" />
-                            )}
+                            {level}
                           </Link>
                         )
                       })}
                     </div>
                   </div>
 
-                  {/* Active Filters Summary */}
+                  {/* Active Filters */}
                   {(searchParams.difficulty || searchParams.search) && (
-                    <div className="pt-4 border-t border-gray-200">
-                      <h3 className="text-sm font-medium text-gray-700 mb-3">Active Filters</h3>
+                    <div className="pt-4 mt-4 border-t border-gray-100">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Active</h3>
                       <div className="flex flex-wrap gap-2">
                         {searchParams.difficulty && (
                           <Link
@@ -455,10 +406,10 @@ function CoursesPageContent({
                               ...searchParams,
                               difficulty: '',
                             })}`}
-                            className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm hover:bg-blue-100 transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs hover:bg-gray-200"
                           >
                             {searchParams.difficulty}
-                            <X size={14} />
+                            <X size={10} />
                           </Link>
                         )}
                         {searchParams.search && (
@@ -468,10 +419,10 @@ function CoursesPageContent({
                               ...searchParams,
                               search: '',
                             })}`}
-                            className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm hover:bg-blue-100 transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs hover:bg-gray-200"
                           >
-                            "{searchParams.search}"
-                            <X size={14} />
+                            {searchParams.search}
+                            <X size={10} />
                           </Link>
                         )}
                       </div>
@@ -481,18 +432,16 @@ function CoursesPageContent({
               </div>
             )}
 
-            {/* Main Content Area */}
+            {/* Course Grid */}
             <div className={viewMode === 'all' ? 'flex-1' : 'w-full'}>
-              {/* Results Header */}
               {courses.length > 0 && (
-                <div className="flex items-center justify-between mb-6">
-                  <p className="text-sm text-gray-600">
-                    Showing <span className="font-medium text-gray-900">{courses.length}</span> course{courses.length !== 1 ? 's' : ''}
+                <div className="mb-4">
+                  <p className="text-sm text-gray-500">
+                    {courses.length} course{courses.length !== 1 ? 's' : ''}
                   </p>
                 </div>
               )}
 
-              {/* Course Grid */}
               {courses.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {courses.map((course) => {
@@ -503,10 +452,10 @@ function CoursesPageContent({
                       <Link
                         key={course.id}
                         href={isEnrolled ? `/dashboard/learn/${course.slug}` : `/dashboard/courses/${course.slug}`}
-                        className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200 hover:border-blue-200"
+                        className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200"
                       >
-                        {/* Course Image - REPLACED WITH ACTUAL IMAGES */}
-                        <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                        {/* Course Image */}
+                        <div className="relative h-44 w-full overflow-hidden bg-gray-100">
                           <CourseImage
                             src={courseImage}
                             alt={course.title}
@@ -514,19 +463,16 @@ function CoursesPageContent({
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
                           
-                          {/* Overlay gradient for better text visibility */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
                           {/* Badges */}
-                          <div className="absolute top-3 left-3 flex gap-2 z-10">
+                          <div className="absolute top-3 left-3 flex gap-2">
                             {course.is_featured && (
-                              <span className="bg-amber-400 text-amber-900 text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                              <span className="bg-amber-500 text-white text-xs font-medium px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
                                 <Star size={12} />
                                 Featured
                               </span>
                             )}
                             {isEnrolled && (
-                              <span className="bg-emerald-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                              <span className="bg-emerald-500 text-white text-xs font-medium px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
                                 <CheckCircle size={12} />
                                 Enrolled
                               </span>
@@ -535,8 +481,8 @@ function CoursesPageContent({
 
                           {/* Difficulty Badge */}
                           {course.difficulty_level && (
-                            <div className="absolute bottom-3 left-3 z-10">
-                              <span className={`px-2.5 py-1 rounded-lg text-xs font-medium shadow-lg backdrop-blur-sm ${
+                            <div className="absolute bottom-3 left-3">
+                              <span className={`px-2 py-1 rounded-md text-xs font-medium shadow-sm ${
                                 difficultyColors[course.difficulty_level as keyof typeof difficultyColors]
                               }`}>
                                 {course.difficulty_level}
@@ -546,8 +492,8 @@ function CoursesPageContent({
                           
                           {/* Duration Badge */}
                           {course.duration_hours && (
-                            <div className="absolute bottom-3 right-3 z-10">
-                              <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-black/70 text-white backdrop-blur-sm flex items-center gap-1 shadow-lg">
+                            <div className="absolute bottom-3 right-3">
+                              <span className="px-2 py-1 rounded-md text-xs font-medium bg-black/60 text-white backdrop-blur-sm flex items-center gap-1">
                                 <Clock size={12} />
                                 {course.duration_hours}h
                               </span>
@@ -556,32 +502,32 @@ function CoursesPageContent({
                         </div>
 
                         {/* Course Info */}
-                        <div className="p-5">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                        <div className="p-4">
+                          <div className="mb-2">
+                            <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
                               {course.category?.split(' ')[0] || 'Course'}
                             </span>
                           </div>
 
-                          <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition line-clamp-2">
+                          <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-blue-600 transition line-clamp-2">
                             {course.title}
                           </h3>
 
-                          <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                            {course.short_description || course.description?.substring(0, 100) || 'Start learning today and build your skills'}
+                          <p className="text-sm text-gray-500 mb-3 line-clamp-2">
+                            {course.short_description || course.description?.substring(0, 80) || 'Start learning today'}
                           </p>
 
-                          {/* Course Stats */}
-                          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                          {/* Stats */}
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                             <div className="flex items-center gap-3 text-xs text-gray-500">
                               <span className="flex items-center gap-1">
-                                <Users size={14} />
+                                <Users size={12} />
                                 {course.enrollment_count || 0}
                               </span>
                             </div>
-                            <span className="text-blue-600 text-sm font-medium group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                            <span className="text-blue-600 text-sm font-medium group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
                               {isEnrolled ? 'Continue' : 'Explore'}
-                              <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                              <ChevronRight size={14} />
                             </span>
                           </div>
                         </div>
@@ -590,23 +536,21 @@ function CoursesPageContent({
                   })}
                 </div>
               ) : viewMode === 'all' ? (
-                /* No Results for All Courses */
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Search className="text-gray-400" size={32} />
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Search className="text-gray-400" size={28} />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Courses Found</h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No courses found</h3>
+                  <p className="text-gray-500 mb-6">
                     {searchParams.search 
-                      ? `No courses match "${searchParams.search}". Try different keywords.`
-                      : 'No courses match your current filters.'}
+                      ? `No results for "${searchParams.search}"`
+                      : 'Try adjusting your filters'}
                   </p>
                   <Link
                     href="/dashboard/courses?view=all"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                   >
-                    <X size={18} />
-                    Clear Filters
+                    Clear filters
                   </Link>
                 </div>
               ) : null}
@@ -616,16 +560,13 @@ function CoursesPageContent({
 
         {/* Admin Footer */}
         {profile?.role === 'admin' && (
-          <div className="mt-12 pt-6 border-t border-gray-200">
+          <div className="mt-10 pt-6 border-t border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Award size={18} className="text-gray-400" />
-                <span className="text-sm font-medium text-gray-700">Admin</span>
+                <Award size={16} className="text-gray-400" />
+                <span className="text-sm text-gray-500">Admin Access</span>
               </div>
-              <Link
-                href="/admin/resources"
-                className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-              >
+              <Link href="/admin/resources" className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
                 Manage Resources
                 <ChevronRight size={14} />
               </Link>
