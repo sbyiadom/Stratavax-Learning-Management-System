@@ -22,15 +22,14 @@ export const COURSE_IMAGE_MAP: Record<string, string> = {
   'entrepreneurship-pathway': '/images/entrepreneurship-pathway.jpg',
 }
 
-// Also add alternative slug variations if needed
+// Alternative slug variations
 export const COURSE_IMAGE_ALT_MAP: Record<string, string> = {
-  // Handle different naming conventions
   'programming-fundamental': '/images/programming-fundamental.jpg',
   'marketing-&-sale': '/images/marketing-&-sale.jpg',
-  'enterpreuship-pathway': '/images/entrepreneurship-pathway.jpg', // Handle typo
+  'enterpreuship-pathway': '/images/entrepreneurship-pathway.jpg',
 }
 
-// Convert a title to a URL-friendly slug that matches image names
+// Convert a title to a URL-friendly slug
 export function titleToSlug(title: string): string {
   return title
     .toLowerCase()
@@ -40,17 +39,14 @@ export function titleToSlug(title: string): string {
 
 // Get image path for a course
 export function getCourseImage(slug: string, title?: string): string | null {
-  // First check if we have a direct mapping
   if (slug && COURSE_IMAGE_MAP[slug]) {
     return COURSE_IMAGE_MAP[slug]
   }
   
-  // Check alternative mappings (for typos or different naming)
   if (slug && COURSE_IMAGE_ALT_MAP[slug]) {
     return COURSE_IMAGE_ALT_MAP[slug]
   }
   
-  // If we have a title, try to generate a slug from it
   if (title) {
     const generatedSlug = titleToSlug(title)
     if (COURSE_IMAGE_MAP[generatedSlug]) {
@@ -61,34 +57,5 @@ export function getCourseImage(slug: string, title?: string): string | null {
     }
   }
   
-  // Return null to use fallback gradient
   return null
-}
-
-// Get image path with fallback
-export function getCourseImageWithFallback(slug: string, title?: string): string | null {
-  return getCourseImage(slug, title)
-}
-
-// Helper to check if a course has an image
-export function hasCourseImage(slug: string, title?: string): boolean {
-  return getCourseImage(slug, title) !== null
-}
-
-// Get all available course images (useful for debugging)
-export function getAllCourseImages(): string[] {
-  return Object.values(COURSE_IMAGE_MAP)
-}
-
-// Get image mapping for a specific course (returns both mapped and generated options)
-export function getCourseImageOptions(slug: string, title?: string): {
-  mapped: string | null
-  generated: string | null
-  titleBased: string | null
-} {
-  return {
-    mapped: COURSE_IMAGE_MAP[slug] || COURSE_IMAGE_ALT_MAP[slug] || null,
-    generated: slug ? ` /images/${slug}.jpg` : null,
-    titleBased: title ? `/images/${titleToSlug(title)}.jpg` : null,
-  }
 }
