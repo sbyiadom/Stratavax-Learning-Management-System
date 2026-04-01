@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase-client'
-import { Calendar, Clock, AlertCircle, CheckCircle, BookOpen, Plus, X } from 'lucide-react'
+import { Calendar, AlertCircle, CheckCircle, BookOpen, Plus, X, Clock } from 'lucide-react'
 
 interface TrainingRegistrationProps {
   userId: string
@@ -33,6 +33,12 @@ export default function TrainingRegistration({ userId, onRegistered }: TrainingR
   })
   
   const supabase = createClient()
+
+  useEffect(() => {
+    if (showForm) {
+      fetchCourses()
+    }
+  }, [showForm])
 
   const fetchCourses = async () => {
     const { data } = await supabase
@@ -65,6 +71,10 @@ export default function TrainingRegistration({ userId, onRegistered }: TrainingR
     setError(null)
 
     try {
+      if (!formData.course_title.trim()) {
+        throw new Error('Course title is required')
+      }
+
       const { error } = await supabase
         .from('training_registrations')
         .insert({
@@ -95,9 +105,9 @@ export default function TrainingRegistration({ userId, onRegistered }: TrainingR
       })
       onRegistered?.()
       setTimeout(() => setSuccess(null), 3000)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Registration error:', err)
-      setError('Failed to submit registration. Please try again.')
+      setError(err.message || 'Failed to submit registration. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -106,10 +116,7 @@ export default function TrainingRegistration({ userId, onRegistered }: TrainingR
   if (!showForm) {
     return (
       <button
-        onClick={() => {
-          fetchCourses()
-          setShowForm(true)
-        }}
+        onClick={() => setShowForm(true)}
         className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition font-medium"
       >
         <Plus className="w-4 h-4" />
@@ -131,16 +138,14 @@ export default function TrainingRegistration({ userId, onRegistered }: TrainingR
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Course Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Select Course *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Select Course (Optional)</label>
           <select
             value={formData.course_id}
             onChange={(e) => handleCourseSelect(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
           >
-            <option value="">-- Select a course --</option>
+            <option value="">-- Select from existing courses --</option>
             {courses.map((course) => (
               <option key={course.id} value={course.id}>
                 {course.title} ({course.duration_hours} hours)
@@ -149,17 +154,19 @@ export default function TrainingRegistration({ userId, onRegistered }: TrainingR
           </select>
         </div>
 
-        {/* Manual Course Entry (if not in list) */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Or Enter Course Title *</label>
-          <input
-            type="text"
-            value={formData.course_title}
-            onChange={(e) => setFormData({ ...formData, course_title: e.target.value })}
-            placeholder="Course title (if not listed above)"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
+          <label className="block text-sm font-medium text-gray-700 mb-1">Course Title *</label>
+          <div className="relative">
+            <BookOpen className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              value={formData.course_title}
+              onChange={(e) => setFormData({ ...formData, course_title: e.target.value })}
+              placeholder="Enter course title"
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -175,13 +182,16 @@ export default function TrainingRegistration({ userId, onRegistered }: TrainingR
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Duration (hours)</label>
-            <input
-              type="number"
-              value={formData.course_duration}
-              onChange={(e) => setFormData({ ...formData, course_duration: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Duration in hours"
-            />
+            <div className="relative">
+              <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="number"
+                value={formData.course_duration}
+                onChange={(e) => setFormData({ ...formData, course_duration: e.target.value })}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Duration in hours"
+              />
+            </div>
           </div>
         </div>
 
