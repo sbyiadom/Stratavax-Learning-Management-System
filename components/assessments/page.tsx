@@ -3,13 +3,14 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CheckSquare, Award, Calendar, Clock, ChevronRight, FileText } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AssessmentsPage() {
   const supabase = await createClient()
   
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Fetch all assessments for the user
   const { data: assessments } = await supabase
     .from('knowledge_assessments')
     .select(`
@@ -23,15 +24,9 @@ export default async function AssessmentsPage() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  const getScoreColor = (score: number, passMark: number) => {
-    if (score >= passMark) return 'text-green-600'
-    return 'text-red-600'
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-gradient-to-r from-teal-600 to-green-600 rounded-xl flex items-center justify-center">
@@ -74,7 +69,7 @@ export default async function AssessmentsPage() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Post-Assessment:</span>
-                        <span className={`font-medium ${assessment.post_assessment_score ? getScoreColor(assessment.post_assessment_score, assessment.pass_mark) : ''}`}>
+                        <span className={`font-medium ${assessment.post_assessment_score && assessment.post_assessment_score >= assessment.pass_mark ? 'text-green-600' : 'text-red-600'}`}>
                           {assessment.post_assessment_score !== null ? `${assessment.post_assessment_score}%` : 'Not taken'}
                         </span>
                       </div>
