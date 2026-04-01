@@ -1,7 +1,5 @@
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
-import TrainingRegistration from '@/components/training/TrainingRegistration'
-import TrainingDashboard from '@/components/training/TrainingDashboard'
 import { GraduationCap } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -27,13 +25,14 @@ export default async function TrainingPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1">
-            <TrainingRegistration userId={user.id} />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <GraduationCap className="text-gray-400" size={28} />
           </div>
-          <div className="lg:col-span-2">
-            <TrainingDashboard userId={user.id} />
-          </div>
+          <h2 className="text-lg font-medium text-gray-800 mb-2">Training Coming Soon</h2>
+          <p className="text-gray-500 text-sm">
+            Training registration and management features will be available soon.
+          </p>
         </div>
       </div>
     </div>
