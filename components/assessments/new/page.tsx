@@ -4,6 +4,8 @@ import KnowledgeAssessment from '@/components/assessments/KnowledgeAssessment'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function NewAssessmentPage({
   searchParams
 }: {
@@ -21,7 +23,6 @@ export default async function NewAssessmentPage({
     redirect('/dashboard/training')
   }
 
-  // Verify the registration belongs to the user
   const { data: registration } = await supabase
     .from('training_registrations')
     .select('*')
