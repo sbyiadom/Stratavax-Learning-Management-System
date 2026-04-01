@@ -84,12 +84,19 @@ export default function AssessmentForm({
     }
   }
 
+  // Calculate difference (number)
   const difference = formData.pre_assessment_score !== null && formData.post_assessment_score !== null
     ? formData.post_assessment_score - formData.pre_assessment_score
     : null
   
-  const percentageShift = difference !== null && formData.possible_score > 0
-    ? ((difference / formData.possible_score) * 100).toFixed(2)
+  // Calculate percentage shift (number)
+  const percentageShiftNumber = difference !== null && formData.possible_score > 0
+    ? (difference / formData.possible_score) * 100
+    : null
+  
+  // Format percentage shift as string with 2 decimals
+  const percentageShift = percentageShiftNumber !== null
+    ? percentageShiftNumber.toFixed(2)
     : null
   
   const hasImprovement = difference !== null && difference > 0
@@ -291,7 +298,7 @@ export default function AssessmentForm({
               <div className="text-center">
                 <p className="text-xs text-gray-500">% Shift</p>
                 <p className={`text-xl font-bold ${hasImprovement ? 'text-green-600' : 'text-red-600'}`}>
-                  {percentageShift !== null ? `${percentageShift > 0 ? '+' : ''}${percentageShift}%` : '-'}
+                  {percentageShift !== null ? `${parseFloat(percentageShift) > 0 ? '+' : ''}${percentageShift}%` : '-'}
                 </p>
               </div>
             </div>
