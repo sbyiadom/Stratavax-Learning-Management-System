@@ -19,7 +19,9 @@ import {
   FileSpreadsheet,
   Award,
   TrendingUp,
-  LogOut
+  LogOut,
+  ClipboardList,
+  CheckSquare
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
@@ -28,6 +30,8 @@ import { createClient } from '@/lib/supabase'
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, color: 'blue' },
   { name: 'My Courses', href: '/dashboard/courses', icon: BookOpen, color: 'green' },
+  { name: 'Training', href: '/dashboard/training', icon: ClipboardList, color: 'indigo' },
+  { name: 'Assessments', href: '/dashboard/assessments', icon: CheckSquare, color: 'teal' },
   { name: 'Explore', href: '/dashboard/explore', icon: Compass, color: 'purple' },
   { name: 'Progress', href: '/dashboard/progress', icon: TrendingUp, color: 'orange' },
   { name: 'Assignments', href: '/dashboard/assignments', icon: FileText, color: 'indigo' },
@@ -195,9 +199,9 @@ export default function DashboardSidebar() {
         </div>
       )}
 
-      {/* Navigation - Compact spacing, no overflow scroll needed */}
+      {/* Navigation */}
       <nav className={cn(
-        "flex-1 px-3 py-2",
+        "flex-1 px-3 py-2 overflow-y-auto",
         collapsed && "px-2"
       )}>
         <ul className="space-y-0.5">
@@ -270,6 +274,23 @@ export default function DashboardSidebar() {
             </li>
             <li>
               <Link
+                href="/admin/assessments"
+                className={cn(
+                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                  collapsed && 'justify-center px-2'
+                )}
+              >
+                <FileSpreadsheet className={cn(
+                  "h-5 w-5 transition-colors flex-shrink-0",
+                  collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
+                )} />
+                {!collapsed && (
+                  <span className="ml-3 text-sm font-medium">Assessment Reports</span>
+                )}
+              </Link>
+            </li>
+            <li>
+              <Link
                 href="/dashboard/admin/resources"
                 className={cn(
                   "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
@@ -320,7 +341,7 @@ export default function DashboardSidebar() {
           <ul className="space-y-0.5">
             <li>
               <Link
-                href="/admin/reports"
+                href="/admin/assessments"
                 className={cn(
                   "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
                   collapsed && 'justify-center px-2'
@@ -331,7 +352,24 @@ export default function DashboardSidebar() {
                   collapsed ? 'text-blue-400' : 'text-gray-400 group-hover:text-blue-400'
                 )} />
                 {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">Training Records</span>
+                  <span className="ml-3 text-sm font-medium">Assessment Reports</span>
+                )}
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/admin/training"
+                className={cn(
+                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                  collapsed && 'justify-center px-2'
+                )}
+              >
+                <ClipboardList className={cn(
+                  "h-5 w-5 transition-colors flex-shrink-0",
+                  collapsed ? 'text-blue-400' : 'text-gray-400 group-hover:text-blue-400'
+                )} />
+                {!collapsed && (
+                  <span className="ml-3 text-sm font-medium">Training Requests</span>
                 )}
               </Link>
             </li>
