@@ -173,7 +173,7 @@ export default function KnowledgeAssessment({ registrationId, courseTitle, userI
   }
 
   if (loading) {
-    return <div className="animate-pulse p-6"><div className="h-32 bg-gray-200 rounded"></div></div>
+    return <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 animate-pulse"><div className="h-32 bg-gray-200 rounded"></div></div>
   }
 
   return (
@@ -264,18 +264,18 @@ export default function KnowledgeAssessment({ registrationId, courseTitle, userI
           </div>
         </div>
 
-        {/* Assessment Scores Table */}
+        {/* Assessment Scores */}
         <div className="overflow-x-auto mb-6">
           <table className="min-w-full border border-gray-200 rounded-lg">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Assessment Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Score</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Possible Score</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Assessment Type</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Score</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Possible Score</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               <tr className="hover:bg-gray-50">
                 <td className="px-4 py-3 text-sm font-medium text-gray-900">Pre-Assessment</td>
                 <td className="px-4 py-3">
@@ -335,15 +335,11 @@ export default function KnowledgeAssessment({ registrationId, courseTitle, userI
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="text-center">
                 <p className="text-xs text-gray-500 mb-1">Pre-Assessment Score</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {assessment.pre_assessment_score !== null ? `${assessment.pre_assessment_score}%` : '-'}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{assessment.pre_assessment_score !== null ? `${assessment.pre_assessment_score}%` : '-'}</p>
               </div>
               <div className="text-center">
                 <p className="text-xs text-gray-500 mb-1">Post-Assessment Score</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {assessment.post_assessment_score !== null ? `${assessment.post_assessment_score}%` : '-'}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{assessment.post_assessment_score !== null ? `${assessment.post_assessment_score}%` : '-'}</p>
               </div>
               <div className="text-center">
                 <p className="text-xs text-gray-500 mb-1">Difference</p>
@@ -391,18 +387,11 @@ export default function KnowledgeAssessment({ registrationId, courseTitle, userI
         </div>
 
         <div className="flex gap-3 pt-4 border-t border-gray-100">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center gap-2"
-          >
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center gap-2">
             <Save className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save Assessment'}
           </button>
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium flex items-center gap-2"
-          >
+          <button onClick={() => window.print()} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium flex items-center gap-2">
             <Printer className="w-4 h-4" />
             Print Report
           </button>
