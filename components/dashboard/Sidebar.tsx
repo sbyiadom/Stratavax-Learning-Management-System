@@ -22,22 +22,26 @@ import {
   LogOut,
   ClipboardList,
   CheckSquare,
-  UserCog
+  UserCog,
+  Edit3,
+  Eye
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
 
+// Navigation items with role-based visibility
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, color: 'blue', roles: ['user', 'supervisor', 'admin'] },
   { name: 'My Courses', href: '/dashboard/courses', icon: BookOpen, color: 'green', roles: ['user', 'supervisor', 'admin'] },
-  { name: 'Training', href: '/dashboard/training', icon: ClipboardList, color: 'indigo', roles: ['user', 'supervisor', 'admin'] },
-  { name: 'Assessments', href: '/dashboard/assessments', icon: CheckSquare, color: 'teal', roles: ['user', 'supervisor', 'admin'] },
+  { name: 'Training Register', href: '/dashboard/training', icon: ClipboardList, color: 'indigo', roles: ['user', 'supervisor', 'admin'] },
+  { name: 'Course Evaluation', href: '/dashboard/evaluation', icon: CheckSquare, color: 'teal', roles: ['user', 'supervisor', 'admin'] },
   { name: 'Explore', href: '/dashboard/explore', icon: Compass, color: 'purple', roles: ['user', 'supervisor', 'admin'] },
   { name: 'Progress', href: '/dashboard/progress', icon: TrendingUp, color: 'orange', roles: ['user', 'supervisor', 'admin'] },
   { name: 'Assignments', href: '/dashboard/assignments', icon: FileText, color: 'indigo', roles: ['user', 'supervisor', 'admin'] },
   { name: 'Community', href: '/dashboard/community', icon: Users, color: 'pink', roles: ['user', 'supervisor', 'admin'] },
   { name: 'Certificates', href: '/dashboard/certificates', icon: Award, color: 'yellow', roles: ['user', 'supervisor', 'admin'] },
+  { name: 'Reports', href: '/dashboard/reports', icon: Eye, color: 'teal', roles: ['user', 'supervisor', 'admin'] },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings, color: 'gray', roles: ['user', 'supervisor', 'admin'] },
 ]
 
@@ -92,7 +96,7 @@ export default function DashboardSidebar() {
   const isSupervisor = userRole === 'supervisor' || isAdmin
 
   const handleSignOut = async () => {
-    if (isSigningOut) return // Prevent multiple clicks
+    if (isSigningOut) return
     
     setIsSigningOut(true)
     
@@ -116,9 +120,7 @@ export default function DashboardSidebar() {
         const [name] = cookie.split('=')
         const trimmedName = name.trim()
         if (trimmedName.includes('supabase') || trimmedName.includes('sb-') || trimmedName.includes('auth')) {
-          // Clear cookie on current path
           document.cookie = `${trimmedName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
-          // Clear cookie on root path
           document.cookie = `${trimmedName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`
         }
       })
@@ -130,16 +132,11 @@ export default function DashboardSidebar() {
         console.error('Sign out error:', error)
       }
       
-      // Small delay to ensure all cleanup is complete
       await new Promise(resolve => setTimeout(resolve, 100))
-      
-      // Force a complete page reload to clear any remaining state
-      // Use window.location.replace to prevent back button issues
       window.location.replace('/login')
       
     } catch (error) {
       console.error('Sign out error:', error)
-      // Fallback - force navigation to login
       window.location.replace('/login')
     }
   }
@@ -268,7 +265,7 @@ export default function DashboardSidebar() {
         </div>
       )}
 
-      {/* Navigation */}
+      {/* Main Navigation */}
       <nav className={cn(
         "flex-1 px-3 py-2 overflow-y-auto",
         collapsed && "px-2"
@@ -320,14 +317,14 @@ export default function DashboardSidebar() {
         </ul>
       </nav>
 
-      {/* Evaluation Reports Section - Available to Supervisors and Admins */}
+      {/* Evaluation Reporting Section - ONLY for Supervisors and Admins (Manual Data Entry) */}
       {(isSupervisor || isAdmin) && (
         <div className="px-3 pt-2 pb-1 border-t border-gray-700 flex-shrink-0">
           {!collapsed && (
             <div className="px-3 mb-1 flex items-center gap-2">
-              <FileSpreadsheet className="h-3 w-3 text-green-400" />
+              <Edit3 className="h-3 w-3 text-green-400" />
               <span className="text-xs font-semibold text-green-400 uppercase tracking-wider">
-                Evaluation Tools
+                Evaluation Management
               </span>
             </div>
           )}
@@ -345,11 +342,11 @@ export default function DashboardSidebar() {
                   collapsed ? 'text-green-400' : 'text-gray-400 group-hover:text-green-400'
                 )} />
                 {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">Evaluation Reports</span>
+                  <span className="ml-3 text-sm font-medium">Manual Data Entry</span>
                 )}
                 {collapsed && (
                   <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                    Evaluation Reports
+                    Manual Data Entry
                   </div>
                 )}
               </Link>
@@ -358,14 +355,14 @@ export default function DashboardSidebar() {
         </div>
       )}
 
-      {/* Admin Section - Only visible to admins */}
+      {/* Admin Section - ONLY for Admins (Full Access) */}
       {isAdmin && (
         <div className="px-3 pt-2 pb-1 border-t border-gray-700 flex-shrink-0">
           {!collapsed && (
             <div className="px-3 mb-1 flex items-center gap-2">
-              <Shield className="h-3 w-3 text-indigo-400" />
-              <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
-                Administration
+              <Shield className="h-3 w-3 text-red-400" />
+              <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">
+                System Administration
               </span>
             </div>
           )}
@@ -380,7 +377,7 @@ export default function DashboardSidebar() {
               >
                 <UserCog className={cn(
                   "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
+                  collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
                 )} />
                 {!collapsed && (
                   <span className="ml-3 text-sm font-medium">User Management</span>
@@ -402,36 +399,14 @@ export default function DashboardSidebar() {
               >
                 <BarChart3 className={cn(
                   "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
+                  collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
                 )} />
                 {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">Analytics</span>
+                  <span className="ml-3 text-sm font-medium">System Analytics</span>
                 )}
                 {collapsed && (
                   <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                    Analytics
-                  </div>
-                )}
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/admin/assessments"
-                className={cn(
-                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                  collapsed && 'justify-center px-2'
-                )}
-              >
-                <FileSpreadsheet className={cn(
-                  "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
-                )} />
-                {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">Assessment Reports</span>
-                )}
-                {collapsed && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                    Assessment Reports
+                    System Analytics
                   </div>
                 )}
               </Link>
@@ -446,7 +421,7 @@ export default function DashboardSidebar() {
               >
                 <Database className={cn(
                   "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
+                  collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
                 )} />
                 {!collapsed && (
                   <span className="ml-3 text-sm font-medium">Manage Resources</span>
@@ -468,7 +443,7 @@ export default function DashboardSidebar() {
               >
                 <Upload className={cn(
                   "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-indigo-400' : 'text-gray-400 group-hover:text-indigo-400'
+                  collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
                 )} />
                 {!collapsed && (
                   <span className="ml-3 text-sm font-medium">Upload Content</span>
@@ -480,62 +455,24 @@ export default function DashboardSidebar() {
                 )}
               </Link>
             </li>
-          </ul>
-        </div>
-      )}
-
-      {/* Supervisor Section - Only visible to supervisors (not admins since admins have their own section) */}
-      {isSupervisor && !isAdmin && (
-        <div className="px-3 pt-2 pb-1 border-t border-gray-700 flex-shrink-0">
-          {!collapsed && (
-            <div className="px-3 mb-1 flex items-center gap-2">
-              <Shield className="h-3 w-3 text-blue-400" />
-              <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
-                Supervisor Tools
-              </span>
-            </div>
-          )}
-          <ul className="space-y-0.5">
             <li>
               <Link
-                href="/admin/assessments"
+                href="/admin/settings"
                 className={cn(
                   "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
                   collapsed && 'justify-center px-2'
                 )}
               >
-                <FileSpreadsheet className={cn(
+                <Settings className={cn(
                   "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-blue-400' : 'text-gray-400 group-hover:text-blue-400'
+                  collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
                 )} />
                 {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">Assessment Reports</span>
+                  <span className="ml-3 text-sm font-medium">System Settings</span>
                 )}
                 {collapsed && (
                   <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                    Assessment Reports
-                  </div>
-                )}
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/admin/training"
-                className={cn(
-                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                  collapsed && 'justify-center px-2'
-                )}
-              >
-                <ClipboardList className={cn(
-                  "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-blue-400' : 'text-gray-400 group-hover:text-blue-400'
-                )} />
-                {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">Training Requests</span>
-                )}
-                {collapsed && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                    Training Requests
+                    System Settings
                   </div>
                 )}
               </Link>
@@ -544,7 +481,7 @@ export default function DashboardSidebar() {
         </div>
       )}
 
-      {/* Bottom Section */}
+      {/* Bottom Section - Sign Out */}
       <div className="p-3 border-t border-gray-700 flex-shrink-0 mt-auto">
         <button
           onClick={handleSignOut}
