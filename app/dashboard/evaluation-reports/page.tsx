@@ -485,4 +485,98 @@ export default function EvaluationReportsPage() {
                   <input type="text" name="staff_number" required value={formData.staff_number} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
                 </div>
                 <div>
-                  <label
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name & Surname *</label>
+                  <input type="text" name="name_surname" required value={formData.name_surname} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+                  <input type="text" name="job_title" value={formData.job_title} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Plant</label>
+                  <input type="text" name="plant" value={formData.plant} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                  <input type="text" name="department" value={formData.department} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="font-medium text-gray-900 mb-4">Assessment Scores</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pass Mark (%)</label>
+                    <input type="number" name="pass_mark" value={formData.pass_mark} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pre-Assessment Score</label>
+                    <input type="number" name="pre_assessment_score" value={formData.pre_assessment_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Post-Assessment Score</label>
+                    <input type="number" name="post_assessment_score" value={formData.post_assessment_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Possible Score</label>
+                    <input type="number" name="possible_score" value={formData.possible_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                  </div>
+                </div>
+
+                {/* Live Calculation Preview - Auto updates as you type */}
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                  <div className="flex items-center space-x-4 text-sm flex-wrap gap-4">
+                    <Calculator size={18} className="text-blue-600" />
+                    <span>Difference: <strong className={liveCalculations.difference >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {liveCalculations.difference >= 0 ? `+${liveCalculations.difference}` : liveCalculations.difference}
+                    </strong></span>
+                    <span>% Shift: <strong className={liveCalculations.percentShift >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {liveCalculations.percentShift}%
+                    </strong></span>
+                    <span>Passed: <strong>{formData.post_assessment_score >= formData.pass_mark ? 'Yes ✓' : 'No ✗'}</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex items-center space-x-3">
+                  <input type="checkbox" name="re_test" checked={formData.re_test} onChange={handleInputChange} className="w-4 h-4" />
+                  <label className="text-sm font-medium text-gray-700">Re-Test Required</label>
+                </div>
+                {formData.re_test && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Re-Test Score</label>
+                    <input type="number" name="re_test_score" value={formData.re_test_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Commentary</label>
+                <textarea name="commentary" rows={3} value={formData.commentary} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="Add any additional notes or observations..." />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select name="status" value={formData.status} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg">
+                  <option value="draft">Draft</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="approved">Approved</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <button type="button" onClick={() => { setShowForm(false); setEditingReport(null); }} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2">
+                  <Save size={16} /> <span>{editingReport ? 'Update Report' : 'Save Report'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
