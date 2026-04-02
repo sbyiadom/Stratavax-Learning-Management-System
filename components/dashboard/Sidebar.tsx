@@ -367,6 +367,7 @@ export default function DashboardSidebar() {
             </div>
           )}
           <ul className="space-y-0.5">
+            {/* User Management - Change user roles */}
             <li>
               <Link
                 href="/admin/users"
@@ -389,6 +390,7 @@ export default function DashboardSidebar() {
                 )}
               </Link>
             </li>
+            {/* System Analytics */}
             <li>
               <Link
                 href="/admin/reports"
@@ -411,6 +413,30 @@ export default function DashboardSidebar() {
                 )}
               </Link>
             </li>
+            {/* Assessment Reports */}
+            <li>
+              <Link
+                href="/admin/assessments"
+                className={cn(
+                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                  collapsed && 'justify-center px-2'
+                )}
+              >
+                <FileSpreadsheet className={cn(
+                  "h-5 w-5 transition-colors flex-shrink-0",
+                  collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
+                )} />
+                {!collapsed && (
+                  <span className="ml-3 text-sm font-medium">Assessment Reports</span>
+                )}
+                {collapsed && (
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                    Assessment Reports
+                  </div>
+                )}
+              </Link>
+            </li>
+            {/* Manage Resources */}
             <li>
               <Link
                 href="/dashboard/admin/resources"
@@ -433,6 +459,7 @@ export default function DashboardSidebar() {
                 )}
               </Link>
             </li>
+            {/* Upload Content */}
             <li>
               <Link
                 href="/dashboard/admin/upload"
@@ -455,6 +482,7 @@ export default function DashboardSidebar() {
                 )}
               </Link>
             </li>
+            {/* System Settings */}
             <li>
               <Link
                 href="/admin/settings"
@@ -481,7 +509,7 @@ export default function DashboardSidebar() {
         </div>
       )}
 
-      {/* Bottom Section - Sign Out */}
+      {/* Bottom Section - Sign Out and Collapse */}
       <div className="p-3 border-t border-gray-700 flex-shrink-0 mt-auto">
         <button
           onClick={handleSignOut}
