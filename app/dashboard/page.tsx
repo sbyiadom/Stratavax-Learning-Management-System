@@ -32,15 +32,26 @@ const getCourseImage = (slug: string): string => {
 export default async function DashboardPage() {
   const supabase = await createClient()
   
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  // Get user with better error handling
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  
+  // If no user or error, redirect to login
+  if (userError || !user) {
+    console.log('No user found, redirecting to login')
+    redirect('/login')
+  }
   
   // Get user's profile with name
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('first_name, last_name, role')
     .eq('id', user.id)
     .maybeSingle()
+  
+  // If profile fetch fails, still proceed but with fallback values
+  if (profileError) {
+    console.error('Profile fetch error:', profileError)
+  }
   
   const { data: enrollments } = await supabase
     .from('enrollments')
@@ -65,6 +76,9 @@ export default async function DashboardPage() {
   const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
   
   const firstName = profile?.first_name || user.email?.split('@')[0] || 'Learner'
+  const lastName = profile?.last_name || ''
+  const fullName = lastName ? `${firstName} ${lastName}` : firstName
+  
   const isAdmin = profile?.role === 'admin'
   const validEnrollments = enrollments?.filter(e => e.courses) || []
   
@@ -76,6 +90,7 @@ export default async function DashboardPage() {
     { text: "Knowledge is power. Information is liberating.", author: "Kofi Annan" },
     { text: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King" },
     { text: "Education is the most powerful weapon you can use to change the world.", author: "Nelson Mandela" },
+    { text: "Live as if you were to die tomorrow. Learn as if you were to live forever.", author: "Mahatma Gandhi" },
   ]
   const randomQuote = quotes[Math.floor(Math.random() * quotes.length)]
   
@@ -86,7 +101,7 @@ export default async function DashboardPage() {
       <div className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto px-6 py-8">
           
-          {/* Hero Section */}
+          {/* Hero Section - Professional */}
           <div className="relative mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-8 shadow-xl">
             <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1600')] opacity-10 bg-cover bg-center"></div>
             <div className="relative z-10">
@@ -211,7 +226,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           
-          {/* My Courses */}
+          {/* My Courses - WITH IMAGES */}
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-800">My Courses</h2>
@@ -233,6 +248,7 @@ export default async function DashboardPage() {
                       href={`/dashboard/learn/${course.slug}`}
                       className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100"
                     >
+                      {/* Image Container */}
                       <div className="relative h-44 w-full overflow-hidden bg-gray-200">
                         <Image
                           src={courseImage}
@@ -241,17 +257,20 @@ export default async function DashboardPage() {
                           className="object-cover group-hover:scale-105 transition-transform duration-500"
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
+                        {/* Progress Bar Overlay */}
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/30">
                           <div 
                             className="h-full bg-blue-500 transition-all duration-500"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
+                        {/* Difficulty Badge */}
                         <div className="absolute top-3 left-3">
                           <span className="text-xs font-medium px-2 py-1 rounded-full bg-black/60 text-white backdrop-blur-sm">
                             {course.difficulty_level || 'Beginner'}
                           </span>
                         </div>
+                        {/* Duration Badge */}
                         <div className="absolute top-3 right-3">
                           <span className="text-xs font-medium px-2 py-1 rounded-full bg-black/60 text-white backdrop-blur-sm flex items-center gap-1">
                             <Clock size={12} />
@@ -259,6 +278,8 @@ export default async function DashboardPage() {
                           </span>
                         </div>
                       </div>
+                      
+                      {/* Content */}
                       <div className="p-4">
                         <h3 className="font-semibold text-gray-800 mb-2 line-clamp-1 group-hover:text-blue-600 transition">
                           {course.title}
