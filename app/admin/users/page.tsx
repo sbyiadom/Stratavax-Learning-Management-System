@@ -7,19 +7,16 @@ import {
   Shield, 
   Users, 
   Search, 
-  ChevronDown, 
   AlertTriangle,
   RefreshCw,
-  UserCheck,
-  UserX,
   Crown,
   Star,
   User,
   Mail,
   Calendar,
-  MoreVertical,
   Save,
-  X
+  X,
+  CheckCircle
 } from 'lucide-react'
 
 type Profile = {
@@ -31,20 +28,6 @@ type Profile = {
   created_at: string
 }
 
-type RoleOption = {
-  value: string
-  label: string
-  icon: typeof User
-  color: string
-  bgColor: string
-}
-
-const roleOptions: RoleOption[] = [
-  { value: 'user', label: 'User', icon: User, color: 'text-gray-600', bgColor: 'bg-gray-100' },
-  { value: 'supervisor', label: 'Supervisor', icon: Star, color: 'text-blue-600', bgColor: 'bg-blue-100' },
-  { value: 'admin', label: 'Admin', icon: Crown, color: 'text-red-600', bgColor: 'bg-red-100' }
-]
-
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,15 +37,14 @@ export default function AdminUsersPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null)
   const [newRole, setNewRole] = useState<string>('')
-  const [showRoleDropdown, setShowRoleDropdown] = useState<string | null>(null)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   
   const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
     checkAdminAndLoadUsers()
-  }, [refreshKey])
+  }, [])
 
   const checkAdminAndLoadUsers = async () => {
     try {
@@ -105,33 +87,39 @@ export default function AdminUsersPage() {
       setUsers(data || [])
     } catch (error) {
       console.error('Error loading users:', error)
+      alert('Failed to load users')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
+  const handleRoleChange = async (userId: string, newRoleValue: string) => {
     setUpdatingUserId(userId)
     
     try {
+      // Update the role in the database
       const { error } = await supabase
         .from('profiles')
-        .update({ role: newRole })
+        .update({ role: newRoleValue })
         .eq('id', userId)
       
       if (error) throw error
       
       // Update local state
       setUsers(users.map(user => 
-        user.id === userId ? { ...user, role: newRole } : user
+        user.id === userId ? { ...user, role: newRoleValue } : user
       ))
+      
+      // Show success message
+      setSuccessMessage(`Role updated to ${newRoleValue.toUpperCase()} successfully!`)
+      setTimeout(() => setSuccessMessage(null), 3000)
       
       setShowConfirmModal(false)
       setSelectedUser(null)
-      setShowRoleDropdown(null)
+      
     } catch (error) {
       console.error('Error updating role:', error)
-      alert('Failed to update user role')
+      alert('Failed to update user role. Please try again.')
     } finally {
       setUpdatingUserId(null)
     }
@@ -141,24 +129,25 @@ export default function AdminUsersPage() {
     setSelectedUser(user)
     setNewRole(role)
     setShowConfirmModal(true)
-    setShowRoleDropdown(null)
   }
 
   const getRoleBadge = (role: string) => {
-    const option = roleOptions.find(r => r.value === role)
-    if (!option) return null
-    
-    const Icon = option.icon
-    return (
-      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${option.bgColor} ${option.color}`}>
-        <Icon size={12} />
-        {option.label}
-      </span>
-    )
+    switch(role) {
+      case 'admin':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700"><Crown size={12} /> Admin</span>
+      case 'supervisor':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700"><Star size={12} /> Supervisor</span>
+      default:
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700"><User size={12} /> User</span>
+    }
   }
 
-  const getRoleSelectOptions = (currentRole: string) => {
-    return roleOptions.filter(option => option.value !== currentRole)
+  const getRoleOptions = () => {
+    return [
+      { value: 'user', label: 'User', icon: User, description: 'Can take courses and fill training forms' },
+      { value: 'supervisor', label: 'Supervisor', icon: Star, description: 'Can manually input evaluation data' },
+      { value: 'admin', label: 'Admin', icon: Crown, description: 'Full system access' }
+    ]
   }
 
   const filteredUsers = users.filter(user => 
@@ -167,8 +156,8 @@ export default function AdminUsersPage() {
     user.last_name?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handleRefresh = () => {
-    setRefreshKey(prev => prev + 1)
+  const handleRefresh = async () => {
+    await loadUsers()
   }
 
   if (loading) {
@@ -185,6 +174,18 @@ export default function AdminUsersPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Success Message */}
+        {successMessage && (
+          <div className="fixed top-20 right-4 z-50 animate-in slide-in-from-top-2 fade-in duration-300">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="text-green-600" size={20} />
+                <p className="text-green-700 text-sm">{successMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -194,7 +195,7 @@ export default function AdminUsersPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-                <p className="text-gray-500 text-sm mt-0.5">Manage user roles and permissions</p>
+                <p className="text-gray-500 text-sm mt-0.5">Manage user roles and permissions - Click the dropdown to change a user's role</p>
               </div>
             </div>
             <button
@@ -284,7 +285,7 @@ export default function AdminUsersPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50 transition group">
+                  <tr key={user.id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-medium text-sm shadow-sm">
@@ -292,7 +293,7 @@ export default function AdminUsersPage() {
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-gray-900">
-                            {user.first_name} {user.last_name}
+                            {user.first_name || ''} {user.last_name || ''}
                           </p>
                           <p className="text-xs text-gray-400">ID: {user.id.slice(0, 8)}...</p>
                         </div>
@@ -308,30 +309,27 @@ export default function AdminUsersPage() {
                       {getRoleBadge(user.role)}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="relative">
-                        {updatingUserId === user.id ? (
-                          <div className="flex items-center gap-2">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                            <span className="text-sm text-gray-500">Updating...</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <select
-                              value={user.role}
-                              onChange={(e) => openRoleModal(user, e.target.value)}
-                              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-blue-400 transition"
-                            >
-                              <option value="user">👤 User</option>
-                              <option value="supervisor">⭐ Supervisor</option>
-                              <option value="admin">👑 Admin</option>
-                            </select>
-                            {user.id === currentUserId && (
-                              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">You</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </td>
+                      {updatingUserId === user.id ? (
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                          <span className="text-sm text-gray-500">Updating...</span>
+                        </div>
+                      ) : (
+                        <select
+                          value={user.role}
+                          onChange={(e) => openRoleModal(user, e.target.value)}
+                          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-blue-400 transition"
+                          disabled={user.id === currentUserId}
+                        >
+                          <option value="user">👤 User</option>
+                          <option value="supervisor">⭐ Supervisor</option>
+                          <option value="admin">👑 Admin</option>
+                        </select>
+                      )}
+                      {user.id === currentUserId && (
+                        <span className="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">You</span>
+                      )}
+                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <Calendar size={14} className="text-gray-400" />
@@ -343,8 +341,8 @@ export default function AdminUsersPage() {
                           })}
                         </span>
                       </div>
-                    </td>
-                  </tr>
+                     </td>
+                   </tr>
                 ))}
               </tbody>
             </table>
@@ -366,38 +364,16 @@ export default function AdminUsersPage() {
           )}
         </div>
 
-        {/* Role Legend */}
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Role Permissions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <User size={16} className="text-gray-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">User</p>
-                <p className="text-xs text-gray-500">Can take courses, fill training register, and view reports</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Star size={16} className="text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">Supervisor</p>
-                <p className="text-xs text-gray-500">Can manually input evaluation data and manage reports</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Crown size={16} className="text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">Admin</p>
-                <p className="text-xs text-gray-500">Full system access including user management</p>
-              </div>
-            </div>
-          </div>
+        {/* Instructions */}
+        <div className="mt-6 bg-blue-50 rounded-xl p-4 border border-blue-200">
+          <h3 className="text-sm font-semibold text-blue-800 mb-2">How to change user roles:</h3>
+          <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+            <li>Find the user you want to change in the table above</li>
+            <li>Click on the dropdown in the "Change Role" column</li>
+            <li>Select the new role (User, Supervisor, or Admin)</li>
+            <li>Confirm the change in the popup modal</li>
+            <li>The role will be updated immediately</li>
+          </ol>
         </div>
       </div>
 
@@ -405,27 +381,40 @@ export default function AdminUsersPage() {
       {showConfirmModal && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                <AlertTriangle className="text-yellow-600" size={24} />
-              </div>
-              <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="text-yellow-600" size={20} />
+                </div>
                 <h3 className="text-lg font-semibold text-gray-900">Confirm Role Change</h3>
-                <p className="text-sm text-gray-500">This action will affect user permissions</p>
               </div>
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
             </div>
             
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <p className="text-sm text-gray-600 mb-2">
+              <p className="text-sm text-gray-600 mb-3">
                 Change role for <span className="font-semibold text-gray-900">{selectedUser.first_name} {selectedUser.last_name}</span>
               </p>
-              <div className="flex items-center justify-between py-2 border-t border-gray-200">
-                <span className="text-sm text-gray-500">Current role:</span>
-                {getRoleBadge(selectedUser.role)}
-              </div>
-              <div className="flex items-center justify-between py-2 border-t border-gray-200">
-                <span className="text-sm text-gray-500">New role:</span>
-                {getRoleBadge(newRole)}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                  <span className="text-sm text-gray-500">Current role:</span>
+                  {getRoleBadge(selectedUser.role)}
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm text-gray-500">New role:</span>
+                  {newRole === 'admin' ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700"><Crown size={12} /> Admin</span>
+                  ) : newRole === 'supervisor' ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700"><Star size={12} /> Supervisor</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700"><User size={12} /> User</span>
+                  )}
+                </div>
               </div>
             </div>
             
@@ -449,10 +438,7 @@ export default function AdminUsersPage() {
             
             <div className="flex gap-3">
               <button
-                onClick={() => {
-                  setShowConfirmModal(false)
-                  setSelectedUser(null)
-                }}
+                onClick={() => setShowConfirmModal(false)}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium"
               >
                 Cancel
