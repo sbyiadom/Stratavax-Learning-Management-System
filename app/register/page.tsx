@@ -4,27 +4,16 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { 
-  GraduationCap, 
-  User, 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  ArrowRight,
-  CheckCircle,
-  AlertCircle
-} from 'lucide-react'
+import { GraduationCap, Mail, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
 export default function RegisterPage() {
-  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   
   const supabase = createClient()
   const router = useRouter()
@@ -33,235 +22,166 @@ export default function RegisterPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      setLoading(false)
-      return
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
-      setLoading(false)
-      return
-    }
-
+    
     try {
-      // Split full name into first and last name
-      const nameParts = fullName.trim().split(' ')
-      const firstName = nameParts[0] || ''
-      const lastName = nameParts.slice(1).join(' ') || ''
-
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      // 1. Sign up the user
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            full_name: fullName,
             first_name: firstName,
             last_name: lastName,
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          }
         }
       })
-
-      if (signUpError) throw signUpError
-
-      if (data.user) {
-        // Manually create profile after successful signup
-        // created_at and updated_at have defaults, so we don't need to include them
+      
+      if (signUpError) {
+        setError(signUpError.message)
+        setLoading(false)
+        return
+      }
+      
+      if (authData.user) {
+        // 2. Create profile with default 'user' role
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
-            id: data.user.id,
+            id: authData.user.id,
             email: email,
             first_name: firstName,
             last_name: lastName,
-            role: 'user'
+            role: 'user', // Default role is 'user'
+            created_at: new Date().toISOString()
           })
-
+        
         if (profileError) {
           console.error('Profile creation error:', profileError)
-          // Don't show error to user - profile might have been created by trigger
-          // Just log it and continue
+          // Don't fail the registration if profile creation fails
+          // The webhook will create it later
         }
-
-        alert('Registration successful! Please check your email to confirm your account.')
-        router.push('/login')
+        
+        // Redirect to login with success message
+        router.push('/login?registered=true')
       }
-    } catch (error: any) {
-      setError(error.message || 'An error occurred during registration')
-    } finally {
+    } catch (err) {
+      setError('An unexpected error occurred')
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen relative">
-      {/* Background Image - Fully visible */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-fixed"
-        style={{
-          backgroundImage: `url('/images/register-bg.jpg')`,
-        }}
-      />
-      
-      {/* Content Layer */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          {/* Stratavax Logo */}
-          <div className="text-center mb-6">
-            <Link href="/" className="inline-flex items-center gap-2 bg-white/40 backdrop-blur-sm px-4 py-2 rounded-full border border-white/30 shadow-lg">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                <GraduationCap className="text-white" size={24} />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Stratavax
-              </span>
-            </Link>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg mb-4">
+            <GraduationCap className="text-white" size={32} />
           </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
+          <p className="text-gray-600">Register to start your learning journey</p>
+        </div>
 
-          {/* Glass Card */}
-          <div className="bg-white/30 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-white/40">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border-2 border-white/50">
-                <User className="text-white" size={32} />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
-              <p className="text-sm text-gray-700 mt-1">Join Stratavax Learning today</p>
-            </div>
-
-            {/* Error Message */}
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          <form onSubmit={handleRegister} className="space-y-5">
             {error && (
-              <div className="mb-4 p-3 bg-red-100/80 backdrop-blur-sm border border-red-300 rounded-lg flex items-center gap-2">
-                <AlertCircle size={16} className="text-red-700" />
-                <p className="text-sm text-red-700">{error}</p>
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
+                <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
               </div>
             )}
 
-            {/* Registration Form */}
-            <form onSubmit={handleRegister} className="space-y-5">
-              {/* Full Name Field */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-800 mb-2">
-                  Full Name
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  First Name
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600" size={18} />
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
                   <input
                     type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
                     required
-                    className="w-full pl-10 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-white/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
-                    placeholder="Enter your full name"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="John"
                   />
                 </div>
               </div>
-
-              {/* Email Field */}
               <div>
-                <label className="block text-sm font-medium text-gray-800 mb-2">
-                  Email Address
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Name
                 </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600" size={18} />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full pl-10 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-white/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
-                    placeholder="you@example.com"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Doe"
+                />
               </div>
+            </div>
 
-              {/* Password Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-800 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600" size={18} />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full pl-10 pr-12 py-3 bg-white/60 backdrop-blur-sm border border-white/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-gray-800"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-600 mt-1 flex items-center gap-1 bg-white/30 backdrop-blur-sm px-2 py-1 rounded-full inline-block">
-                  <CheckCircle size={12} className="text-green-600" />
-                  Must be at least 6 characters
-                </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="you@example.com"
+                />
               </div>
+            </div>
 
-              {/* Confirm Password Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-800 mb-2">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600" size={18} />
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    className="w-full pl-10 pr-12 py-3 bg-white/60 backdrop-blur-sm border border-white/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-gray-800"
-                  >
-                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full pl-9 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
+              <p className="text-xs text-gray-500 mt-1">Password must be at least 6 characters</p>
+            </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg hover:shadow-blue-600/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2 font-medium"
-              >
-                {loading ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                ) : (
-                  <>
-                    Create Account
-                    <ArrowRight size={18} />
-                  </>
-                )}
-              </button>
-            </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2.5 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Creating account...' : 'Create Account'}
+            </button>
+          </form>
 
-            {/* Login Link */}
-            <p className="text-center text-sm text-gray-700 mt-6">
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
               Already have an account?{' '}
-              <Link href="/login" className="text-blue-700 hover:text-blue-800 font-medium">
+              <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
                 Sign in
               </Link>
             </p>
           </div>
-
-          {/* Trust indicator */}
-          <p className="text-center text-xs text-gray-600 mt-4 bg-white/30 backdrop-blur-sm py-2 px-4 rounded-full inline-block mx-auto">
-            Secure registration • Protected by Stratavax
-          </p>
         </div>
       </div>
     </div>
