@@ -48,6 +48,7 @@ export default function DashboardSidebar() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isSigningOut, setIsSigningOut] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -91,8 +92,48 @@ export default function DashboardSidebar() {
   const isSupervisor = userRole === 'supervisor' || isAdmin
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/login'
+    if (isSigningOut) return // Prevent multiple clicks
+    
+    setIsSigningOut(true)
+    
+    try {
+      // Clear all Supabase-related items from localStorage
+      const keysToRemove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && (key.includes('supabase') || key.includes('sb-') || key.includes('auth') || key.includes('token'))) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key))
+      
+      // Clear sessionStorage
+      sessionStorage.clear()
+      
+      // Clear cookies that might be related to auth
+      document.cookie.split(';').forEach(cookie => {
+        const [name] = cookie.split('=')
+        if (name.trim().includes('supabase') || name.trim().includes('auth')) {
+          document.cookie = `${name.trim()}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
+        }
+      })
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut()
+      
+      if (error) {
+        console.error('Sign out error:', error)
+      }
+      
+      // Force a complete page reload to clear any remaining state
+      // Use window.location for a hard navigation to ensure complete session clearance
+      window.location.href = '/login'
+      
+    } catch (error) {
+      console.error('Sign out error:', error)
+      // Fallback - force navigation to login
+      window.location.href = '/login'
+    }
   }
 
   const getActiveStyles = (isActive: boolean, color: string) => {
@@ -381,13 +422,19 @@ export default function DashboardSidebar() {
       <div className="p-3 border-t border-gray-700 flex-shrink-0 mt-auto">
         <button
           onClick={handleSignOut}
+          disabled={isSigningOut}
           className={cn(
             "flex items-center w-full py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-all mb-1",
-            collapsed ? 'justify-center' : 'px-3'
+            collapsed ? 'justify-center' : 'px-3',
+            isSigningOut && 'opacity-50 cursor-not-allowed'
           )}
         >
           <LogOut className="h-5 w-5 flex-shrink-0" />
-          {!collapsed && <span className="ml-3 text-sm">Sign out</span>}
+          {!collapsed && (
+            <span className="ml-3 text-sm">
+              {isSigningOut ? 'Signing out...' : 'Sign out'}
+            </span>
+          )}
         </button>
         
         <button
