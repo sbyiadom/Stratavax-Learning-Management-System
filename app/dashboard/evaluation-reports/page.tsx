@@ -8,7 +8,6 @@ import {
   FileText, 
   Plus, 
   Search, 
-  Filter, 
   Download, 
   ChevronRight,
   Menu,
@@ -26,14 +25,9 @@ import {
   Trash2,
   CheckCircle,
   Clock,
-  AlertCircle,
   Calculator,
-  RefreshCw,
   Save,
-  Upload,
-  FileSpreadsheet,
-  Eye,
-  Printer
+  RefreshCw
 } from 'lucide-react'
 
 type EvaluationReport = {
@@ -58,6 +52,16 @@ type EvaluationReport = {
   updated_at: string
 }
 
+// Helper function to calculate metrics in real-time
+const calculateMetrics = (pre: number, post: number, possible: number) => {
+  const difference = post - pre
+  const percentShift = possible > 0 ? (difference / possible) * 100 : 0
+  return {
+    difference,
+    percentShift: Math.round(percentShift * 100) / 100
+  }
+}
+
 export default function EvaluationReportsPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -71,8 +75,9 @@ export default function EvaluationReportsPage() {
   const [departmentFilter, setDepartmentFilter] = useState('all')
   const [filters, setFilters] = useState({ courses: [], departments: [] })
   const [userRole, setUserRole] = useState<string>('')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   
-  // Form state
+  // Form state with proper defaults
   const [formData, setFormData] = useState({
     course_name: '',
     staff_number: '',
@@ -87,7 +92,7 @@ export default function EvaluationReportsPage() {
     re_test: false,
     re_test_score: '',
     commentary: '',
-    status: 'submitted'  // Default to submitted for supervisors
+    status: 'submitted'
   })
   
   const supabase = createClient()
@@ -98,22 +103,26 @@ export default function EvaluationReportsPage() {
   }, [statusFilter, departmentFilter])
 
   const loadUserAndReports = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      router.push('/login')
-      return
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/login')
+        return
+      }
+      
+      // Get user role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      
+      setUserRole(profile?.role || 'user')
+      setUser(user)
+      await loadReports()
+    } catch (error) {
+      console.error('Error loading user:', error)
     }
-    
-    // Get user role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-    
-    setUserRole(profile?.role || 'user')
-    setUser(user)
-    await loadReports()
   }
 
   const loadReports = async () => {
@@ -142,65 +151,109 @@ export default function EvaluationReportsPage() {
     const { name, value, type } = e.target
     const checked = (e.target as HTMLInputElement).checked
     
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? parseInt(value) || 0 : value
-    }))
-  }
-
-  // Get live calculated values for preview
-  const calculateMetrics = (pre: number, post: number, possible: number) => {
-    const difference = post - pre
-    const percentShift = possible > 0 ? (difference / possible) * 100 : 0
-    return {
-      difference,
-      percentShift: Math.round(percentShift * 100) / 100
+    // Handle number inputs properly
+    if (type === 'number') {
+      const numValue = value === '' ? 0 : parseInt(value, 10)
+      setFormData(prev => ({
+        ...prev,
+        [name]: isNaN(numValue) ? 0 : numValue
+      }))
+    } else if (type === 'checkbox') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }))
     }
   }
 
+  // Get live calculated values for preview
   const liveCalculations = calculateMetrics(
-    formData.pre_assessment_score,
-    formData.post_assessment_score,
-    formData.possible_score
+    formData.pre_assessment_score || 0,
+    formData.post_assessment_score || 0,
+    formData.possible_score || 100
   )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrorMessage(null)
     
-    const url = '/api/evaluation-reports'
-    const method = editingReport ? 'PUT' : 'POST'
-    const body = editingReport ? { ...formData, id: editingReport.id } : formData
+    // Validate required fields
+    if (!formData.course_name.trim()) {
+      setErrorMessage('Course Name is required')
+      return
+    }
+    if (!formData.staff_number.trim()) {
+      setErrorMessage('Staff Number is required')
+      return
+    }
+    if (!formData.name_surname.trim()) {
+      setErrorMessage('Name & Surname is required')
+      return
+    }
     
-    const response = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
+    // Prepare data with proper number types
+    const submitData = {
+      course_name: formData.course_name.trim(),
+      staff_number: formData.staff_number.trim(),
+      name_surname: formData.name_surname.trim(),
+      job_title: formData.job_title.trim() || null,
+      plant: formData.plant.trim() || null,
+      department: formData.department.trim() || null,
+      pass_mark: Number(formData.pass_mark) || 0,
+      pre_assessment_score: Number(formData.pre_assessment_score) || 0,
+      post_assessment_score: Number(formData.post_assessment_score) || 0,
+      possible_score: Number(formData.possible_score) || 100,
+      re_test: Boolean(formData.re_test),
+      re_test_score: formData.re_test_score ? Number(formData.re_test_score) : null,
+      commentary: formData.commentary.trim() || null,
+      status: formData.status
+    }
     
-    const result = await response.json()
-    
-    if (result.success) {
-      setShowForm(false)
-      setEditingReport(null)
-      setFormData({
-        course_name: '',
-        staff_number: '',
-        name_surname: '',
-        job_title: '',
-        plant: '',
-        department: '',
-        pass_mark: 70,
-        pre_assessment_score: 0,
-        post_assessment_score: 0,
-        possible_score: 100,
-        re_test: false,
-        re_test_score: '',
-        commentary: '',
-        status: 'submitted'
+    try {
+      const url = '/api/evaluation-reports'
+      const method = editingReport ? 'PUT' : 'POST'
+      const body = editingReport ? { ...submitData, id: editingReport.id } : submitData
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       })
-      loadReports()
-    } else {
-      alert(result.error || 'Failed to save report')
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        setShowForm(false)
+        setEditingReport(null)
+        // Reset form
+        setFormData({
+          course_name: '',
+          staff_number: '',
+          name_surname: '',
+          job_title: '',
+          plant: '',
+          department: '',
+          pass_mark: 70,
+          pre_assessment_score: 0,
+          post_assessment_score: 0,
+          possible_score: 100,
+          re_test: false,
+          re_test_score: '',
+          commentary: '',
+          status: 'submitted'
+        })
+        loadReports()
+      } else {
+        setErrorMessage(result.error || 'Failed to save report')
+      }
+    } catch (error: any) {
+      console.error('Error saving report:', error)
+      setErrorMessage(error.message || 'An unexpected error occurred')
     }
   }
 
@@ -291,7 +344,7 @@ export default function EvaluationReportsPage() {
   if (loading && reports.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
       </div>
     )
   }
@@ -368,13 +421,20 @@ export default function EvaluationReportsPage() {
             </div>
             {isSupervisorOrAdmin && (
               <button
-                onClick={() => { setEditingReport(null); setShowForm(true); }}
+                onClick={() => { setEditingReport(null); setShowForm(true); setErrorMessage(null); }}
                 className="mt-4 md:mt-0 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
               >
                 <Plus size={18} /> <span>New Evaluation Report</span>
               </button>
             )}
           </div>
+
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {errorMessage}
+            </div>
+          )}
 
           {/* Filters */}
           <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
@@ -420,7 +480,6 @@ export default function EvaluationReportsPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1400px]">
                 <thead className="bg-gray-50">
-                  {/* Main headers */}
                   <tr>
                     <th rowSpan={2} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase border-r">Course</th>
                     <th rowSpan={2} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase border-r">Staff #</th>
@@ -474,7 +533,7 @@ export default function EvaluationReportsPage() {
                             <Trash2 size={16} />
                           </button>
                         </div>
-                      </td>
+                       </td>
                     </tr>
                   ))}
                 </tbody>
@@ -495,14 +554,14 @@ export default function EvaluationReportsPage() {
         </div>
       </div>
 
-      {/* Modal Form - Data Entry */}
+      {/* Modal Form */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b sticky top-0 bg-white">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">{editingReport ? 'Edit Evaluation Report' : 'New Evaluation Report'}</h2>
-                <button onClick={() => { setShowForm(false); setEditingReport(null); }} className="p-2 hover:bg-gray-100 rounded">
+                <button onClick={() => { setShowForm(false); setEditingReport(null); setErrorMessage(null); }} className="p-2 hover:bg-gray-100 rounded">
                   <X size={20} />
                 </button>
               </div>
@@ -546,19 +605,19 @@ export default function EvaluationReportsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pass Mark (%)</label>
-                    <input type="number" name="pass_mark" value={formData.pass_mark} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                    <input type="number" name="pass_mark" value={formData.pass_mark} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" min="0" max="100" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pre-Assessment Score</label>
-                    <input type="number" name="pre_assessment_score" value={formData.pre_assessment_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="0-100" />
+                    <input type="number" name="pre_assessment_score" value={formData.pre_assessment_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" min="0" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Post-Assessment Score</label>
-                    <input type="number" name="post_assessment_score" value={formData.post_assessment_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="0-100" />
+                    <input type="number" name="post_assessment_score" value={formData.post_assessment_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" min="0" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Possible Score</label>
-                    <input type="number" name="possible_score" value={formData.possible_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="100" />
+                    <input type="number" name="possible_score" value={formData.possible_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" min="1" />
                   </div>
                 </div>
 
@@ -586,7 +645,7 @@ export default function EvaluationReportsPage() {
                 {formData.re_test && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Re-Test Score</label>
-                    <input type="number" name="re_test_score" value={formData.re_test_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                    <input type="number" name="re_test_score" value={formData.re_test_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" min="0" />
                   </div>
                 )}
               </div>
@@ -606,7 +665,7 @@ export default function EvaluationReportsPage() {
               </div>
 
               <div className="flex justify-end space-x-3 pt-4 border-t">
-                <button type="button" onClick={() => { setShowForm(false); setEditingReport(null); }} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                <button type="button" onClick={() => { setShowForm(false); setEditingReport(null); setErrorMessage(null); }} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
                   Cancel
                 </button>
                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2">
