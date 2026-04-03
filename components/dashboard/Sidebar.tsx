@@ -25,13 +25,14 @@ import {
   UserCog,
   Edit3,
   Eye,
-  ArrowLeft
+  ArrowLeft,
+  PieChart
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
 
-// Navigation items - Removed Training Register and Course Evaluation
+// Navigation items
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, color: 'blue', roles: ['user', 'supervisor', 'admin'] },
   { name: 'My Courses', href: '/dashboard/courses', icon: BookOpen, color: 'green', roles: ['user', 'supervisor', 'admin'] },
@@ -411,16 +412,16 @@ export default function DashboardSidebar() {
                       collapsed && 'justify-center px-2'
                     )}
                   >
-                    <BarChart3 className={cn(
+                    <PieChart className={cn(
                       "h-5 w-5 transition-colors flex-shrink-0",
                       collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
                     )} />
                     {!collapsed && (
-                      <span className="ml-3 text-sm font-medium">Analytics</span>
+                      <span className="ml-3 text-sm font-medium">Assessment Analytics</span>
                     )}
                     {collapsed && (
                       <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                        Analytics
+                        Assessment Analytics
                       </div>
                     )}
                   </Link>
