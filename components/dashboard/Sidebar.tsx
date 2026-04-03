@@ -211,311 +211,305 @@ export default function DashboardSidebar() {
         collapsed ? 'w-20' : 'w-64'
       )}
     >
-      {/* Logo Area */}
-      {!collapsed && (
-        <div className="px-4 pt-5 pb-3 mb-1 border-b border-gray-700 flex-shrink-0">
-          <div className="flex items-center gap-2">
+      {/* Logo Area - Fixed at top */}
+      <div className="flex-shrink-0">
+        {!collapsed && (
+          <div className="px-4 pt-5 pb-3 border-b border-gray-700">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm">
+                <GraduationCap className="text-white" size={18} />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="font-semibold text-white">Stratavax</span>
+                <span className="text-xs font-medium text-blue-400 bg-blue-500/20 px-1.5 py-0.5 rounded-full">LMS</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {collapsed && (
+          <div className="px-2 pt-5 pb-3 border-b border-gray-700 flex justify-center">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm">
               <GraduationCap className="text-white" size={18} />
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="font-semibold text-white">Stratavax</span>
-              <span className="text-xs font-medium text-blue-400 bg-blue-500/20 px-1.5 py-0.5 rounded-full">LMS</span>
+          </div>
+        )}
+
+        {/* User Info Area */}
+        {!collapsed && (
+          <div className="px-4 py-3 border-b border-gray-700">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-sm font-medium">
+                  {displayName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">{displayName}</p>
+                <p className={`text-xs ${getRoleBadgeClass()} rounded-full px-2 py-0.5 inline-block mt-0.5`}>
+                  {getRoleDisplay()}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Collapsed Logo */}
-      {collapsed && (
-        <div className="px-2 pt-5 pb-3 mb-1 border-b border-gray-700 flex-shrink-0 flex justify-center">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm">
-            <GraduationCap className="text-white" size={18} />
-          </div>
-        </div>
-      )}
-
-      {/* User Info Area */}
-      {!collapsed && (
-        <div className="px-4 py-2 mb-1 border-b border-gray-700 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0">
+        {collapsed && (
+          <div className="px-2 py-3 border-b border-gray-700 flex justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-medium">
                 {displayName.charAt(0).toUpperCase()}
               </span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{displayName}</p>
-              <p className={`text-xs ${getRoleBadgeClass()} rounded-full px-2 py-0.5 inline-block mt-0.5`}>
-                {getRoleDisplay()}
-              </p>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Collapsed User Info */}
-      {collapsed && (
-        <div className="px-2 py-2 mb-1 border-b border-gray-700 flex-shrink-0 flex justify-center">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
-            <span className="text-white text-sm font-medium">
-              {displayName.charAt(0).toUpperCase()}
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Scrollable Navigation Area */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+        <nav className={cn("px-3 py-4", collapsed && "px-2")}>
+          {/* Main Navigation */}
+          <ul className="space-y-1">
+            {navItems.map((item) => {
+              // Check if user has permission to see this item
+              if (!item.roles.includes(userRole || 'user')) return null
+              
+              const Icon = item.icon
+              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+              const activeStyles = getActiveStyles(isActive, item.color)
+              const iconColor = getIconColor(isActive, item.color)
+              
+              return (
+                <li key={item.name}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex items-center rounded-lg px-3 py-2.5 transition-all duration-200 group",
+                      isActive 
+                        ? activeStyles
+                        : 'text-gray-300 hover:bg-gray-700 hover:text-white',
+                      collapsed && 'justify-center px-2'
+                    )}
+                  >
+                    <Icon className={cn(
+                      "h-5 w-5 transition-colors flex-shrink-0",
+                      isActive ? 'text-current' : iconColor,
+                      !isActive && 'group-hover:text-white'
+                    )} />
+                    {!collapsed && (
+                      <span className={cn(
+                        "ml-3 text-sm font-medium",
+                        isActive ? 'text-current' : 'text-gray-300'
+                      )}>
+                        {item.name}
+                      </span>
+                    )}
+                    {collapsed && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                        {item.name}
+                      </div>
+                    )}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
 
-      {/* Main Navigation */}
-      <nav className={cn(
-        "flex-1 px-3 py-2 overflow-y-auto",
-        collapsed && "px-2"
-      )}>
-        <ul className="space-y-0.5">
-          {navItems.map((item) => {
-            // Check if user has permission to see this item
-            if (!item.roles.includes(userRole || 'user')) return null
-            
-            const Icon = item.icon
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
-            const activeStyles = getActiveStyles(isActive, item.color)
-            const iconColor = getIconColor(isActive, item.color)
-            
-            return (
-              <li key={item.name}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center rounded-lg px-3 py-2 transition-all duration-200 group",
-                    isActive 
-                      ? activeStyles
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white',
-                    collapsed && 'justify-center px-2'
-                  )}
-                >
-                  <Icon className={cn(
-                    "h-5 w-5 transition-colors flex-shrink-0",
-                    isActive ? 'text-current' : iconColor,
-                    !isActive && 'group-hover:text-white'
-                  )} />
-                  {!collapsed && (
-                    <span className={cn(
-                      "ml-3 text-sm font-medium",
-                      isActive ? 'text-current' : 'text-gray-300'
-                    )}>
-                      {item.name}
-                    </span>
-                  )}
-                  {collapsed && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                      {item.name}
-                    </div>
-                  )}
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
-      </nav>
-
-      {/* Evaluation Reporting Section - ONLY for Supervisors and Admins (Manual Data Entry) */}
-      {(isSupervisor || isAdmin) && (
-        <div className="px-3 pt-2 pb-1 border-t border-gray-700 flex-shrink-0">
-          {!collapsed && (
-            <div className="px-3 mb-1 flex items-center gap-2">
-              <Edit3 className="h-3 w-3 text-green-400" />
-              <span className="text-xs font-semibold text-green-400 uppercase tracking-wider">
-                Evaluation Management
-              </span>
+          {/* Evaluation Reporting Section - ONLY for Supervisors and Admins */}
+          {(isSupervisor || isAdmin) && (
+            <div className="mt-4 pt-4 border-t border-gray-700">
+              {!collapsed && (
+                <div className="px-3 mb-2 flex items-center gap-2">
+                  <Edit3 className="h-3 w-3 text-green-400" />
+                  <span className="text-xs font-semibold text-green-400 uppercase tracking-wider">
+                    Evaluation Management
+                  </span>
+                </div>
+              )}
+              <ul className="space-y-1">
+                <li>
+                  <Link
+                    href="/dashboard/evaluation-reports"
+                    className={cn(
+                      "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                      collapsed && 'justify-center px-2'
+                    )}
+                  >
+                    <FileSpreadsheet className={cn(
+                      "h-5 w-5 transition-colors flex-shrink-0",
+                      collapsed ? 'text-green-400' : 'text-gray-400 group-hover:text-green-400'
+                    )} />
+                    {!collapsed && (
+                      <span className="ml-3 text-sm font-medium">Manual Data Entry</span>
+                    )}
+                    {collapsed && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                        Manual Data Entry
+                      </div>
+                    )}
+                  </Link>
+                </li>
+              </ul>
             </div>
           )}
-          <ul className="space-y-0.5">
-            <li>
-              <Link
-                href="/dashboard/evaluation-reports"
-                className={cn(
-                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                  collapsed && 'justify-center px-2'
-                )}
-              >
-                <FileSpreadsheet className={cn(
-                  "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-green-400' : 'text-gray-400 group-hover:text-green-400'
-                )} />
-                {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">Manual Data Entry</span>
-                )}
-                {collapsed && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                    Manual Data Entry
-                  </div>
-                )}
-              </Link>
-            </li>
-          </ul>
-        </div>
-      )}
 
-      {/* Admin Section - ONLY for Admins (Full Access) */}
-      {isAdmin && (
-        <div className="px-3 pt-2 pb-1 border-t border-gray-700 flex-shrink-0">
-          {!collapsed && (
-            <div className="px-3 mb-1 flex items-center gap-2">
-              <Shield className="h-3 w-3 text-red-400" />
-              <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">
-                System Administration
-              </span>
+          {/* Admin Section - ONLY for Admins */}
+          {isAdmin && (
+            <div className="mt-4 pt-4 border-t border-gray-700">
+              {!collapsed && (
+                <div className="px-3 mb-2 flex items-center gap-2">
+                  <Shield className="h-3 w-3 text-red-400" />
+                  <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">
+                    System Administration
+                  </span>
+                </div>
+              )}
+              <ul className="space-y-1">
+                <li>
+                  <Link
+                    href="/admin/users"
+                    className={cn(
+                      "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                      collapsed && 'justify-center px-2'
+                    )}
+                  >
+                    <UserCog className={cn(
+                      "h-5 w-5 transition-colors flex-shrink-0",
+                      collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
+                    )} />
+                    {!collapsed && (
+                      <span className="ml-3 text-sm font-medium">User Management</span>
+                    )}
+                    {collapsed && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                        User Management
+                      </div>
+                    )}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/admin/reports"
+                    className={cn(
+                      "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                      collapsed && 'justify-center px-2'
+                    )}
+                  >
+                    <BarChart3 className={cn(
+                      "h-5 w-5 transition-colors flex-shrink-0",
+                      collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
+                    )} />
+                    {!collapsed && (
+                      <span className="ml-3 text-sm font-medium">System Analytics</span>
+                    )}
+                    {collapsed && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                        System Analytics
+                      </div>
+                    )}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/admin/assessments"
+                    className={cn(
+                      "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                      collapsed && 'justify-center px-2'
+                    )}
+                  >
+                    <FileSpreadsheet className={cn(
+                      "h-5 w-5 transition-colors flex-shrink-0",
+                      collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
+                    )} />
+                    {!collapsed && (
+                      <span className="ml-3 text-sm font-medium">Assessment Reports</span>
+                    )}
+                    {collapsed && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                        Assessment Reports
+                      </div>
+                    )}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/dashboard/admin/resources"
+                    className={cn(
+                      "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                      collapsed && 'justify-center px-2'
+                    )}
+                  >
+                    <Database className={cn(
+                      "h-5 w-5 transition-colors flex-shrink-0",
+                      collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
+                    )} />
+                    {!collapsed && (
+                      <span className="ml-3 text-sm font-medium">Manage Resources</span>
+                    )}
+                    {collapsed && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                        Manage Resources
+                      </div>
+                    )}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/dashboard/admin/upload"
+                    className={cn(
+                      "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                      collapsed && 'justify-center px-2'
+                    )}
+                  >
+                    <Upload className={cn(
+                      "h-5 w-5 transition-colors flex-shrink-0",
+                      collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
+                    )} />
+                    {!collapsed && (
+                      <span className="ml-3 text-sm font-medium">Upload Content</span>
+                    )}
+                    {collapsed && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                        Upload Content
+                      </div>
+                    )}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/admin/settings"
+                    className={cn(
+                      "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
+                      collapsed && 'justify-center px-2'
+                    )}
+                  >
+                    <Settings className={cn(
+                      "h-5 w-5 transition-colors flex-shrink-0",
+                      collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
+                    )} />
+                    {!collapsed && (
+                      <span className="ml-3 text-sm font-medium">System Settings</span>
+                    )}
+                    {collapsed && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                        System Settings
+                      </div>
+                    )}
+                  </Link>
+                </li>
+              </ul>
             </div>
           )}
-          <ul className="space-y-0.5">
-            {/* User Management - Change user roles */}
-            <li>
-              <Link
-                href="/admin/users"
-                className={cn(
-                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                  collapsed && 'justify-center px-2'
-                )}
-              >
-                <UserCog className={cn(
-                  "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
-                )} />
-                {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">User Management</span>
-                )}
-                {collapsed && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                    User Management
-                  </div>
-                )}
-              </Link>
-            </li>
-            {/* System Analytics */}
-            <li>
-              <Link
-                href="/admin/reports"
-                className={cn(
-                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                  collapsed && 'justify-center px-2'
-                )}
-              >
-                <BarChart3 className={cn(
-                  "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
-                )} />
-                {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">System Analytics</span>
-                )}
-                {collapsed && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                    System Analytics
-                  </div>
-                )}
-              </Link>
-            </li>
-            {/* Assessment Reports */}
-            <li>
-              <Link
-                href="/admin/assessments"
-                className={cn(
-                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                  collapsed && 'justify-center px-2'
-                )}
-              >
-                <FileSpreadsheet className={cn(
-                  "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
-                )} />
-                {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">Assessment Reports</span>
-                )}
-                {collapsed && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                    Assessment Reports
-                  </div>
-                )}
-              </Link>
-            </li>
-            {/* Manage Resources */}
-            <li>
-              <Link
-                href="/dashboard/admin/resources"
-                className={cn(
-                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                  collapsed && 'justify-center px-2'
-                )}
-              >
-                <Database className={cn(
-                  "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
-                )} />
-                {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">Manage Resources</span>
-                )}
-                {collapsed && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                    Manage Resources
-                  </div>
-                )}
-              </Link>
-            </li>
-            {/* Upload Content */}
-            <li>
-              <Link
-                href="/dashboard/admin/upload"
-                className={cn(
-                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                  collapsed && 'justify-center px-2'
-                )}
-              >
-                <Upload className={cn(
-                  "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
-                )} />
-                {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">Upload Content</span>
-                )}
-                {collapsed && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                    Upload Content
-                  </div>
-                )}
-              </Link>
-            </li>
-            {/* System Settings */}
-            <li>
-              <Link
-                href="/admin/settings"
-                className={cn(
-                  "flex items-center rounded-lg px-3 py-2 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                  collapsed && 'justify-center px-2'
-                )}
-              >
-                <Settings className={cn(
-                  "h-5 w-5 transition-colors flex-shrink-0",
-                  collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
-                )} />
-                {!collapsed && (
-                  <span className="ml-3 text-sm font-medium">System Settings</span>
-                )}
-                {collapsed && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                    System Settings
-                  </div>
-                )}
-              </Link>
-            </li>
-          </ul>
-        </div>
-      )}
+        </nav>
+      </div>
 
-      {/* Bottom Section - Sign Out and Collapse */}
-      <div className="p-3 border-t border-gray-700 flex-shrink-0 mt-auto">
+      {/* Bottom Section - Fixed at bottom */}
+      <div className="flex-shrink-0 p-3 border-t border-gray-700">
         <button
           onClick={handleSignOut}
           disabled={isSigningOut}
           className={cn(
-            "flex items-center w-full py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-all mb-1 group",
+            "flex items-center w-full py-2.5 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-all mb-2 group",
             collapsed ? 'justify-center' : 'px-3',
             isSigningOut && 'opacity-50 cursor-not-allowed'
           )}
@@ -536,7 +530,7 @@ export default function DashboardSidebar() {
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
-            "flex items-center w-full py-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all group",
+            "flex items-center w-full py-2.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all group",
             collapsed ? 'justify-center' : 'px-3'
           )}
         >
