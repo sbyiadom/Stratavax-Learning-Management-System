@@ -8,6 +8,7 @@ import {
   FileText, 
   Plus, 
   Search, 
+  Filter, 
   Download, 
   ChevronRight,
   Menu,
@@ -15,15 +16,24 @@ import {
   ChevronLeft,
   Home,
   BarChart3,
+  Users,
+  Settings,
   LogOut,
   Bell,
+  HelpCircle,
   ChevronDown,
   Edit,
   Trash2,
   CheckCircle,
   Clock,
+  AlertCircle,
   Calculator,
-  Save
+  RefreshCw,
+  Save,
+  Upload,
+  FileSpreadsheet,
+  Eye,
+  Printer
 } from 'lucide-react'
 
 type EvaluationReport = {
@@ -48,16 +58,6 @@ type EvaluationReport = {
   updated_at: string
 }
 
-// Helper function to calculate metrics in real-time
-const calculateMetrics = (pre: number, post: number, possible: number) => {
-  const difference = post - pre
-  const percentShift = possible > 0 ? (difference / possible) * 100 : 0
-  return {
-    difference,
-    percentShift: Math.round(percentShift * 100) / 100
-  }
-}
-
 export default function EvaluationReportsPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -70,6 +70,7 @@ export default function EvaluationReportsPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [departmentFilter, setDepartmentFilter] = useState('all')
   const [filters, setFilters] = useState({ courses: [], departments: [] })
+  const [userRole, setUserRole] = useState<string>('')
   
   // Form state
   const [formData, setFormData] = useState({
@@ -86,7 +87,7 @@ export default function EvaluationReportsPage() {
     re_test: false,
     re_test_score: '',
     commentary: '',
-    status: 'draft'
+    status: 'submitted'  // Default to submitted for supervisors
   })
   
   const supabase = createClient()
@@ -102,6 +103,15 @@ export default function EvaluationReportsPage() {
       router.push('/login')
       return
     }
+    
+    // Get user role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    
+    setUserRole(profile?.role || 'user')
     setUser(user)
     await loadReports()
   }
@@ -139,6 +149,15 @@ export default function EvaluationReportsPage() {
   }
 
   // Get live calculated values for preview
+  const calculateMetrics = (pre: number, post: number, possible: number) => {
+    const difference = post - pre
+    const percentShift = possible > 0 ? (difference / possible) * 100 : 0
+    return {
+      difference,
+      percentShift: Math.round(percentShift * 100) / 100
+    }
+  }
+
   const liveCalculations = calculateMetrics(
     formData.pre_assessment_score,
     formData.post_assessment_score,
@@ -177,7 +196,7 @@ export default function EvaluationReportsPage() {
         re_test: false,
         re_test_score: '',
         commentary: '',
-        status: 'draft'
+        status: 'submitted'
       })
       loadReports()
     } else {
@@ -262,6 +281,13 @@ export default function EvaluationReportsPage() {
     }
   }
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
+  const isSupervisorOrAdmin = userRole === 'supervisor' || userRole === 'admin'
+
   if (loading && reports.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -295,7 +321,9 @@ export default function EvaluationReportsPage() {
               <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
                 {user?.email?.[0].toUpperCase()}
               </div>
-              <span className="text-sm font-medium hidden md:block">Facilitator</span>
+              <span className="text-sm font-medium hidden md:block">
+                {userRole === 'admin' ? 'Admin' : userRole === 'supervisor' ? 'Supervisor' : 'User'}
+              </span>
               <ChevronDown size={16} className="text-gray-500" />
             </div>
           </div>
@@ -317,12 +345,12 @@ export default function EvaluationReportsPage() {
             <Link href="/dashboard/evaluation-reports" className="flex items-center space-x-3 px-3 py-2.5 rounded-md bg-blue-50 text-blue-600">
               <FileText size={20} /> {!sidebarCollapsed && <span className="text-sm font-medium">Evaluation Reports</span>}
             </Link>
-            <Link href="/dashboard/reports" className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
-              <BarChart3 size={20} /> {!sidebarCollapsed && <span className="text-sm">Analytics</span>}
+            <Link href="/admin/assessments" className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
+              <BarChart3 size={20} /> {!sidebarCollapsed && <span className="text-sm">Assessment Analytics</span>}
             </Link>
           </nav>
           <div className="p-4 border-t">
-            <button onClick={() => supabase.auth.signOut()} className="flex items-center space-x-3 px-3 py-2.5 w-full rounded-md text-gray-600 hover:bg-gray-100">
+            <button onClick={handleSignOut} className="flex items-center space-x-3 px-3 py-2.5 w-full rounded-md text-gray-600 hover:bg-gray-100">
               <LogOut size={20} /> {!sidebarCollapsed && <span className="text-sm">Sign out</span>}
             </button>
           </div>
@@ -338,12 +366,14 @@ export default function EvaluationReportsPage() {
               <h1 className="text-2xl font-semibold text-gray-900">Training Evaluation Reports</h1>
               <p className="text-sm text-gray-500 mt-1">Manage pre/post assessment results and learner progress</p>
             </div>
-            <button
-              onClick={() => { setEditingReport(null); setShowForm(true); }}
-              className="mt-4 md:mt-0 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-            >
-              <Plus size={18} /> <span>New Evaluation Report</span>
-            </button>
+            {isSupervisorOrAdmin && (
+              <button
+                onClick={() => { setEditingReport(null); setShowForm(true); }}
+                className="mt-4 md:mt-0 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+              >
+                <Plus size={18} /> <span>New Evaluation Report</span>
+              </button>
+            )}
           </div>
 
           {/* Filters */}
@@ -388,24 +418,27 @@ export default function EvaluationReportsPage() {
           {/* Reports Table */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1200px]">
+              <table className="w-full min-w-[1400px]">
                 <thead className="bg-gray-50">
+                  {/* Main headers */}
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Staff #</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Job Title</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plant</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dept</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Pass Mark</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Pre</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Post</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Possible</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Diff</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">% Shift</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Re-Test</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th rowSpan={2} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase border-r">Course</th>
+                    <th rowSpan={2} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase border-r">Staff #</th>
+                    <th rowSpan={2} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase border-r">Name</th>
+                    <th rowSpan={2} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase border-r">Job Title</th>
+                    <th rowSpan={2} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase border-r">Plant</th>
+                    <th rowSpan={2} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase border-r">Dept</th>
+                    <th rowSpan={2} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r">Pass Mark</th>
+                    <th colSpan={2} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r">Assessment</th>
+                    <th rowSpan={2} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r">Diff</th>
+                    <th rowSpan={2} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r">% Shift</th>
+                    <th rowSpan={2} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r">Re-Test</th>
+                    <th rowSpan={2} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r">Status</th>
+                    <th rowSpan={2} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r">Actions</th>
+                  </tr>
+                  <tr>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 border-r">Pre</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 border-r">Post</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -419,8 +452,7 @@ export default function EvaluationReportsPage() {
                       <td className="px-4 py-3 text-sm text-gray-600">{report.department || '-'}</td>
                       <td className="px-4 py-3 text-sm text-center">{report.pass_mark}%</td>
                       <td className="px-4 py-3 text-sm text-center">{report.pre_assessment_score}</td>
-                      <td className="px-4 py-3 text-sm text-center">{report.post_assessment_score}</td>
-                      <td className="px-4 py-3 text-sm text-center">{report.possible_score}</td>
+                      <td className="px-4 py-3 text-sm text-center font-semibold">{report.post_assessment_score}</td>
                       <td className={`px-4 py-3 text-sm text-center ${report.difference >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {report.difference >= 0 ? `+${report.difference}` : report.difference}
                       </td>
@@ -452,16 +484,18 @@ export default function EvaluationReportsPage() {
               <div className="text-center py-12">
                 <FileText size={48} className="mx-auto text-gray-300 mb-3" />
                 <p className="text-gray-500">No evaluation reports found</p>
-                <button onClick={() => setShowForm(true)} className="mt-3 text-blue-600 hover:underline">
-                  Create your first report
-                </button>
+                {isSupervisorOrAdmin && (
+                  <button onClick={() => setShowForm(true)} className="mt-3 text-blue-600 hover:underline">
+                    Create your first report
+                  </button>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Modal Form */}
+      {/* Modal Form - Data Entry */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -475,35 +509,40 @@ export default function EvaluationReportsPage() {
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Course Name *</label>
-                  <input type="text" name="course_name" required value={formData.course_name} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Staff Number *</label>
-                  <input type="text" name="staff_number" required value={formData.staff_number} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name & Surname *</label>
-                  <input type="text" name="name_surname" required value={formData.name_surname} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
-                  <input type="text" name="job_title" value={formData.job_title} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Plant</label>
-                  <input type="text" name="plant" value={formData.plant} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <input type="text" name="department" value={formData.department} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+              {/* Personal Information */}
+              <div>
+                <h3 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Personal Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Course Name *</label>
+                    <input type="text" name="course_name" required value={formData.course_name} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="e.g., Leadership Training" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Staff Number *</label>
+                    <input type="text" name="staff_number" required value={formData.staff_number} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="e.g., STF-001" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name & Surname *</label>
+                    <input type="text" name="name_surname" required value={formData.name_surname} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="e.g., John Doe" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+                    <input type="text" name="job_title" value={formData.job_title} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="e.g., Senior Engineer" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Plant</label>
+                    <input type="text" name="plant" value={formData.plant} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="e.g., Plant A" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                    <input type="text" name="department" value={formData.department} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="e.g., Engineering" />
+                  </div>
                 </div>
               </div>
 
-              <div className="border-t pt-4">
-                <h3 className="font-medium text-gray-900 mb-4">Assessment Scores</h3>
+              {/* Assessment Scores */}
+              <div>
+                <h3 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Assessment Scores</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pass Mark (%)</label>
@@ -511,19 +550,19 @@ export default function EvaluationReportsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pre-Assessment Score</label>
-                    <input type="number" name="pre_assessment_score" value={formData.pre_assessment_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                    <input type="number" name="pre_assessment_score" value={formData.pre_assessment_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="0-100" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Post-Assessment Score</label>
-                    <input type="number" name="post_assessment_score" value={formData.post_assessment_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                    <input type="number" name="post_assessment_score" value={formData.post_assessment_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="0-100" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Possible Score</label>
-                    <input type="number" name="possible_score" value={formData.possible_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" />
+                    <input type="number" name="possible_score" value={formData.possible_score} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="100" />
                   </div>
                 </div>
 
-                {/* Live Calculation Preview - Auto updates as you type */}
+                {/* Live Calculation Preview */}
                 <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                   <div className="flex items-center space-x-4 text-sm flex-wrap gap-4">
                     <Calculator size={18} className="text-blue-600" />
@@ -538,6 +577,7 @@ export default function EvaluationReportsPage() {
                 </div>
               </div>
 
+              {/* Additional Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex items-center space-x-3">
                   <input type="checkbox" name="re_test" checked={formData.re_test} onChange={handleInputChange} className="w-4 h-4" />
@@ -552,7 +592,7 @@ export default function EvaluationReportsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Commentary</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Commentary / Notes</label>
                 <textarea name="commentary" rows={3} value={formData.commentary} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-lg" placeholder="Add any additional notes or observations..." />
               </div>
 
