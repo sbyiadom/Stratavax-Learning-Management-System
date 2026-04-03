@@ -7,7 +7,7 @@ import InsightCard from '@/components/InsightCard'
 import { 
   BookOpen, Clock, Award, TrendingUp, ChevronRight, 
   FileSpreadsheet, Plus, ExternalLink, ArrowRight,
-  BarChart3, Sparkles
+  BarChart3, Sparkles, Shield, Star
 } from 'lucide-react'
 
 // Map course slugs to local images
@@ -46,32 +46,31 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
   
-  // Handle profile fetch error - create profile if missing
-  if (profileError) {
-    console.error('Profile fetch error:', profileError)
-    // Try to create profile if it doesn't exist
-    const { error: insertError } = await supabase
-      .from('profiles')
-      .insert({
-        id: user.id,
-        email: user.email,
-        first_name: user.user_metadata?.first_name || user.email?.split('@')[0],
-        last_name: user.user_metadata?.last_name || '',
-        role: 'user',
-        created_at: new Date().toISOString()
-      })
-    
-    if (insertError) {
-      console.error('Profile creation error:', insertError)
-    }
-  }
+  // Debug logging
+  console.log('User ID:', user.id)
+  console.log('User Email:', user.email)
+  console.log('Profile data:', profile)
+  console.log('Profile error:', profileError)
   
   // Get user's full name - prioritize profile data
-  const firstName = profile?.first_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Learner'
-  const lastName = profile?.last_name || user.user_metadata?.last_name || ''
+  let firstName = 'Learner'
+  let lastName = ''
+  let userRole = 'user'
+  
+  if (profile) {
+    firstName = profile.first_name || user.email?.split('@')[0] || 'Learner'
+    lastName = profile.last_name || ''
+    userRole = profile.role || 'user'
+  } else {
+    // Try to get from user metadata
+    firstName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'Learner'
+    lastName = user.user_metadata?.last_name || ''
+    userRole = 'user'
+  }
+  
   const fullName = lastName ? `${firstName} ${lastName}` : firstName
-  const userRole = profile?.role || 'user'
   const isAdmin = userRole === 'admin'
+  const isSupervisor = userRole === 'supervisor'
   
   // Get enrollments with course details
   const { data: enrollments } = await supabase
@@ -130,13 +129,13 @@ export default async function DashboardPage() {
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
                 Welcome back, {firstName}
               </h1>
-              {userRole === 'admin' && (
+              {isAdmin && (
                 <div className="inline-flex items-center gap-2 bg-red-500/20 backdrop-blur-sm rounded-full px-3 py-1 mb-3">
                   <Shield size={14} className="text-red-400" />
                   <span className="text-red-300 text-xs font-medium">Administrator</span>
                 </div>
               )}
-              {userRole === 'supervisor' && (
+              {isSupervisor && !isAdmin && (
                 <div className="inline-flex items-center gap-2 bg-blue-500/20 backdrop-blur-sm rounded-full px-3 py-1 mb-3">
                   <Star size={14} className="text-blue-400" />
                   <span className="text-blue-300 text-xs font-medium">Supervisor</span>
@@ -374,6 +373,3 @@ export default async function DashboardPage() {
     </div>
   )
 }
-
-// Import missing icons
-import { Shield, Star } from 'lucide-react'
