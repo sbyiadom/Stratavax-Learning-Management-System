@@ -59,15 +59,16 @@ export default function AdminAssessmentsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedDepartment, setSelectedDepartment] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
+  const [userRole, setUserRole] = useState<string>('')
   
   const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
-    checkAdminAndLoadData()
+    checkAuthAndLoadData()
   }, [])
 
-  const checkAdminAndLoadData = async () => {
+  const checkAuthAndLoadData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
@@ -82,11 +83,13 @@ export default function AdminAssessmentsPage() {
         .eq('id', user.id)
         .single()
       
-      if (profile?.role !== 'admin') {
+      // Allow both admin and supervisor to access this page
+      if (profile?.role !== 'admin' && profile?.role !== 'supervisor') {
         router.push('/dashboard')
         return
       }
       
+      setUserRole(profile?.role || 'user')
       setUser(user)
       await loadAssessments()
     } catch (error) {
@@ -156,7 +159,14 @@ export default function AdminAssessmentsPage() {
       : 0
   }
 
-  const departments = [...new Set(assessments.map(a => a.department))]
+  // Fix: Use forEach instead of Set spread
+  const departments: string[] = []
+  assessments.forEach(assessment => {
+    if (assessment.department && !departments.includes(assessment.department)) {
+      departments.push(assessment.department)
+    }
+  })
+  departments.sort()
 
   if (loading) {
     return (
@@ -179,7 +189,9 @@ export default function AdminAssessmentsPage() {
               <div className="w-8 h-8 bg-gradient-to-r from-red-600 to-red-500 rounded-lg flex items-center justify-center">
                 <Shield className="text-white" size={18} />
               </div>
-              <span className="font-semibold text-gray-900">Admin Portal</span>
+              <span className="font-semibold text-gray-900">
+                {userRole === 'admin' ? 'Admin Portal' : 'Supervisor Portal'}
+              </span>
             </div>
           </div>
           
@@ -189,9 +201,11 @@ export default function AdminAssessmentsPage() {
             </button>
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-gradient-to-r from-red-600 to-red-500 rounded-full flex items-center justify-center text-white font-medium text-sm">
-                A
+                {userRole === 'admin' ? 'A' : 'S'}
               </div>
-              <span className="text-sm font-medium hidden md:block">Admin</span>
+              <span className="text-sm font-medium hidden md:block">
+                {userRole === 'admin' ? 'Admin' : 'Supervisor'}
+              </span>
               <ChevronDown size={16} className="text-gray-500" />
             </div>
           </div>
@@ -208,19 +222,9 @@ export default function AdminAssessmentsPage() {
           </div>
           
           <nav className="flex-1 px-3 space-y-1">
-            <Link href="/admin/reports?tab=overview" className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
+            <Link href={userRole === 'admin' ? "/admin/reports?tab=overview" : "/dashboard/evaluation-reports"} className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
               <BarChart3 size={20} />
               {!sidebarCollapsed && <span className="text-sm">Overview</span>}
-            </Link>
-            
-            <Link href="/admin/reports?tab=training" className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
-              <FileText size={20} />
-              {!sidebarCollapsed && <span className="text-sm">Training Records</span>}
-            </Link>
-            
-            <Link href="/admin/reports?tab=evaluations" className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
-              <Award size={20} />
-              {!sidebarCollapsed && <span className="text-sm">Evaluations</span>}
             </Link>
             
             <Link href="/admin/assessments" className="flex items-center space-x-3 px-3 py-2.5 rounded-md bg-red-50 text-red-600">
@@ -228,10 +232,24 @@ export default function AdminAssessmentsPage() {
               {!sidebarCollapsed && <span className="text-sm font-medium">Assessments</span>}
             </Link>
             
-            <Link href="/admin/reports?tab=users" className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
-              <Users size={20} />
-              {!sidebarCollapsed && <span className="text-sm">User Management</span>}
-            </Link>
+            {userRole === 'admin' && (
+              <>
+                <Link href="/admin/reports?tab=training" className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
+                  <FileText size={20} />
+                  {!sidebarCollapsed && <span className="text-sm">Training Records</span>}
+                </Link>
+                
+                <Link href="/admin/reports?tab=evaluations" className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
+                  <Award size={20} />
+                  {!sidebarCollapsed && <span className="text-sm">Evaluations</span>}
+                </Link>
+                
+                <Link href="/admin/reports?tab=users" className="flex items-center space-x-3 px-3 py-2.5 rounded-md text-gray-600 hover:bg-gray-100">
+                  <Users size={20} />
+                  {!sidebarCollapsed && <span className="text-sm">User Management</span>}
+                </Link>
+              </>
+            )}
           </nav>
           
           <div className="p-4 border-t">
@@ -367,7 +385,7 @@ export default function AdminAssessmentsPage() {
                           </div>
                           <span className="text-sm font-medium text-gray-900">{assessment.attendee_name}</span>
                         </div>
-                      </td>
+                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{assessment.staff_number}</td>
                       <td className="px-6 py-4 text-sm text-gray-900 max-w-[200px] truncate">{assessment.course_name}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{assessment.department}</td>
