@@ -7,7 +7,7 @@ import InsightCard from '@/components/InsightCard'
 import { 
   BookOpen, Clock, Award, TrendingUp, ChevronRight, 
   FileSpreadsheet, Plus, ExternalLink, ArrowRight,
-  BarChart3
+  BarChart3, Sparkles
 } from 'lucide-react'
 
 // Map course slugs to local images
@@ -32,27 +32,48 @@ const getCourseImage = (slug: string): string => {
 export default async function DashboardPage() {
   const supabase = await createClient()
   
-  // Get user with better error handling
+  // Get authenticated user
   const { data: { user }, error: userError } = await supabase.auth.getUser()
   
-  // If no user or error, redirect to login
   if (userError || !user) {
-    console.log('No user found, redirecting to login')
     redirect('/login')
   }
   
-  // Get user's profile with name
+  // Get user's profile with name and role
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('first_name, last_name, role')
     .eq('id', user.id)
-    .maybeSingle()
+    .single()
   
-  // If profile fetch fails, still proceed but with fallback values
+  // Handle profile fetch error - create profile if missing
   if (profileError) {
     console.error('Profile fetch error:', profileError)
+    // Try to create profile if it doesn't exist
+    const { error: insertError } = await supabase
+      .from('profiles')
+      .insert({
+        id: user.id,
+        email: user.email,
+        first_name: user.user_metadata?.first_name || user.email?.split('@')[0],
+        last_name: user.user_metadata?.last_name || '',
+        role: 'user',
+        created_at: new Date().toISOString()
+      })
+    
+    if (insertError) {
+      console.error('Profile creation error:', insertError)
+    }
   }
   
+  // Get user's full name - prioritize profile data
+  const firstName = profile?.first_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Learner'
+  const lastName = profile?.last_name || user.user_metadata?.last_name || ''
+  const fullName = lastName ? `${firstName} ${lastName}` : firstName
+  const userRole = profile?.role || 'user'
+  const isAdmin = userRole === 'admin'
+  
+  // Get enrollments with course details
   const { data: enrollments } = await supabase
     .from('enrollments')
     .select(`
@@ -61,11 +82,13 @@ export default async function DashboardPage() {
     `)
     .eq('user_id', user.id)
   
+  // Get certificates
   const { data: certificates } = await supabase
     .from('certificates')
     .select('*')
     .eq('user_id', user.id)
   
+  // Get lesson progress
   const { data: lessonProgress } = await supabase
     .from('lesson_progress')
     .select('completed')
@@ -75,11 +98,6 @@ export default async function DashboardPage() {
   const totalLessons = lessonProgress?.length || 0
   const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
   
-  const firstName = profile?.first_name || user.email?.split('@')[0] || 'Learner'
-  const lastName = profile?.last_name || ''
-  const fullName = lastName ? `${firstName} ${lastName}` : firstName
-  
-  const isAdmin = profile?.role === 'admin'
   const validEnrollments = enrollments?.filter(e => e.courses) || []
   
   const hour = new Date().getHours()
@@ -101,7 +119,7 @@ export default async function DashboardPage() {
       <div className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto px-6 py-8">
           
-          {/* Hero Section - Professional */}
+          {/* Hero Section */}
           <div className="relative mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-8 shadow-xl">
             <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1600')] opacity-10 bg-cover bg-center"></div>
             <div className="relative z-10">
@@ -112,6 +130,18 @@ export default async function DashboardPage() {
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
                 Welcome back, {firstName}
               </h1>
+              {userRole === 'admin' && (
+                <div className="inline-flex items-center gap-2 bg-red-500/20 backdrop-blur-sm rounded-full px-3 py-1 mb-3">
+                  <Shield size={14} className="text-red-400" />
+                  <span className="text-red-300 text-xs font-medium">Administrator</span>
+                </div>
+              )}
+              {userRole === 'supervisor' && (
+                <div className="inline-flex items-center gap-2 bg-blue-500/20 backdrop-blur-sm rounded-full px-3 py-1 mb-3">
+                  <Star size={14} className="text-blue-400" />
+                  <span className="text-blue-300 text-xs font-medium">Supervisor</span>
+                </div>
+              )}
               <p className="text-gray-300 text-lg max-w-2xl mb-6">
                 Continue your professional development journey
               </p>
@@ -131,7 +161,10 @@ export default async function DashboardPage() {
           
           {/* Quick Actions */}
           <div className="mb-10">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles size={18} className="text-blue-500" />
+              <h2 className="text-lg font-semibold text-gray-800">Quick Actions</h2>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <a
                 href="https://docs.google.com/forms/d/e/1FAIpQLSfyGkgfb5PQM_7O8XwJ0d9mfqj2t9w4ryJDMpFf2zD5R1lmNw/viewform"
@@ -226,7 +259,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           
-          {/* My Courses - WITH IMAGES */}
+          {/* My Courses */}
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-800">My Courses</h2>
@@ -248,7 +281,6 @@ export default async function DashboardPage() {
                       href={`/dashboard/learn/${course.slug}`}
                       className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100"
                     >
-                      {/* Image Container */}
                       <div className="relative h-44 w-full overflow-hidden bg-gray-200">
                         <Image
                           src={courseImage}
@@ -257,20 +289,17 @@ export default async function DashboardPage() {
                           className="object-cover group-hover:scale-105 transition-transform duration-500"
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
-                        {/* Progress Bar Overlay */}
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/30">
                           <div 
                             className="h-full bg-blue-500 transition-all duration-500"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
-                        {/* Difficulty Badge */}
                         <div className="absolute top-3 left-3">
                           <span className="text-xs font-medium px-2 py-1 rounded-full bg-black/60 text-white backdrop-blur-sm">
                             {course.difficulty_level || 'Beginner'}
                           </span>
                         </div>
-                        {/* Duration Badge */}
                         <div className="absolute top-3 right-3">
                           <span className="text-xs font-medium px-2 py-1 rounded-full bg-black/60 text-white backdrop-blur-sm flex items-center gap-1">
                             <Clock size={12} />
@@ -278,8 +307,6 @@ export default async function DashboardPage() {
                           </span>
                         </div>
                       </div>
-                      
-                      {/* Content */}
                       <div className="p-4">
                         <h3 className="font-semibold text-gray-800 mb-2 line-clamp-1 group-hover:text-blue-600 transition">
                           {course.title}
@@ -323,19 +350,20 @@ export default async function DashboardPage() {
           {/* Admin Quick Link */}
           {isAdmin && (
             <div className="mt-10 pt-6 border-t border-gray-200">
-              <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+              <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-5 border border-red-200">
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <BarChart3 className="text-gray-600" size={20} />
+                    <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                      <Shield className="text-red-600" size={24} />
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-800">Admin Dashboard</h3>
-                      <p className="text-sm text-gray-500">Training records, evaluations, and analytics</p>
+                      <h3 className="font-semibold text-gray-800">Admin Dashboard</h3>
+                      <p className="text-sm text-gray-600">Manage users, training records, evaluations, and system settings</p>
                     </div>
                   </div>
-                  <Link href="/admin/reports" className="text-blue-600 text-sm font-medium hover:text-blue-700 flex items-center gap-1">
-                    Access Reports <ArrowRight size={14} />
+                  <Link href="/admin/reports" className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition shadow-sm flex items-center gap-2">
+                    <BarChart3 size={16} />
+                    Access Admin Panel
                   </Link>
                 </div>
               </div>
@@ -346,3 +374,6 @@ export default async function DashboardPage() {
     </div>
   )
 }
+
+// Import missing icons
+import { Shield, Star } from 'lucide-react'
