@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { 
   Home, 
   BookOpen, 
@@ -24,13 +24,13 @@ import {
   CheckSquare,
   UserCog,
   Edit3,
-  Eye
+  Eye,
+  ArrowLeft
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
 
-// Navigation items with role-based visibility
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, color: 'blue', roles: ['user', 'supervisor', 'admin'] },
   { name: 'My Courses', href: '/dashboard/courses', icon: BookOpen, color: 'green', roles: ['user', 'supervisor', 'admin'] },
@@ -47,6 +47,7 @@ const navItems = [
 
 export default function DashboardSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -101,7 +102,6 @@ export default function DashboardSidebar() {
     setIsSigningOut(true)
     
     try {
-      // Clear all Supabase-related items from localStorage
       const keysToRemove = []
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
@@ -111,10 +111,8 @@ export default function DashboardSidebar() {
       }
       keysToRemove.forEach(key => localStorage.removeItem(key))
       
-      // Clear sessionStorage
       sessionStorage.clear()
       
-      // Clear all cookies related to supabase
       const cookies = document.cookie.split(';')
       cookies.forEach(cookie => {
         const [name] = cookie.split('=')
@@ -125,7 +123,6 @@ export default function DashboardSidebar() {
         }
       })
       
-      // Sign out from Supabase
       const { error } = await supabase.auth.signOut()
       
       if (error) {
@@ -139,6 +136,10 @@ export default function DashboardSidebar() {
       console.error('Sign out error:', error)
       window.location.replace('/login')
     }
+  }
+
+  const goBack = () => {
+    router.back()
   }
 
   const getActiveStyles = (isActive: boolean, color: string) => {
@@ -211,27 +212,44 @@ export default function DashboardSidebar() {
         collapsed ? 'w-20' : 'w-64'
       )}
     >
-      {/* Logo Area - Fixed at top */}
+      {/* Logo Area */}
       <div className="flex-shrink-0">
         {!collapsed && (
           <div className="px-4 pt-5 pb-3 border-b border-gray-700">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm">
-                <GraduationCap className="text-white" size={18} />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm">
+                  <GraduationCap className="text-white" size={18} />
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-semibold text-white">Stratavax</span>
+                  <span className="text-xs font-medium text-blue-400 bg-blue-500/20 px-1.5 py-0.5 rounded-full">LMS</span>
+                </div>
               </div>
-              <div className="flex items-baseline gap-1">
-                <span className="font-semibold text-white">Stratavax</span>
-                <span className="text-xs font-medium text-blue-400 bg-blue-500/20 px-1.5 py-0.5 rounded-full">LMS</span>
-              </div>
+              {/* Back Button */}
+              <button
+                onClick={goBack}
+                className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors"
+                title="Go back"
+              >
+                <ArrowLeft size={16} className="text-gray-400" />
+              </button>
             </div>
           </div>
         )}
 
         {collapsed && (
-          <div className="px-2 pt-5 pb-3 border-b border-gray-700 flex justify-center">
+          <div className="px-2 pt-5 pb-3 border-b border-gray-700 flex flex-col items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm">
               <GraduationCap className="text-white" size={18} />
             </div>
+            <button
+              onClick={goBack}
+              className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors"
+              title="Go back"
+            >
+              <ArrowLeft size={14} className="text-gray-400" />
+            </button>
           </div>
         )}
 
@@ -271,7 +289,6 @@ export default function DashboardSidebar() {
           {/* Main Navigation */}
           <ul className="space-y-1">
             {navItems.map((item) => {
-              // Check if user has permission to see this item
               if (!item.roles.includes(userRole || 'user')) return null
               
               const Icon = item.icon
@@ -389,7 +406,7 @@ export default function DashboardSidebar() {
                 </li>
                 <li>
                   <Link
-                    href="/admin/reports"
+                    href="/admin/reports?tab=analytics"
                     className={cn(
                       "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
                       collapsed && 'justify-center px-2'
@@ -400,99 +417,55 @@ export default function DashboardSidebar() {
                       collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
                     )} />
                     {!collapsed && (
-                      <span className="ml-3 text-sm font-medium">System Analytics</span>
+                      <span className="ml-3 text-sm font-medium">Analytics</span>
                     )}
                     {collapsed && (
                       <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                        System Analytics
+                        Analytics
                       </div>
                     )}
                   </Link>
                 </li>
                 <li>
                   <Link
-                    href="/admin/assessments"
+                    href="/admin/reports?tab=training"
                     className={cn(
                       "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
                       collapsed && 'justify-center px-2'
                     )}
                   >
-                    <FileSpreadsheet className={cn(
+                    <FileText className={cn(
                       "h-5 w-5 transition-colors flex-shrink-0",
                       collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
                     )} />
                     {!collapsed && (
-                      <span className="ml-3 text-sm font-medium">Assessment Reports</span>
+                      <span className="ml-3 text-sm font-medium">Training Records</span>
                     )}
                     {collapsed && (
                       <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                        Assessment Reports
+                        Training Records
                       </div>
                     )}
                   </Link>
                 </li>
                 <li>
                   <Link
-                    href="/dashboard/admin/resources"
+                    href="/admin/reports?tab=evaluations"
                     className={cn(
                       "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
                       collapsed && 'justify-center px-2'
                     )}
                   >
-                    <Database className={cn(
+                    <Award className={cn(
                       "h-5 w-5 transition-colors flex-shrink-0",
                       collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
                     )} />
                     {!collapsed && (
-                      <span className="ml-3 text-sm font-medium">Manage Resources</span>
+                      <span className="ml-3 text-sm font-medium">Evaluations</span>
                     )}
                     {collapsed && (
                       <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                        Manage Resources
-                      </div>
-                    )}
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/dashboard/admin/upload"
-                    className={cn(
-                      "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                      collapsed && 'justify-center px-2'
-                    )}
-                  >
-                    <Upload className={cn(
-                      "h-5 w-5 transition-colors flex-shrink-0",
-                      collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
-                    )} />
-                    {!collapsed && (
-                      <span className="ml-3 text-sm font-medium">Upload Content</span>
-                    )}
-                    {collapsed && (
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                        Upload Content
-                      </div>
-                    )}
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/admin/settings"
-                    className={cn(
-                      "flex items-center rounded-lg px-3 py-2.5 transition-colors text-gray-300 hover:bg-gray-700 hover:text-white group",
-                      collapsed && 'justify-center px-2'
-                    )}
-                  >
-                    <Settings className={cn(
-                      "h-5 w-5 transition-colors flex-shrink-0",
-                      collapsed ? 'text-red-400' : 'text-gray-400 group-hover:text-red-400'
-                    )} />
-                    {!collapsed && (
-                      <span className="ml-3 text-sm font-medium">System Settings</span>
-                    )}
-                    {collapsed && (
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                        System Settings
+                        Evaluations
                       </div>
                     )}
                   </Link>
