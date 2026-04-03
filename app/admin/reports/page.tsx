@@ -12,16 +12,13 @@ import {
   Calendar,
   Download,
   Search,
-  Filter,
   ChevronRight,
   Menu,
   X,
   ChevronLeft,
-  Home,
   Settings,
   LogOut,
   Bell,
-  HelpCircle,
   ChevronDown,
   Crown,
   Star,
@@ -32,10 +29,29 @@ import {
   AlertTriangle,
   CheckCircle,
   RefreshCw,
-  Eye,
-  Edit3
+  PieChart,
+  LineChart,
+  Activity
 } from 'lucide-react'
-import Link from 'next/link'
+import {
+  LineChart as ReLineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart as RePieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  RadialBarChart,
+  RadialBar,
+  AreaChart,
+  Area
+} from 'recharts'
 
 type Profile = {
   id: string
@@ -69,12 +85,14 @@ type Evaluation = {
   created_at: string
 }
 
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899']
+
 export default function AdminReportsPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState('users')
+  const [activeTab, setActiveTab] = useState('analytics')
   const [users, setUsers] = useState<Profile[]>([])
   const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>([])
   const [evaluations, setEvaluations] = useState<Evaluation[]>([])
@@ -92,7 +110,7 @@ export default function AdminReportsPage() {
 
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab === 'users' || tab === 'training' || tab === 'evaluations' || tab === 'overview') {
+    if (tab === 'users' || tab === 'training' || tab === 'evaluations' || tab === 'analytics') {
       setActiveTab(tab)
     }
     checkAdminAndLoadData()
@@ -227,7 +245,24 @@ export default function AdminReportsPage() {
     window.location.href = '/login'
   }
 
+  // Analytics Data Preparation
   const getStats = () => {
+    const avgContent = evaluations.length > 0 
+      ? evaluations.reduce((acc, e) => acc + (e.content_rating || 0), 0) / evaluations.length 
+      : 0
+    const avgFacilitator = evaluations.length > 0 
+      ? evaluations.reduce((acc, e) => acc + (e.facilitator_rating || 0), 0) / evaluations.length 
+      : 0
+    const avgLogistics = evaluations.length > 0 
+      ? evaluations.reduce((acc, e) => acc + (e.logistics_rating || 0), 0) / evaluations.length 
+      : 0
+    const avgEngagement = evaluations.length > 0 
+      ? evaluations.reduce((acc, e) => acc + (e.engagement_rating || 0), 0) / evaluations.length 
+      : 0
+    const avgApplicability = evaluations.length > 0 
+      ? evaluations.reduce((acc, e) => acc + (e.applicability_rating || 0), 0) / evaluations.length 
+      : 0
+
     return {
       totalUsers: users.length,
       totalAdmins: users.filter(u => u.role === 'admin').length,
@@ -235,13 +270,75 @@ export default function AdminReportsPage() {
       totalRegularUsers: users.filter(u => u.role === 'user').length,
       totalTrainingRecords: trainingRecords.length,
       totalEvaluations: evaluations.length,
-      avgContentRating: evaluations.length > 0 
-        ? Math.round(evaluations.reduce((acc, e) => acc + (e.content_rating || 0), 0) / evaluations.length) 
-        : 0,
-      avgFacilitatorRating: evaluations.length > 0 
-        ? Math.round(evaluations.reduce((acc, e) => acc + (e.facilitator_rating || 0), 0) / evaluations.length) 
-        : 0
+      avgContentRating: Math.round(avgContent * 10) / 10,
+      avgFacilitatorRating: Math.round(avgFacilitator * 10) / 10,
+      avgLogisticsRating: Math.round(avgLogistics * 10) / 10,
+      avgEngagementRating: Math.round(avgEngagement * 10) / 10,
+      avgApplicabilityRating: Math.round(avgApplicability * 10) / 10,
+      overallAvg: Math.round((avgContent + avgFacilitator + avgLogistics + avgEngagement + avgApplicability) / 5 * 10) / 10
     }
+  }
+
+  // Rating distribution data for bar chart
+  const ratingDistributionData = [
+    { name: 'Content', rating: getStats().avgContentRating, fill: '#3b82f6' },
+    { name: 'Facilitator', rating: getStats().avgFacilitatorRating, fill: '#10b981' },
+    { name: 'Logistics', rating: getStats().avgLogisticsRating, fill: '#f59e0b' },
+    { name: 'Engagement', rating: getStats().avgEngagementRating, fill: '#ef4444' },
+    { name: 'Applicability', rating: getStats().avgApplicabilityRating, fill: '#8b5cf6' }
+  ]
+
+  // Course performance data
+  const coursePerformance = () => {
+    const courseMap = new Map<string, { count: number; total: number }>()
+    evaluations.forEach(e => {
+      const current = courseMap.get(e.course) || { count: 0, total: 0 }
+      const avgRating = (e.content_rating + e.facilitator_rating + e.logistics_rating + e.engagement_rating + e.applicability_rating) / 5
+      courseMap.set(e.course, {
+        count: current.count + 1,
+        total: current.total + avgRating
+      })
+    })
+    return Array.from(courseMap.entries()).map(([name, data]) => ({
+      name: name.length > 15 ? name.substring(0, 15) + '...' : name,
+      rating: Math.round((data.total / data.count) * 10) / 10,
+      participants: data.count
+    })).sort((a, b) => b.rating - a.rating).slice(0, 5)
+  }
+
+  // Monthly trend data
+  const monthlyTrends = () => {
+    const monthMap = new Map<string, { total: number; count: number }>()
+    evaluations.forEach(e => {
+      const month = new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      const current = monthMap.get(month) || { total: 0, count: 0 }
+      const avgRating = (e.content_rating + e.facilitator_rating + e.logistics_rating + e.engagement_rating + e.applicability_rating) / 5
+      monthMap.set(month, {
+        total: current.total + avgRating,
+        count: current.count + 1
+      })
+    })
+    return Array.from(monthMap.entries()).map(([month, data]) => ({
+      month,
+      rating: Math.round((data.total / data.count) * 10) / 10
+    })).sort((a, b) => {
+      const dateA = new Date(a.month)
+      const dateB = new Date(b.month)
+      return dateA.getTime() - dateB.getTime()
+    })
+  }
+
+  // Rating distribution pie chart data
+  const ratingLevels = () => {
+    const levels = { 'Excellent (4.5-5)': 0, 'Good (3.5-4.4)': 0, 'Average (2.5-3.4)': 0, 'Poor (<2.5)': 0 }
+    evaluations.forEach(e => {
+      const avgRating = (e.content_rating + e.facilitator_rating + e.logistics_rating + e.engagement_rating + e.applicability_rating) / 5
+      if (avgRating >= 4.5) levels['Excellent (4.5-5)']++
+      else if (avgRating >= 3.5) levels['Good (3.5-4.4)']++
+      else if (avgRating >= 2.5) levels['Average (2.5-3.4)']++
+      else levels['Poor (<2.5)']++
+    })
+    return Object.entries(levels).map(([name, value]) => ({ name, value }))
   }
 
   const stats = getStats()
@@ -291,10 +388,10 @@ export default function AdminReportsPage() {
               <Menu size={20} />
             </button>
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-red-600 to-red-500 rounded-lg flex items-center justify-center">
-                <Shield className="text-white" size={18} />
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                <BarChart3 className="text-white" size={18} />
               </div>
-              <span className="font-semibold text-gray-900">Admin Portal</span>
+              <span className="font-semibold text-gray-900">Analytics Dashboard</span>
             </div>
           </div>
           
@@ -303,7 +400,7 @@ export default function AdminReportsPage() {
               <Bell size={20} className="text-gray-600" />
             </button>
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-red-600 to-red-500 rounded-full flex items-center justify-center text-white font-medium text-sm">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
                 A
               </div>
               <span className="text-sm font-medium hidden md:block">Admin</span>
@@ -324,16 +421,16 @@ export default function AdminReportsPage() {
           
           <nav className="flex-1 px-3 space-y-1">
             <button
-              onClick={() => { setActiveTab('overview'); router.push('/admin/reports?tab=overview') }}
-              className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-md transition ${activeTab === 'overview' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'}`}
+              onClick={() => { setActiveTab('analytics'); router.push('/admin/reports?tab=analytics') }}
+              className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-md transition ${activeTab === 'analytics' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
             >
-              <BarChart3 size={20} />
-              {!sidebarCollapsed && <span className="text-sm">Overview</span>}
+              <PieChart size={20} />
+              {!sidebarCollapsed && <span className="text-sm">Analytics</span>}
             </button>
             
             <button
               onClick={() => { setActiveTab('training'); router.push('/admin/reports?tab=training') }}
-              className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-md transition ${activeTab === 'training' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'}`}
+              className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-md transition ${activeTab === 'training' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               <FileText size={20} />
               {!sidebarCollapsed && <span className="text-sm">Training Records</span>}
@@ -341,7 +438,7 @@ export default function AdminReportsPage() {
             
             <button
               onClick={() => { setActiveTab('evaluations'); router.push('/admin/reports?tab=evaluations') }}
-              className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-md transition ${activeTab === 'evaluations' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'}`}
+              className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-md transition ${activeTab === 'evaluations' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               <Award size={20} />
               {!sidebarCollapsed && <span className="text-sm">Evaluations</span>}
@@ -349,7 +446,7 @@ export default function AdminReportsPage() {
             
             <button
               onClick={() => { setActiveTab('users'); router.push('/admin/reports?tab=users') }}
-              className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-md transition ${activeTab === 'users' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'}`}
+              className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-md transition ${activeTab === 'users' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               <Users size={20} />
               {!sidebarCollapsed && <span className="text-sm">User Management</span>}
@@ -368,113 +465,194 @@ export default function AdminReportsPage() {
       {/* Main Content */}
       <div className={`pt-14 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <div className="p-6">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-semibold text-gray-900">Admin Reports</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage users, training records, and evaluations</p>
-          </div>
+          
+          {/* ANALYTICS DASHBOARD TAB */}
+          {activeTab === 'analytics' && (
+            <div>
+              <div className="mb-6">
+                <h1 className="text-2xl font-semibold text-gray-900">Analytics Dashboard</h1>
+                <p className="text-sm text-gray-500 mt-1">Visual insights from training evaluations</p>
+              </div>
 
-          {/* Stats Cards - Overview Tab */}
-          {activeTab === 'overview' && (
-            <>
+              {/* Key Metrics Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-gray-500">Total Users</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
-                    </div>
-                    <Users size={24} className="text-blue-500" />
-                  </div>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-gray-500">Training Records</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats.totalTrainingRecords}</p>
-                    </div>
-                    <FileText size={24} className="text-green-500" />
-                  </div>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-gray-500">Evaluations</p>
+                      <p className="text-sm text-gray-500 mb-1">Total Evaluations</p>
                       <p className="text-2xl font-bold text-gray-900">{stats.totalEvaluations}</p>
                     </div>
-                    <Award size={24} className="text-purple-500" />
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Award size={20} className="text-blue-600" />
+                    </div>
                   </div>
                 </div>
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-gray-500">Admins</p>
-                      <p className="text-2xl font-bold text-red-600">{stats.totalAdmins}</p>
+                      <p className="text-sm text-gray-500 mb-1">Overall Rating</p>
+                      <p className="text-2xl font-bold text-green-600">{stats.overallAvg}/5</p>
                     </div>
-                    <Crown size={24} className="text-red-500" />
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <TrendingUp size={20} className="text-green-600" />
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Total Training Records</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.totalTrainingRecords}</p>
+                    </div>
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <FileText size={20} className="text-purple-600" />
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Total Users</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
+                    </div>
+                    <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Users size={20} className="text-orange-600" />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Rating Distribution Bar Chart */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Role Distribution</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-gray-600">Admins</span>
-                        <span className="text-sm font-semibold text-red-600">{stats.totalAdmins}</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(stats.totalAdmins / stats.totalUsers) * 100}%` }}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-gray-600">Supervisors</span>
-                        <span className="text-sm font-semibold text-blue-600">{stats.totalSupervisors}</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${(stats.totalSupervisors / stats.totalUsers) * 100}%` }}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-gray-600">Regular Users</span>
-                        <span className="text-sm font-semibold text-gray-600">{stats.totalRegularUsers}</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-gray-500 h-2 rounded-full" style={{ width: `${(stats.totalRegularUsers / stats.totalUsers) * 100}%` }}></div>
-                      </div>
-                    </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <BarChart3 size={20} className="text-blue-500" />
+                    Rating Distribution by Category
+                  </h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={ratingDistributionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis domain={[0, 5]} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="rating" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 text-center text-sm text-gray-500">
+                    Average ratings across all evaluation categories
                   </div>
                 </div>
-                
+
+                {/* Rating Level Pie Chart */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Evaluation Ratings</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-gray-600">Average Content Rating</span>
-                        <span className="text-sm font-semibold text-green-600">{stats.avgContentRating}/5</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-green-500 h-2 rounded-full" style={{ width: `${(stats.avgContentRating / 5) * 100}%` }}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-gray-600">Average Facilitator Rating</span>
-                        <span className="text-sm font-semibold text-blue-600">{stats.avgFacilitatorRating}/5</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${(stats.avgFacilitatorRating / 5) * 100}%` }}></div>
-                      </div>
-                    </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <PieChart size={20} className="text-purple-500" />
+                    Overall Satisfaction Levels
+                  </h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RePieChart>
+                      <Pie
+                        data={ratingLevels()}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {ratingLevels().map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </RePieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 text-center text-sm text-gray-500">
+                    Distribution of training satisfaction levels
                   </div>
                 </div>
               </div>
-            </>
+
+              {/* Course Performance Chart */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Activity size={20} className="text-green-500" />
+                    Top Performing Courses
+                  </h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={coursePerformance()} layout="vertical" margin={{ top: 20, right: 30, left: 100, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" domain={[0, 5]} />
+                      <YAxis type="category" dataKey="name" />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="rating" fill="#10b981" radius={[0, 8, 8, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 text-center text-sm text-gray-500">
+                    Courses ranked by average participant rating
+                  </div>
+                </div>
+
+                {/* Monthly Trend Line Chart */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <LineChart size={20} className="text-orange-500" />
+                    Rating Trends Over Time
+                  </h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={monthlyTrends()} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis domain={[0, 5]} />
+                      <Tooltip />
+                      <Legend />
+                      <Area type="monotone" dataKey="rating" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.3} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 text-center text-sm text-gray-500">
+                    Monthly average rating trends over time
+                  </div>
+                </div>
+              </div>
+
+              {/* Summary Statistics */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <TrendingUp size={20} className="text-indigo-500" />
+                  Key Insights
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-600 mb-1">Highest Rated Category</p>
+                    <p className="text-xl font-bold text-blue-700">
+                      {ratingDistributionData.reduce((max, curr) => curr.rating > max.rating ? curr : max).name}
+                    </p>
+                    <p className="text-2xl font-bold text-blue-800 mt-1">
+                      {ratingDistributionData.reduce((max, curr) => curr.rating > max.rating ? curr : max).rating}/5
+                    </p>
+                  </div>
+                  <div className="p-4 bg-green-50 rounded-lg">
+                    <p className="text-sm text-green-600 mb-1">Lowest Rated Category</p>
+                    <p className="text-xl font-bold text-green-700">
+                      {ratingDistributionData.reduce((min, curr) => curr.rating < min.rating ? curr : min).name}
+                    </p>
+                    <p className="text-2xl font-bold text-green-800 mt-1">
+                      {ratingDistributionData.reduce((min, curr) => curr.rating < min.rating ? curr : min).rating}/5
+                    </p>
+                  </div>
+                  <div className="p-4 bg-purple-50 rounded-lg">
+                    <p className="text-sm text-purple-600 mb-1">Total Participants</p>
+                    <p className="text-2xl font-bold text-purple-700">{stats.totalEvaluations}</p>
+                    <p className="text-sm text-purple-600 mt-1">Training Sessions</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Training Records Tab */}
@@ -574,12 +752,12 @@ export default function AdminReportsPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
                             {evalItem.logistics_rating || 0}/5
                           </span>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
                             {evalItem.engagement_rating || 0}/5
                           </span>
                         </td>
@@ -629,7 +807,7 @@ export default function AdminReportsPage() {
                     placeholder="Search by name or email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -659,46 +837,46 @@ export default function AdminReportsPage() {
                               </p>
                             </div>
                           </div>
-                        </td>
+                         </div>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <Mail size={14} className="text-gray-400" />
                             <span className="text-sm text-gray-600">{userItem.email}</span>
                           </div>
-                        </td>
+                         </div>
                         <td className="px-6 py-4">
                           {getRoleBadge(userItem.role)}
-                        </td>
+                         </div>
                         <td className="px-6 py-4">
                           {updatingUserId === userItem.id ? (
                             <div className="flex items-center gap-2">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                               <span className="text-sm text-gray-500">Updating...</span>
                             </div>
                           ) : (
                             <select
                               value={userItem.role}
                               onChange={(e) => openRoleModal(userItem, e.target.value)}
-                              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white cursor-pointer"
+                              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer"
                             >
                               <option value="user">👤 User</option>
                               <option value="supervisor">⭐ Supervisor</option>
                               <option value="admin">👑 Admin</option>
                             </select>
                           )}
-                        </td>
+                         </div>
                         <td className="px-6 py-4 text-sm text-gray-500">
                           {new Date(userItem.created_at).toLocaleDateString()}
-                        </td>
-                      </tr>
+                         </div>
+                       </tr>
                     ))}
                     {filteredUsers.length === 0 && (
                       <tr>
                         <td colSpan={5} className="text-center py-12">
                           <Users size={48} className="mx-auto text-gray-300 mb-3" />
                           <p className="text-gray-500">No users found</p>
-                        </td>
-                      </tr>
+                         </div>
+                       </tr>
                     )}
                   </tbody>
                 </table>
@@ -740,7 +918,7 @@ export default function AdminReportsPage() {
               </button>
               <button
                 onClick={() => handleRoleChange(selectedUser.id, newRole)}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
               >
                 <Save size={16} />
                 Confirm Change
