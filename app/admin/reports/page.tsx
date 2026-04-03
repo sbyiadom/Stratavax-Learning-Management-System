@@ -47,8 +47,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  RadialBarChart,
-  RadialBar,
   AreaChart,
   Area
 } from 'recharts'
@@ -299,11 +297,14 @@ export default function AdminReportsPage() {
         total: current.total + avgRating
       })
     })
-    return Array.from(courseMap.entries()).map(([name, data]) => ({
+    const result = Array.from(courseMap.entries()).map(([name, data]) => ({
       name: name.length > 15 ? name.substring(0, 15) + '...' : name,
       rating: Math.round((data.total / data.count) * 10) / 10,
       participants: data.count
     })).sort((a, b) => b.rating - a.rating).slice(0, 5)
+    
+    // If no data, return empty array
+    return result.length > 0 ? result : [{ name: 'No Data', rating: 0, participants: 0 }]
   }
 
   // Monthly trend data
@@ -318,7 +319,7 @@ export default function AdminReportsPage() {
         count: current.count + 1
       })
     })
-    return Array.from(monthMap.entries()).map(([month, data]) => ({
+    const result = Array.from(monthMap.entries()).map(([month, data]) => ({
       month,
       rating: Math.round((data.total / data.count) * 10) / 10
     })).sort((a, b) => {
@@ -326,6 +327,9 @@ export default function AdminReportsPage() {
       const dateB = new Date(b.month)
       return dateA.getTime() - dateB.getTime()
     })
+    
+    // If no data, return empty array with placeholder
+    return result.length > 0 ? result : [{ month: 'No Data', rating: 0 }]
   }
 
   // Rating distribution pie chart data
@@ -338,7 +342,12 @@ export default function AdminReportsPage() {
       else if (avgRating >= 2.5) levels['Average (2.5-3.4)']++
       else levels['Poor (<2.5)']++
     })
-    return Object.entries(levels).map(([name, value]) => ({ name, value }))
+    const result = Object.entries(levels).map(([name, value]) => ({ name, value }))
+    // If no data, show placeholder
+    if (evaluations.length === 0) {
+      return [{ name: 'No Data', value: 1 }]
+    }
+    return result
   }
 
   const stats = getStats()
@@ -557,7 +566,7 @@ export default function AdminReportsPage() {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }) => percent > 0 ? `${name}: ${(percent * 100).toFixed(0)}%` : ''}
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="value"
@@ -621,37 +630,47 @@ export default function AdminReportsPage() {
               </div>
 
               {/* Summary Statistics */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <TrendingUp size={20} className="text-indigo-500" />
-                  Key Insights
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-blue-600 mb-1">Highest Rated Category</p>
-                    <p className="text-xl font-bold text-blue-700">
-                      {ratingDistributionData.reduce((max, curr) => curr.rating > max.rating ? curr : max).name}
-                    </p>
-                    <p className="text-2xl font-bold text-blue-800 mt-1">
-                      {ratingDistributionData.reduce((max, curr) => curr.rating > max.rating ? curr : max).rating}/5
-                    </p>
-                  </div>
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <p className="text-sm text-green-600 mb-1">Lowest Rated Category</p>
-                    <p className="text-xl font-bold text-green-700">
-                      {ratingDistributionData.reduce((min, curr) => curr.rating < min.rating ? curr : min).name}
-                    </p>
-                    <p className="text-2xl font-bold text-green-800 mt-1">
-                      {ratingDistributionData.reduce((min, curr) => curr.rating < min.rating ? curr : min).rating}/5
-                    </p>
-                  </div>
-                  <div className="p-4 bg-purple-50 rounded-lg">
-                    <p className="text-sm text-purple-600 mb-1">Total Participants</p>
-                    <p className="text-2xl font-bold text-purple-700">{stats.totalEvaluations}</p>
-                    <p className="text-sm text-purple-600 mt-1">Training Sessions</p>
+              {evaluations.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <TrendingUp size={20} className="text-indigo-500" />
+                    Key Insights
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-blue-600 mb-1">Highest Rated Category</p>
+                      <p className="text-xl font-bold text-blue-700">
+                        {ratingDistributionData.reduce((max, curr) => curr.rating > max.rating ? curr : max).name}
+                      </p>
+                      <p className="text-2xl font-bold text-blue-800 mt-1">
+                        {ratingDistributionData.reduce((max, curr) => curr.rating > max.rating ? curr : max).rating}/5
+                      </p>
+                    </div>
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <p className="text-sm text-green-600 mb-1">Lowest Rated Category</p>
+                      <p className="text-xl font-bold text-green-700">
+                        {ratingDistributionData.reduce((min, curr) => curr.rating < min.rating ? curr : min).name}
+                      </p>
+                      <p className="text-2xl font-bold text-green-800 mt-1">
+                        {ratingDistributionData.reduce((min, curr) => curr.rating < min.rating ? curr : min).rating}/5
+                      </p>
+                    </div>
+                    <div className="p-4 bg-purple-50 rounded-lg">
+                      <p className="text-sm text-purple-600 mb-1">Total Participants</p>
+                      <p className="text-2xl font-bold text-purple-700">{stats.totalEvaluations}</p>
+                      <p className="text-sm text-purple-600 mt-1">Training Sessions</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
+              
+              {evaluations.length === 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+                  <Award size={48} className="mx-auto text-gray-300 mb-3" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Evaluation Data Yet</h3>
+                  <p className="text-gray-500">Once evaluations are submitted, analytics will appear here.</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -837,16 +856,16 @@ export default function AdminReportsPage() {
                               </p>
                             </div>
                           </div>
-                         </div>
+                        </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <Mail size={14} className="text-gray-400" />
                             <span className="text-sm text-gray-600">{userItem.email}</span>
                           </div>
-                         </div>
+                        </td>
                         <td className="px-6 py-4">
                           {getRoleBadge(userItem.role)}
-                         </div>
+                        </td>
                         <td className="px-6 py-4">
                           {updatingUserId === userItem.id ? (
                             <div className="flex items-center gap-2">
@@ -864,19 +883,19 @@ export default function AdminReportsPage() {
                               <option value="admin">👑 Admin</option>
                             </select>
                           )}
-                         </div>
+                        </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
                           {new Date(userItem.created_at).toLocaleDateString()}
-                         </div>
-                       </tr>
+                        </td>
+                      </tr>
                     ))}
                     {filteredUsers.length === 0 && (
                       <tr>
                         <td colSpan={5} className="text-center py-12">
                           <Users size={48} className="mx-auto text-gray-300 mb-3" />
                           <p className="text-gray-500">No users found</p>
-                         </div>
-                       </tr>
+                        </td>
+                      </tr>
                     )}
                   </tbody>
                 </table>
