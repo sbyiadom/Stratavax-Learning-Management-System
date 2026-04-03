@@ -40,35 +40,28 @@ export default async function DashboardPage() {
   }
   
   // Get user's profile with name and role
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('first_name, last_name, role')
-    .eq('id', user.id)
-    .single()
-  
-  // Debug logging
-  console.log('User ID:', user.id)
-  console.log('User Email:', user.email)
-  console.log('Profile data:', profile)
-  console.log('Profile error:', profileError)
-  
-  // Get user's full name - prioritize profile data
-  let firstName = 'Learner'
+  let firstName = user.email?.split('@')[0] || 'Learner'
   let lastName = ''
   let userRole = 'user'
   
-  if (profile) {
-    firstName = profile.first_name || user.email?.split('@')[0] || 'Learner'
-    lastName = profile.last_name || ''
-    userRole = profile.role || 'user'
-  } else {
-    // Try to get from user metadata
-    firstName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'Learner'
-    lastName = user.user_metadata?.last_name || ''
-    userRole = 'user'
+  try {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('first_name, last_name, role')
+      .eq('id', user.id)
+      .single()
+    
+    if (!profileError && profile) {
+      firstName = profile.first_name || firstName
+      lastName = profile.last_name || ''
+      userRole = profile.role || 'user'
+    } else {
+      console.error('Profile fetch error:', profileError)
+    }
+  } catch (err) {
+    console.error('Unexpected error fetching profile:', err)
   }
   
-  const fullName = lastName ? `${firstName} ${lastName}` : firstName
   const isAdmin = userRole === 'admin'
   const isSupervisor = userRole === 'supervisor'
   
