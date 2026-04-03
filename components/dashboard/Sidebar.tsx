@@ -31,11 +31,10 @@ import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
 
+// Navigation items - Removed Training Register and Course Evaluation
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, color: 'blue', roles: ['user', 'supervisor', 'admin'] },
   { name: 'My Courses', href: '/dashboard/courses', icon: BookOpen, color: 'green', roles: ['user', 'supervisor', 'admin'] },
-  { name: 'Training Register', href: '/dashboard/training', icon: ClipboardList, color: 'indigo', roles: ['user', 'supervisor', 'admin'] },
-  { name: 'Course Evaluation', href: '/dashboard/evaluation', icon: CheckSquare, color: 'teal', roles: ['user', 'supervisor', 'admin'] },
   { name: 'Explore', href: '/dashboard/explore', icon: Compass, color: 'purple', roles: ['user', 'supervisor', 'admin'] },
   { name: 'Progress', href: '/dashboard/progress', icon: TrendingUp, color: 'orange', roles: ['user', 'supervisor', 'admin'] },
   { name: 'Assignments', href: '/dashboard/assignments', icon: FileText, color: 'indigo', roles: ['user', 'supervisor', 'admin'] },
@@ -332,7 +331,7 @@ export default function DashboardSidebar() {
             })}
           </ul>
 
-          {/* Evaluation Reporting Section - ONLY for Supervisors and Admins */}
+          {/* Evaluation Reporting Section - ONLY for Supervisors and Admins (Manual Data Entry) */}
           {(isSupervisor || isAdmin) && (
             <div className="mt-4 pt-4 border-t border-gray-700">
               {!collapsed && (
