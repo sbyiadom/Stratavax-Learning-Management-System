@@ -77,6 +77,7 @@ export default function AdminReportsPage() {
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null)
   const [newRole, setNewRole] = useState<string>('')
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   
   const supabase = createClient()
   const router = useRouter()
@@ -168,15 +169,62 @@ export default function AdminReportsPage() {
 
   const handleRoleChange = async (userId: string, newRoleValue: string) => {
     setUpdatingUserId(userId)
+    setErrorMessage(null)
     
     try {
-      const { error } = await supabase
+      console.log('=== Starting Role Change ===')
+      console.log('User ID to update:', userId)
+      console.log('New Role:', newRoleValue)
+      
+      // Get current user
+      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
+      
+      if (userError || !currentUser) {
+        console.error('Auth error:', userError)
+        throw new Error(`Not authenticated: ${userError?.message || 'No user'}`)
+      }
+      
+      console.log('Current admin user ID:', currentUser.id)
+      
+      // Check if current user is admin
+      const { data: adminCheck, error: adminError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.id)
+        .single()
+      
+      console.log('Admin check result:', adminCheck)
+      
+      if (adminError) {
+        console.error('Admin check error:', adminError)
+        throw new Error(`Could not verify admin status: ${adminError.message}`)
+      }
+      
+      if (adminCheck?.role !== 'admin') {
+        throw new Error(`Only admins can change user roles. Your role: ${adminCheck?.role}`)
+      }
+      
+      // Perform the update
+      const { data: updateData, error: updateError } = await supabase
         .from('profiles')
         .update({ role: newRoleValue })
         .eq('id', userId)
+        .select()
       
-      if (error) throw error
+      console.log('Update response:', updateData, updateError)
       
+      if (updateError) {
+        console.error('Update error details:', updateError)
+        throw new Error(`Database error: ${updateError.message}`)
+      }
+      
+      if (!updateData || updateData.length === 0) {
+        throw new Error('User not found or no changes made')
+      }
+      
+      console.log('Update successful! New role:', updateData[0].role)
+      
+      // Update local state
       setUsers(users.map(user => 
         user.id === userId ? { ...user, role: newRoleValue } : user
       ))
@@ -187,9 +235,10 @@ export default function AdminReportsPage() {
       setShowConfirmModal(false)
       setSelectedUser(null)
       
-    } catch (error) {
-      console.error('Error updating role:', error)
-      alert('Failed to update user role')
+    } catch (error: any) {
+      console.error('Error in handleRoleChange:', error)
+      setErrorMessage(error.message)
+      setTimeout(() => setErrorMessage(null), 5000)
     } finally {
       setUpdatingUserId(null)
     }
@@ -253,6 +302,18 @@ export default function AdminReportsPage() {
             <div className="flex items-center gap-2">
               <CheckCircle className="text-green-600" size={20} />
               <p className="text-green-700 text-sm">{successMessage}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {errorMessage && (
+        <div className="fixed top-20 right-4 z-50 animate-in slide-in-from-top-2 fade-in duration-300">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="text-red-600" size={20} />
+              <p className="text-red-700 text-sm">{errorMessage}</p>
             </div>
           </div>
         </div>
