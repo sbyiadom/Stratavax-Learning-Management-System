@@ -31,7 +31,9 @@ import {
   Save,
   AlertTriangle,
   CheckCircle,
-  RefreshCw
+  RefreshCw,
+  Eye,
+  Edit3
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -59,6 +61,11 @@ type Evaluation = {
   course: string
   content_rating: number
   facilitator_rating: number
+  logistics_rating: number
+  engagement_rating: number
+  applicability_rating: number
+  comments: string
+  one_word: string
   created_at: string
 }
 
@@ -85,11 +92,11 @@ export default function AdminReportsPage() {
 
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab === 'users' || tab === 'training' || tab === 'evaluations') {
+    if (tab === 'users' || tab === 'training' || tab === 'evaluations' || tab === 'overview') {
       setActiveTab(tab)
     }
     checkAdminAndLoadData()
-  }, [activeTab])
+  }, [activeTab, searchParams])
 
   const checkAdminAndLoadData = async () => {
     try {
@@ -112,9 +119,11 @@ export default function AdminReportsPage() {
       }
       
       setUser(user)
-      await loadUsers()
-      await loadTrainingRecords()
-      await loadEvaluations()
+      await Promise.all([
+        loadUsers(),
+        loadTrainingRecords(),
+        loadEvaluations()
+      ])
     } catch (error) {
       console.error('Error:', error)
       router.push('/dashboard')
@@ -143,7 +152,6 @@ export default function AdminReportsPage() {
         .from('training_records')
         .select('*')
         .order('training_date', { ascending: false })
-        .limit(50)
       
       if (error) throw error
       setTrainingRecords(data || [])
@@ -158,7 +166,6 @@ export default function AdminReportsPage() {
         .from('training_evaluations')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(50)
       
       if (error) throw error
       setEvaluations(data || [])
@@ -172,59 +179,13 @@ export default function AdminReportsPage() {
     setErrorMessage(null)
     
     try {
-      console.log('=== Starting Role Change ===')
-      console.log('User ID to update:', userId)
-      console.log('New Role:', newRoleValue)
-      
-      // Get current user
-      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
-      
-      if (userError || !currentUser) {
-        console.error('Auth error:', userError)
-        throw new Error(`Not authenticated: ${userError?.message || 'No user'}`)
-      }
-      
-      console.log('Current admin user ID:', currentUser.id)
-      
-      // Check if current user is admin
-      const { data: adminCheck, error: adminError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', currentUser.id)
-        .single()
-      
-      console.log('Admin check result:', adminCheck)
-      
-      if (adminError) {
-        console.error('Admin check error:', adminError)
-        throw new Error(`Could not verify admin status: ${adminError.message}`)
-      }
-      
-      if (adminCheck?.role !== 'admin') {
-        throw new Error(`Only admins can change user roles. Your role: ${adminCheck?.role}`)
-      }
-      
-      // Perform the update
-      const { data: updateData, error: updateError } = await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({ role: newRoleValue })
         .eq('id', userId)
-        .select()
       
-      console.log('Update response:', updateData, updateError)
+      if (error) throw error
       
-      if (updateError) {
-        console.error('Update error details:', updateError)
-        throw new Error(`Database error: ${updateError.message}`)
-      }
-      
-      if (!updateData || updateData.length === 0) {
-        throw new Error('User not found or no changes made')
-      }
-      
-      console.log('Update successful! New role:', updateData[0].role)
-      
-      // Update local state
       setUsers(users.map(user => 
         user.id === userId ? { ...user, role: newRoleValue } : user
       ))
@@ -236,7 +197,7 @@ export default function AdminReportsPage() {
       setSelectedUser(null)
       
     } catch (error: any) {
-      console.error('Error in handleRoleChange:', error)
+      console.error('Error updating role:', error)
       setErrorMessage(error.message)
       setTimeout(() => setErrorMessage(null), 5000)
     } finally {
@@ -261,12 +222,6 @@ export default function AdminReportsPage() {
     }
   }
 
-  const filteredUsers = users.filter(user => 
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.last_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     window.location.href = '/login'
@@ -280,10 +235,21 @@ export default function AdminReportsPage() {
       totalRegularUsers: users.filter(u => u.role === 'user').length,
       totalTrainingRecords: trainingRecords.length,
       totalEvaluations: evaluations.length,
+      avgContentRating: evaluations.length > 0 
+        ? Math.round(evaluations.reduce((acc, e) => acc + (e.content_rating || 0), 0) / evaluations.length) 
+        : 0,
+      avgFacilitatorRating: evaluations.length > 0 
+        ? Math.round(evaluations.reduce((acc, e) => acc + (e.facilitator_rating || 0), 0) / evaluations.length) 
+        : 0
     }
   }
 
   const stats = getStats()
+  const filteredUsers = users.filter(user => 
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.last_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   if (loading) {
     return (
@@ -295,7 +261,7 @@ export default function AdminReportsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Success Message */}
+      {/* Success/Error Messages */}
       {successMessage && (
         <div className="fixed top-20 right-4 z-50 animate-in slide-in-from-top-2 fade-in duration-300">
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg">
@@ -306,8 +272,6 @@ export default function AdminReportsPage() {
           </div>
         </div>
       )}
-
-      {/* Error Message */}
       {errorMessage && (
         <div className="fixed top-20 right-4 z-50 animate-in slide-in-from-top-2 fade-in duration-300">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg">
@@ -360,7 +324,7 @@ export default function AdminReportsPage() {
           
           <nav className="flex-1 px-3 space-y-1">
             <button
-              onClick={() => setActiveTab('overview')}
+              onClick={() => { setActiveTab('overview'); router.push('/admin/reports?tab=overview') }}
               className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-md transition ${activeTab === 'overview' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               <BarChart3 size={20} />
@@ -368,7 +332,7 @@ export default function AdminReportsPage() {
             </button>
             
             <button
-              onClick={() => setActiveTab('training')}
+              onClick={() => { setActiveTab('training'); router.push('/admin/reports?tab=training') }}
               className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-md transition ${activeTab === 'training' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               <FileText size={20} />
@@ -376,7 +340,7 @@ export default function AdminReportsPage() {
             </button>
             
             <button
-              onClick={() => setActiveTab('evaluations')}
+              onClick={() => { setActiveTab('evaluations'); router.push('/admin/reports?tab=evaluations') }}
               className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-md transition ${activeTab === 'evaluations' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               <Award size={20} />
@@ -384,7 +348,7 @@ export default function AdminReportsPage() {
             </button>
             
             <button
-              onClick={() => setActiveTab('users')}
+              onClick={() => { setActiveTab('users'); router.push('/admin/reports?tab=users') }}
               className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-md transition ${activeTab === 'users' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               <Users size={20} />
@@ -410,45 +374,236 @@ export default function AdminReportsPage() {
             <p className="text-sm text-gray-500 mt-1">Manage users, training records, and evaluations</p>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Total Users</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
+          {/* Stats Cards - Overview Tab */}
+          {activeTab === 'overview' && (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500">Total Users</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
+                    </div>
+                    <Users size={24} className="text-blue-500" />
+                  </div>
                 </div>
-                <Users size={24} className="text-blue-500" />
+                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500">Training Records</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.totalTrainingRecords}</p>
+                    </div>
+                    <FileText size={24} className="text-green-500" />
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500">Evaluations</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.totalEvaluations}</p>
+                    </div>
+                    <Award size={24} className="text-purple-500" />
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500">Admins</p>
+                      <p className="text-2xl font-bold text-red-600">{stats.totalAdmins}</p>
+                    </div>
+                    <Crown size={24} className="text-red-500" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Role Distribution</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-gray-600">Admins</span>
+                        <span className="text-sm font-semibold text-red-600">{stats.totalAdmins}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(stats.totalAdmins / stats.totalUsers) * 100}%` }}></div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-gray-600">Supervisors</span>
+                        <span className="text-sm font-semibold text-blue-600">{stats.totalSupervisors}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${(stats.totalSupervisors / stats.totalUsers) * 100}%` }}></div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-gray-600">Regular Users</span>
+                        <span className="text-sm font-semibold text-gray-600">{stats.totalRegularUsers}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-gray-500 h-2 rounded-full" style={{ width: `${(stats.totalRegularUsers / stats.totalUsers) * 100}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Evaluation Ratings</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-gray-600">Average Content Rating</span>
+                        <span className="text-sm font-semibold text-green-600">{stats.avgContentRating}/5</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-green-500 h-2 rounded-full" style={{ width: `${(stats.avgContentRating / 5) * 100}%` }}></div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-gray-600">Average Facilitator Rating</span>
+                        <span className="text-sm font-semibold text-blue-600">{stats.avgFacilitatorRating}/5</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${(stats.avgFacilitatorRating / 5) * 100}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Training Records Tab */}
+          {activeTab === 'training' && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Training Records</h2>
+                    <p className="text-sm text-gray-500 mt-1">View all training attendance records ({stats.totalTrainingRecords} records)</p>
+                  </div>
+                  <button onClick={loadTrainingRecords} className="flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">
+                    <RefreshCw size={14} />
+                    Refresh
+                  </button>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attendee</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Staff #</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Training Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {trainingRecords.map((record) => (
+                      <tr key={record.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm text-gray-900">{record.attendee_name}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{record.course}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{record.department || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{record.personnel_number || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {new Date(record.training_date).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                    {trainingRecords.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="text-center py-12">
+                          <FileText size={48} className="mx-auto text-gray-300 mb-3" />
+                          <p className="text-gray-500">No training records found</p>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Training Records</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalTrainingRecords}</p>
+          )}
+
+          {/* Evaluations Tab */}
+          {activeTab === 'evaluations' && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Course Evaluations</h2>
+                    <p className="text-sm text-gray-500 mt-1">View all course evaluation feedback ({stats.totalEvaluations} evaluations)</p>
+                  </div>
+                  <button onClick={loadEvaluations} className="flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">
+                    <RefreshCw size={14} />
+                    Refresh
+                  </button>
                 </div>
-                <FileText size={24} className="text-green-500" />
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attendee</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Content</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Facilitator</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Logistics</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Engagement</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Comments</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {evaluations.map((evalItem) => (
+                      <tr key={evalItem.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm text-gray-900">{evalItem.attendee_name}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{evalItem.course}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            {evalItem.content_rating || 0}/5
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                            {evalItem.facilitator_rating || 0}/5
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                            {evalItem.logistics_rating || 0}/5
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                            {evalItem.engagement_rating || 0}/5
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600 max-w-[200px] truncate">
+                          {evalItem.comments || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {new Date(evalItem.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                    {evaluations.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="text-center py-12">
+                          <Award size={48} className="mx-auto text-gray-300 mb-3" />
+                          <p className="text-gray-500">No evaluations found</p>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Evaluations</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalEvaluations}</p>
-                </div>
-                <Award size={24} className="text-purple-500" />
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Admins</p>
-                  <p className="text-2xl font-bold text-red-600">{stats.totalAdmins}</p>
-                </div>
-                <Crown size={24} className="text-red-500" />
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* User Management Tab */}
           {activeTab === 'users' && (
@@ -457,7 +612,7 @@ export default function AdminReportsPage() {
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">User Management</h2>
-                    <p className="text-sm text-gray-500 mt-1">Manage user roles and permissions - Click the dropdown to change a user's role</p>
+                    <p className="text-sm text-gray-500 mt-1">Manage user roles and permissions ({stats.totalUsers} users)</p>
                   </div>
                   <button onClick={loadUsers} className="flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">
                     <RefreshCw size={14} />
@@ -502,7 +657,6 @@ export default function AdminReportsPage() {
                               <p className="text-sm font-medium text-gray-900">
                                 {userItem.first_name || ''} {userItem.last_name || ''}
                               </p>
-                              <p className="text-xs text-gray-400">ID: {userItem.id.slice(0, 8)}</p>
                             </div>
                           </div>
                         </td>
@@ -538,157 +692,16 @@ export default function AdminReportsPage() {
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-              
-              {filteredUsers.length === 0 && (
-                <div className="text-center py-12">
-                  <Users size={48} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500">No users found</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Training Records Tab */}
-          {activeTab === 'training' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Training Records</h2>
-                <p className="text-sm text-gray-500 mt-1">View all training attendance records</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attendee</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Staff #</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Training Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {trainingRecords.map((record) => (
-                      <tr key={record.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm text-gray-900">{record.attendee_name}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{record.course}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{record.department || '-'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{record.personnel_number || '-'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {new Date(record.training_date).toLocaleDateString()}
+                    {filteredUsers.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="text-center py-12">
+                          <Users size={48} className="mx-auto text-gray-300 mb-3" />
+                          <p className="text-gray-500">No users found</p>
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
-              </div>
-              {trainingRecords.length === 0 && (
-                <div className="text-center py-12">
-                  <FileText size={48} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500">No training records found</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Evaluations Tab */}
-          {activeTab === 'evaluations' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Course Evaluations</h2>
-                <p className="text-sm text-gray-500 mt-1">View all course evaluation feedback</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attendee</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Content</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Facilitator</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {evaluations.map((evalItem) => (
-                      <tr key={evalItem.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm text-gray-900">{evalItem.attendee_name}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{evalItem.course}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                            {evalItem.content_rating || 0}/5
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                            {evalItem.facilitator_rating || 0}/5
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {new Date(evalItem.created_at).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {evaluations.length === 0 && (
-                <div className="text-center py-12">
-                  <Award size={48} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500">No evaluations found</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Overview Tab */}
-          {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Role Distribution</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Admins</span>
-                    <span className="text-sm font-semibold text-red-600">{stats.totalAdmins}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(stats.totalAdmins / stats.totalUsers) * 100}%` }}></div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Supervisors</span>
-                    <span className="text-sm font-semibold text-blue-600">{stats.totalSupervisors}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${(stats.totalSupervisors / stats.totalUsers) * 100}%` }}></div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Regular Users</span>
-                    <span className="text-sm font-semibold text-gray-600">{stats.totalRegularUsers}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-gray-500 h-2 rounded-full" style={{ width: `${(stats.totalRegularUsers / stats.totalUsers) * 100}%` }}></div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Total Training Records</span>
-                    <span className="text-lg font-bold text-gray-900">{stats.totalTrainingRecords}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Total Evaluations</span>
-                    <span className="text-lg font-bold text-gray-900">{stats.totalEvaluations}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Total Users</span>
-                    <span className="text-lg font-bold text-gray-900">{stats.totalUsers}</span>
-                  </div>
-                </div>
               </div>
             </div>
           )}
