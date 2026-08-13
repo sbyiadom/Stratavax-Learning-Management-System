@@ -6,8 +6,55 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { BookOpen, Clock, BarChart, ChevronRight, GraduationCap, Sparkles } from 'lucide-react'
 
-// Complete course catalog based on your structure
+// Complete course catalog with all courses
 const courseCategories = [
+  // ============================================================
+  // LEADERSHIP & MANAGEMENT
+  // ============================================================
+  {
+    id: 'leadership',
+    name: 'Leadership & Management',
+    icon: '👔',
+    description: 'Build leadership capability and management skills',
+    courses: [
+      { id: 'effective-leadership-talent-management', title: 'Effective Leadership & Talent Management', level: 'Intermediate', duration: '40 hours', lessons: 8, enrolled: 0 },
+      { id: 'power-influence-leadership', title: 'Power & Influence in Leadership', level: 'Intermediate', duration: '25 hours', lessons: 4, enrolled: 0 },
+      { id: 'leading-inclusive-workforce', title: 'Leading an Inclusive Workforce', level: 'Intermediate', duration: '25 hours', lessons: 5, enrolled: 0 },
+    ]
+  },
+  
+  // ============================================================
+  // PERSONAL DEVELOPMENT
+  // ============================================================
+  {
+    id: 'personal-development',
+    name: 'Personal Development',
+    icon: '🧠',
+    description: 'Develop emotional intelligence, communication, and resilience',
+    courses: [
+      { id: 'personality-transformations', title: 'Personality & Its Transformations', level: 'Advanced', duration: '50 hours', lessons: 4, enrolled: 0 },
+      { id: 'assertive-communication-eq', title: 'Assertive Communication & EQ', level: 'Beginner', duration: '15 hours', lessons: 6, enrolled: 0 },
+      { id: 'mental-reset-wellness', title: 'Mental Reset & Wellness Strategies', level: 'Beginner', duration: '10 hours', lessons: 4, enrolled: 0 },
+    ]
+  },
+  
+  // ============================================================
+  // PROGRAMMING
+  // ============================================================
+  {
+    id: 'programming',
+    name: 'Programming & Computer Science',
+    icon: '💻',
+    description: 'Learn to code with Harvard CS50 courses',
+    courses: [
+      { id: 'cs50-web-programming', title: 'CS50 Web Programming with Python & JavaScript', level: 'Intermediate', duration: '60 hours', lessons: 6, enrolled: 0 },
+      { id: 'cs50-computer-science', title: 'CS50 Introduction to Computer Science', level: 'Beginner', duration: '50 hours', lessons: 6, enrolled: 0 },
+    ]
+  },
+  
+  // ============================================================
+  // DIGITAL & TECHNOLOGY SKILLS
+  // ============================================================
   {
     id: 'digital',
     name: 'Digital & Technology Skills',
@@ -20,7 +67,6 @@ const courseCategories = [
       { id: 'python-intro', title: 'Introduction to Programming (Python)', level: 'Beginner', duration: '6 weeks', lessons: 20, enrolled: 0 },
       { id: 'javascript-intro', title: 'Introduction to Programming (JavaScript)', level: 'Beginner', duration: '6 weeks', lessons: 20, enrolled: 0 },
       { id: 'web-dev', title: 'Web Development (HTML, CSS, JavaScript)', level: 'Intermediate', duration: '8 weeks', lessons: 30, enrolled: 0 },
-      { id: 'mobile-dev', title: 'Mobile App Development', level: 'Advanced', duration: '10 weeks', lessons: 35, enrolled: 0 },
       { id: 'cybersecurity', title: 'Cybersecurity Basics', level: 'Beginner', duration: '4 weeks', lessons: 12, enrolled: 0 },
       { id: 'ai-fundamentals', title: 'Artificial Intelligence Fundamentals', level: 'Intermediate', duration: '5 weeks', lessons: 18, enrolled: 0 },
       { id: 'data-science', title: 'Data Science Basics', level: 'Intermediate', duration: '6 weeks', lessons: 22, enrolled: 0 },
@@ -28,6 +74,10 @@ const courseCategories = [
       { id: 'ui-ux', title: 'Digital Product Design (UI/UX)', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
     ]
   },
+  
+  // ============================================================
+  // ENTREPRENEURSHIP & BUSINESS
+  // ============================================================
   {
     id: 'entrepreneurship',
     name: 'Entrepreneurship & Business Skills',
@@ -46,24 +96,29 @@ const courseCategories = [
       { id: 'negotiation', title: 'Business Negotiation', level: 'Advanced', duration: '3 weeks', lessons: 9, enrolled: 0 },
     ]
   },
+  
+  // ============================================================
+  // CAREER DEVELOPMENT
+  // ============================================================
   {
-    id: 'leadership',
-    name: 'Leadership & Personal Development',
-    icon: '🌟',
-    description: 'Build decision-making and leadership capabilities',
+    id: 'career',
+    name: 'Career Development & Employability',
+    icon: '📈',
+    description: 'Get jobs and advance your career',
     courses: [
-      { id: 'leadership-fundamentals', title: 'Leadership Fundamentals', level: 'Beginner', duration: '4 weeks', lessons: 12, enrolled: 0 },
-      { id: 'communication', title: 'Communication Skills', level: 'Beginner', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'emotional-intelligence', title: 'Emotional Intelligence', level: 'Intermediate', duration: '4 weeks', lessons: 14, enrolled: 0 },
-      { id: 'critical-thinking', title: 'Critical Thinking & Problem Solving', level: 'Intermediate', duration: '4 weeks', lessons: 13, enrolled: 0 },
-      { id: 'time-management', title: 'Time Management & Productivity', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
-      { id: 'conflict-resolution', title: 'Conflict Resolution', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
-      { id: 'team-management', title: 'Team Management', level: 'Advanced', duration: '4 weeks', lessons: 15, enrolled: 0 },
-      { id: 'public-speaking', title: 'Public Speaking', level: 'Intermediate', duration: '3 weeks', lessons: 11, enrolled: 0 },
-      { id: 'decision-making', title: 'Decision Making', level: 'Advanced', duration: '3 weeks', lessons: 9, enrolled: 0 },
-      { id: 'ethics', title: 'Ethics and Professional Conduct', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
+      { id: 'cv-writing', title: 'CV / Resume Writing', level: 'Beginner', duration: '1 week', lessons: 5, enrolled: 0 },
+      { id: 'interview-prep', title: 'Job Interview Preparation', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
+      { id: 'workplace-etiquette', title: 'Workplace Etiquette', level: 'Beginner', duration: '1 week', lessons: 4, enrolled: 0 },
+      { id: 'professional-communication', title: 'Professional Communication', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
+      { id: 'networking', title: 'Networking for Career Growth', level: 'Intermediate', duration: '2 weeks', lessons: 6, enrolled: 0 },
+      { id: 'remote-work', title: 'Remote Work Skills', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
+      { id: 'freelancing', title: 'Freelancing Fundamentals', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
     ]
   },
+  
+  // ============================================================
+  // ENGINEERING
+  // ============================================================
   {
     id: 'engineering',
     name: 'Engineering & Technical Skills',
@@ -82,6 +137,10 @@ const courseCategories = [
       { id: 'six-sigma', title: 'Quality Control & Six Sigma', level: 'Advanced', duration: '6 weeks', lessons: 20, enrolled: 0 },
     ]
   },
+  
+  // ============================================================
+  // FINANCE
+  // ============================================================
   {
     id: 'finance',
     name: 'Financial & Investment Literacy',
@@ -98,21 +157,10 @@ const courseCategories = [
       { id: 'loans-credit', title: 'Understanding Loans and Credit', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
     ]
   },
-  {
-    id: 'career',
-    name: 'Career Development & Employability',
-    icon: '📈',
-    description: 'Get jobs and advance your career',
-    courses: [
-      { id: 'cv-writing', title: 'CV / Resume Writing', level: 'Beginner', duration: '1 week', lessons: 5, enrolled: 0 },
-      { id: 'interview-prep', title: 'Job Interview Preparation', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
-      { id: 'workplace-etiquette', title: 'Workplace Etiquette', level: 'Beginner', duration: '1 week', lessons: 4, enrolled: 0 },
-      { id: 'professional-communication', title: 'Professional Communication', level: 'Beginner', duration: '2 weeks', lessons: 8, enrolled: 0 },
-      { id: 'networking', title: 'Networking for Career Growth', level: 'Intermediate', duration: '2 weeks', lessons: 6, enrolled: 0 },
-      { id: 'remote-work', title: 'Remote Work Skills', level: 'Beginner', duration: '2 weeks', lessons: 7, enrolled: 0 },
-      { id: 'freelancing', title: 'Freelancing Fundamentals', level: 'Intermediate', duration: '3 weeks', lessons: 10, enrolled: 0 },
-    ]
-  },
+  
+  // ============================================================
+  // FUTURE SKILLS
+  // ============================================================
   {
     id: 'future-skills',
     name: 'Digital Economy & Future Skills',
@@ -127,7 +175,7 @@ const courseCategories = [
       { id: 'social-media', title: 'Social Media Management', level: 'Intermediate', duration: '4 weeks', lessons: 15, enrolled: 0 },
       { id: 'online-business', title: 'Online Business', level: 'Intermediate', duration: '5 weeks', lessons: 16, enrolled: 0 },
     ]
-  }
+  },
 ];
 
 export default function DashboardPage() {
@@ -374,7 +422,7 @@ export default function DashboardPage() {
             <div className="text-sm text-gray-600">Free Courses</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow text-center">
-            <div className="text-3xl font-bold text-green-600">7</div>
+            <div className="text-3xl font-bold text-green-600">{courseCategories.length}</div>
             <div className="text-sm text-gray-600">Skill Categories</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow text-center">
