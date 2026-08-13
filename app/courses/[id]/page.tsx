@@ -4,18 +4,58 @@ import Link from 'next/link'
 import { BookOpen, Clock, Users, ChevronLeft, PlayCircle, Award, Star } from 'lucide-react'
 import CourseImage from '@/components/shared/CourseImage'
 
-// Approved course slugs
+// Approved course slugs - All courses that are available
 const APPROVED_COURSE_SLUGS = [
-  'electrical-engineering', 'microsoft-office', 'programming-fundamentals',
-  'web-development', 'data-analysis', 'ai-fundamentals', 'entrepreneurship-pathway',
-  'financial-literacy', 'business-model-design', 'business-plan-development',
-  'marketing-sales', 'digital-marketing', 'business-growth-strategy',
-  'leadership', 'basic-mechanical-engineering'
+  // New Leadership Courses
+  'effective-leadership-talent-management',
+  'power-influence-leadership',
+  'leading-inclusive-workforce',
+  
+  // New Personal Development Courses
+  'personality-transformations',
+  'assertive-communication-eq',
+  'mental-reset-wellness',
+  
+  // New Programming Courses
+  'cs50-web-programming',
+  'cs50-computer-science',
+  
+  // Existing Courses
+  'electrical-engineering',
+  'microsoft-office',
+  'programming-fundamentals',
+  'web-development',
+  'data-analysis',
+  'ai-fundamentals',
+  'entrepreneurship-pathway',
+  'financial-literacy',
+  'business-model-design',
+  'business-plan-development',
+  'marketing-sales',
+  'digital-marketing',
+  'business-growth-strategy',
+  'leadership',
+  'basic-mechanical-engineering'
 ]
 
-// ADD THIS FUNCTION - Maps course slugs to local images
+// Maps course slugs to local images
 const getLocalImage = (slug: string): string | null => {
   const imageMap: Record<string, string> = {
+    // New Leadership Courses
+    'effective-leadership-talent-management': '/images/leadership-course.jpg',
+    'power-influence-leadership': '/images/leadership-course.jpg',
+    'leading-inclusive-workforce': '/images/leadership-course.jpg',
+    
+    // New Personal Development Courses
+    'personality-transformations': '/images/personal-development.jpg',
+    'assertive-communication-eq': '/images/communication-course.jpg',
+    'mental-reset-wellness': '/images/wellness-course.jpg',
+    
+    // New Programming Courses
+    'cs50-web-programming': '/images/cs50-web.jpg',
+    'cs50-computer-science': '/images/cs50.jpg',
+    
+    // Existing Courses
     'business-model-design': '/images/business-model-design.jpg',
     'business-plan-development': '/images/business-plan-development.jpg',
     'data-analysis': '/images/data-analysis.jpg',
@@ -121,7 +161,6 @@ export default async function CourseDetailPage({
 
   const totalLessons = modulesWithCount.reduce((acc, m) => acc + m.lesson_count, 0)
   
-  // USE LOCAL IMAGE IF AVAILABLE - ADD THIS LINE
   const imageSource = getLocalImage(course.slug) || course.thumbnail_url
 
   // Enrollment action
@@ -137,7 +176,6 @@ export default async function CourseDetailPage({
     
     const supabase = await createClient()
     
-    // Use correct column names for enrollments table
     const enrollment = {
       user_id: user.id,
       course_id: course.id,
@@ -185,7 +223,7 @@ export default async function CourseDetailPage({
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col md:flex-row gap-8">
-            {/* Thumbnail - UPDATE THIS SECTION */}
+            {/* Thumbnail */}
             <div className="md:w-64 h-48 rounded-lg overflow-hidden shadow-lg">
               <CourseImage 
                 src={imageSource}
