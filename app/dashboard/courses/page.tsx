@@ -11,8 +11,23 @@ import {
   TrendingUp, Target, BarChart, Filter
 } from 'lucide-react'
 
-// Approved course slugs
+// Approved course slugs - All courses that are available
 const APPROVED_COURSE_SLUGS = [
+  // New Leadership Courses
+  'effective-leadership-talent-management',
+  'power-influence-leadership',
+  'leading-inclusive-workforce',
+  
+  // New Personal Development Courses
+  'personality-transformations',
+  'assertive-communication-eq',
+  'mental-reset-wellness',
+  
+  // New Programming Courses
+  'cs50-web-programming',
+  'cs50-computer-science',
+  
+  // Existing Courses
   'electrical-engineering',
   'microsoft-office',
   'programming-fundamentals',
@@ -39,6 +54,9 @@ const categories = [
   { id: 'Engineering & Technical Skills', name: 'Engineering', icon: BarChart },
   { id: 'Financial Literacy', name: 'Financial Literacy', icon: TrendingUp },
   { id: 'Leadership & Personal Development', name: 'Leadership', icon: Target },
+  { id: 'Leadership & Management', name: 'Leadership & Management', icon: Target },
+  { id: 'Personal Development', name: 'Personal Development', icon: Target },
+  { id: 'Programming', name: 'Programming', icon: Code },
   { id: 'Programming & Development', name: 'Programming', icon: Code },
   { id: 'Web Development', name: 'Web Development', icon: Globe },
 ]
@@ -80,6 +98,9 @@ export default async function DashboardCoursesPage({
     'Engineering & Technical Skills': 2,
     'Financial Literacy': 1,
     'Leadership & Personal Development': 1,
+    'Leadership & Management': 3,
+    'Personal Development': 3,
+    'Programming': 2,
     'Programming & Development': 2,
     'Web Development': 1,
   }
@@ -450,7 +471,7 @@ function CoursesPageContent({
                         href={isEnrolled ? `/dashboard/learn/${course.slug}` : `/dashboard/courses/${course.slug}`}
                         className="group bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-200 hover:border-gray-300"
                       >
-                        {/* Course Image with Actual Images */}
+                        {/* Course Image */}
                         <div className="relative h-36 w-full overflow-hidden bg-gray-100">
                           <CourseImage
                             src={courseImage}
