@@ -14,18 +14,18 @@ import {
 const getCourseImage = (slug: string): string => {
   const imageMap: Record<string, string> = {
     // New Leadership Courses
-    'effective-leadership-talent-management': '/images/leadership-course.jpg',
-    'power-influence-leadership': '/images/leadership-course.jpg',
-    'leading-inclusive-workforce': '/images/leadership-course.jpg',
+    'effective-leadership-talent-management': '/images/Effective Leadership.jpg',
+    'power-influence-leadership': '/images/Power & Influence.jpg',
+    'leading-inclusive-workforce': '/images/Inclusive Workforce.jpg',
     
     // New Personal Development Courses
-    'personality-transformations': '/images/personal-development.jpg',
-    'assertive-communication-eq': '/images/communication-course.jpg',
-    'mental-reset-wellness': '/images/wellness-course.jpg',
+    'personality-transformations': '/images/Personality Transformations.jpg',
+    'assertive-communication-eq': '/images/Assertive Communication.jpg',
+    'mental-reset-wellness': '/images/Mental Reset & Wellness.jpg',
     
     // New Programming Courses
-    'cs50-web-programming': '/images/cs50-web.jpg',
-    'cs50-computer-science': '/images/cs50.jpg',
+    'cs50-web-programming': '/images/CS50 Web Programming.jpg',
+    'cs50-computer-science': '/images/CS50 Computer Science.jpg',
     
     // Existing Courses
     'microsoft-office': '/images/microsoft-office.jpg',
