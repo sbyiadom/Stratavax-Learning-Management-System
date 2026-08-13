@@ -2,7 +2,21 @@
 // This ensures all components use the same image paths
 
 export const COURSE_IMAGE_MAP: Record<string, string> = {
-  // Existing images
+  // ============================================================
+  // NEW COURSES (Just Added)
+  // ============================================================
+  'effective-leadership-talent-management': '/images/Effective Leadership.jpg',
+  'power-influence-leadership': '/images/Power & Influence.jpg',
+  'leading-inclusive-workforce': '/images/Inclusive Workforce.jpg',
+  'personality-transformations': '/images/Personality Transformations.jpg',
+  'assertive-communication-eq': '/images/Assertive Communication.jpg',
+  'mental-reset-wellness': '/images/Mental Reset & Wellness.jpg',
+  'cs50-web-programming': '/images/CS50 Web Programming.jpg',
+  'cs50-computer-science': '/images/CS50 Computer Science.jpg',
+  
+  // ============================================================
+  // EXISTING COURSES
+  // ============================================================
   'microsoft-office': '/images/microsoft-office.jpg',
   'ai-fundamentals': '/images/AI-Fundamentals.jpg',
   'basic-mechanical-engineering': '/images/basic-mechanical-engineering.jpg',
@@ -15,8 +29,6 @@ export const COURSE_IMAGE_MAP: Record<string, string> = {
   'leadership': '/images/leadership.jpg',
   'marketing-sales': '/images/marketing-&-sale.jpg',
   'programming-fundamentals': '/images/programming-fundamental.jpg',
-  
-  // Newly added images
   'web-development': '/images/web-development.jpg',
   'business-growth-strategy': '/images/business-growth-strategy.jpg',
   'entrepreneurship-pathway': '/images/entrepreneurship-pathway.jpg',
