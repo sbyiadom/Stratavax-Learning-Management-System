@@ -13,6 +13,21 @@ import {
 // Map course slugs to local images
 const getCourseImage = (slug: string): string => {
   const imageMap: Record<string, string> = {
+    // New Leadership Courses
+    'effective-leadership-talent-management': '/images/leadership-course.jpg',
+    'power-influence-leadership': '/images/leadership-course.jpg',
+    'leading-inclusive-workforce': '/images/leadership-course.jpg',
+    
+    // New Personal Development Courses
+    'personality-transformations': '/images/personal-development.jpg',
+    'assertive-communication-eq': '/images/communication-course.jpg',
+    'mental-reset-wellness': '/images/wellness-course.jpg',
+    
+    // New Programming Courses
+    'cs50-web-programming': '/images/cs50-web.jpg',
+    'cs50-computer-science': '/images/cs50.jpg',
+    
+    // Existing Courses
     'microsoft-office': '/images/microsoft-office.jpg',
     'ai-fundamentals': '/images/AI-Fundamentals.jpg',
     'basic-mechanical-engineering': '/images/basic-mechanical-engineering.jpg',
