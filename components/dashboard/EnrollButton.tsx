@@ -31,6 +31,8 @@ export default function EnrollButton({ courseId, courseSlug }: EnrollButtonProps
         return
       }
 
+      console.log('Enrolling user:', user.id, 'in course:', courseId)
+
       // Check if already enrolled
       const { data: existingEnrollment, error: checkError } = await supabase
         .from('enrollments')
@@ -39,23 +41,26 @@ export default function EnrollButton({ courseId, courseSlug }: EnrollButtonProps
         .eq('course_id', courseId)
         .maybeSingle()
 
+      console.log('Existing enrollment check:', existingEnrollment, checkError)
+
       if (existingEnrollment) {
-        setError('Already enrolled in this course')
-        setIsLoading(false)
+        // Already enrolled - redirect to learning page
+        router.push(`/dashboard/learn/${courseSlug}`)
         return
       }
 
-      // Insert enrollment - using only fields that exist in your table
-      // Note: status defaults to 'enrolled', progress_percentage defaults to 0
-      // enrolled_at and last_accessed_at auto-populate with NOW()
+      // Insert enrollment - using only fields that exist
       const { error: enrollError } = await supabase
         .from('enrollments')
         .insert({
           user_id: user.id,
-          course_id: courseId
-          // Don't include status, progress_percentage, enrolled_at, last_accessed_at
-          // They have default values in the database
+          course_id: courseId,
+          status: 'active',
+          progress_percentage: 0,
+          enrolled_at: new Date().toISOString()
         })
+
+      console.log('Enrollment result:', enrollError)
 
       if (enrollError) {
         console.error('Enrollment error details:', enrollError)
@@ -72,20 +77,31 @@ export default function EnrollButton({ courseId, courseSlug }: EnrollButtonProps
         return
       }
 
-      // Update course enrollment count (optional)
+      // Update course enrollment count (optional - ignore if fails)
       try {
-        await supabase.rpc('increment_course_enrollment', { course_id: courseId })
+        const { error: updateError } = await supabase
+          .from('courses')
+          .update({ 
+            enrollment_count: supabase.rpc('increment', { row_count: 1 })
+          })
+          .eq('id', courseId)
+        
+        if (updateError) {
+          console.log('Could not update enrollment count:', updateError)
+        }
       } catch (err) {
         console.log('Could not update enrollment count:', err)
       }
 
       setSuccess(true)
-      setTimeout(() => router.push(`/dashboard/learn/${courseSlug}`), 1500)
+      // Redirect after a moment
+      setTimeout(() => {
+        router.push(`/dashboard/learn/${courseSlug}`)
+      }, 1500)
       
     } catch (err) {
       console.error('Unexpected error:', err)
       setError('An unexpected error occurred')
-    } finally {
       setIsLoading(false)
     }
   }
