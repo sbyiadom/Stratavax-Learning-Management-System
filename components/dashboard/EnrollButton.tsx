@@ -41,16 +41,14 @@ export default function EnrollButton({ courseId, courseSlug }: EnrollButtonProps
         .eq('course_id', courseId)
         .maybeSingle()
 
-      console.log('Existing enrollment check:', existingEnrollment, checkError)
-
       if (existingEnrollment) {
-        // Already enrolled - redirect to learning page
+        console.log('Already enrolled, redirecting...')
         router.push(`/dashboard/learn/${courseSlug}`)
         return
       }
 
-      // Insert enrollment - using only fields that exist
-      const { error: enrollError } = await supabase
+      // ✅ Insert enrollment - ONLY columns that exist in the table
+      const { data: insertData, error: enrollError } = await supabase
         .from('enrollments')
         .insert({
           user_id: user.id,
@@ -59,13 +57,13 @@ export default function EnrollButton({ courseId, courseSlug }: EnrollButtonProps
           progress_percentage: 0,
           enrolled_at: new Date().toISOString()
         })
+        .select()
 
-      console.log('Enrollment result:', enrollError)
+      console.log('Enrollment result:', enrollError, insertData)
 
       if (enrollError) {
         console.error('Enrollment error details:', enrollError)
         
-        // Provide more specific error message
         if (enrollError.code === '23503') {
           setError('Profile not found. Please log out and log back in.')
         } else if (enrollError.code === '23505') {
@@ -77,27 +75,9 @@ export default function EnrollButton({ courseId, courseSlug }: EnrollButtonProps
         return
       }
 
-      // Update course enrollment count (optional - ignore if fails)
-      try {
-        const { error: updateError } = await supabase
-          .from('courses')
-          .update({ 
-            enrollment_count: supabase.rpc('increment', { row_count: 1 })
-          })
-          .eq('id', courseId)
-        
-        if (updateError) {
-          console.log('Could not update enrollment count:', updateError)
-        }
-      } catch (err) {
-        console.log('Could not update enrollment count:', err)
-      }
-
+      // ✅ Success - redirect to learning page
       setSuccess(true)
-      // Redirect after a moment
-      setTimeout(() => {
-        router.push(`/dashboard/learn/${courseSlug}`)
-      }, 1500)
+      router.push(`/dashboard/learn/${courseSlug}`)
       
     } catch (err) {
       console.error('Unexpected error:', err)
