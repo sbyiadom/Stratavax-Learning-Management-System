@@ -4,8 +4,23 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight, BookOpen, Clock, CheckCircle, Lock, Film, FileText, Code } from 'lucide-react'
 import CourseImage from '@/components/shared/CourseImage'
 
-// Approved course slugs
+// Approved course slugs - All courses that are available
 const APPROVED_COURSE_SLUGS = [
+  // New Leadership Courses
+  'effective-leadership-talent-management',
+  'power-influence-leadership',
+  'leading-inclusive-workforce',
+  
+  // New Personal Development Courses
+  'personality-transformations',
+  'assertive-communication-eq',
+  'mental-reset-wellness',
+  
+  // New Programming Courses
+  'cs50-web-programming',
+  'cs50-computer-science',
+  
+  // Existing Courses
   'electrical-engineering',
   'microsoft-office',
   'programming-fundamentals',
@@ -311,7 +326,7 @@ export default async function CoursePage({
                 </div>
               )}
 
-              {/* Start Button - Using <a> tag for reliable navigation */}
+              {/* Start Button */}
               {isEnrolled && firstLesson ? (
                 <a
                   href={`/dashboard/learn/${params.slug}/${firstLesson.id}`}
