@@ -29,6 +29,42 @@ import {
 } from 'lucide-react'
 import EnrollButton from '@/components/dashboard/EnrollButton'
 
+// ============================================================
+// APPROVED COURSE SLUGS - All courses that are available
+// ============================================================
+const APPROVED_COURSE_SLUGS = [
+  // New Leadership Courses
+  'effective-leadership-talent-management',
+  'power-influence-leadership',
+  'leading-inclusive-workforce',
+  
+  // New Personal Development Courses
+  'personality-transformations',
+  'assertive-communication-eq',
+  'mental-reset-wellness',
+  
+  // New Programming Courses
+  'cs50-web-programming',
+  'cs50-computer-science',
+  
+  // Existing Courses
+  'electrical-engineering',
+  'microsoft-office',
+  'programming-fundamentals',
+  'web-development',
+  'data-analysis',
+  'ai-fundamentals',
+  'entrepreneurship-pathway',
+  'financial-literacy',
+  'business-model-design',
+  'business-plan-development',
+  'business-growth-strategy',
+  'marketing-sales',
+  'digital-marketing',
+  'leadership',
+  'basic-mechanical-engineering'
+]
+
 // Types
 type Lesson = {
   id: string
@@ -112,6 +148,11 @@ export default async function CourseDetailPage({
   if (!user) {
     return null
   }
+
+  // Check if this is an approved course
+  if (!APPROVED_COURSE_SLUGS.includes(params.slug)) {
+    notFound()
+  }
   
   const { data: course, error } = await supabase
     .from('courses')
@@ -137,6 +178,7 @@ export default async function CourseDetailPage({
     .single()
 
   if (error || !course) {
+    console.error('Course error:', error)
     notFound()
   }
 
@@ -157,7 +199,7 @@ export default async function CourseDetailPage({
     
     if (allLessonIds.length > 0) {
       const { data: progress } = await supabase
-        .from('progress')
+        .from('lesson_progress')
         .select('lesson_id')
         .eq('user_id', user.id)
         .in('lesson_id', allLessonIds)
@@ -175,8 +217,8 @@ export default async function CourseDetailPage({
   const completedCount = completedLessons.size
   const progress = enrollment ? Math.round((completedCount / totalLessons) * 100) : 0
 
-  // Get course image
-  const courseImage = getCourseImage(typedCourse.slug, typedCourse.title)
+  // Get course image - with fallback
+  const courseImage = getCourseImage(typedCourse.slug, typedCourse.title) || '/images/placeholder-course.jpg'
 
   // Default learning objectives if none provided
   const learningObjectives = typedCourse.learning_objectives || [
@@ -375,7 +417,7 @@ export default async function CourseDetailPage({
                             <h3 className="font-semibold text-gray-900">{module.title}</h3>
                           </div>
                           <span className="text-xs text-gray-400">
-                            {module.lessons?.length || 0} lessons • {module.estimated_minutes} min
+                            {module.lessons?.length || 0} lessons • {module.estimated_minutes || 'N/A'} min
                           </span>
                         </div>
                         <p className="text-sm text-gray-500 mb-3">{module.description}</p>
