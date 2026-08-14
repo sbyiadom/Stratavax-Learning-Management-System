@@ -18,8 +18,10 @@ export default function EnrollButton({ courseId, courseSlug }: EnrollButtonProps
   const supabase = createClient()
 
   const handleEnroll = async () => {
-    setIsLoading(true)
-    setError(null)
+  alert('Enroll button clicked')
+
+  setIsLoading(true)
+  setError(null)
     
     try {
       // Get current user
