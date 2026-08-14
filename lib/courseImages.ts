@@ -3,14 +3,14 @@
 
 export const COURSE_IMAGE_MAP: Record<string, string> = {
   // ============================================================
-  // NEW COURSES (Just Added)
+  // NEW COURSES - Using exact filenames from public/images/
   // ============================================================
   'effective-leadership-talent-management': '/images/Effective Leadership.jpg',
-  'power-influence-leadership': '/images/Power & Influence.jpg',
-  'leading-inclusive-workforce': '/images/Inclusive Workforce.jpg',
-  'personality-transformations': '/images/Personality Transformations.jpg',
-  'assertive-communication-eq': '/images/Assertive Communication.jpg',
-  'mental-reset-wellness': '/images/Mental Reset & Wellness.jpg',
+  'power-influence-leadership': '/images/Power and influence.jpg',
+  'leading-inclusive-workforce': '/images/Inlusive workforce.jpg',
+  'personality-transformations': '/images/Personality Transformation.jpg',
+  'assertive-communication-eq': '/images/Assertive communication.jpg',
+  'mental-reset-wellness': '/images/Mental reset and wellness.jpg',
   'cs50-web-programming': '/images/CS50 Web Programming.jpg',
   'cs50-computer-science': '/images/CS50 Computer Science.jpg',
   
