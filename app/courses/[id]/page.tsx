@@ -31,9 +31,9 @@ const APPROVED_COURSE_SLUGS = [
   'financial-literacy',
   'business-model-design',
   'business-plan-development',
+  'business-growth-strategy',
   'marketing-sales',
   'digital-marketing',
-  'business-growth-strategy',
   'leadership',
   'basic-mechanical-engineering'
 ]
@@ -42,18 +42,18 @@ const APPROVED_COURSE_SLUGS = [
 const getLocalImage = (slug: string): string | null => {
   const imageMap: Record<string, string> = {
     // New Leadership Courses
-    'effective-leadership-talent-management': '/images/leadership-course.jpg',
-    'power-influence-leadership': '/images/leadership-course.jpg',
-    'leading-inclusive-workforce': '/images/leadership-course.jpg',
+    'effective-leadership-talent-management': '/images/effective-leadership.jpg',
+    'power-influence-leadership': '/images/power-influence.jpg',
+    'leading-inclusive-workforce': '/images/inclusive-workforce.jpg',
     
     // New Personal Development Courses
-    'personality-transformations': '/images/personal-development.jpg',
-    'assertive-communication-eq': '/images/communication-course.jpg',
-    'mental-reset-wellness': '/images/wellness-course.jpg',
+    'personality-transformations': '/images/personality-transformations.jpg',
+    'assertive-communication-eq': '/images/assertive-communication.jpg',
+    'mental-reset-wellness': '/images/mental-reset-wellness.jpg',
     
     // New Programming Courses
-    'cs50-web-programming': '/images/cs50-web.jpg',
-    'cs50-computer-science': '/images/cs50.jpg',
+    'cs50-web-programming': '/images/cs50-web-programming.jpg',
+    'cs50-computer-science': '/images/cs50-computer-science.jpg',
     
     // Existing Courses
     'business-model-design': '/images/business-model-design.jpg',
@@ -163,47 +163,78 @@ export default async function CourseDetailPage({
   
   const imageSource = getLocalImage(course.slug) || course.thumbnail_url
 
-  // Enrollment action
+  // ============================================================
+  // ✅ FIXED: Enrollment Server Action
+  // ============================================================
   async function enrollInCourse() {
     'use server'
     
-    if (!user) redirect('/login')
+    if (!user) {
+      redirect('/login')
+    }
     
     if (!course) {
       console.error('Course not found')
-      return
+      redirect('/dashboard/courses')
     }
     
     const supabase = await createClient()
     
-    const enrollment = {
-      user_id: user.id,
-      course_id: course.id,
-      status: 'active',
-      progress_percentage: 0,
-      enrolled_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+    // Check if already enrolled
+    const { data: existingEnrollment, error: existingError } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('course_id', course.id)
+      .maybeSingle()
+    
+    if (existingError) {
+      console.error('Error checking existing enrollment:', existingError)
+      redirect(`/dashboard/courses/${course.id}`)
     }
-
+    
+    if (existingEnrollment) {
+      // Already enrolled - go to learning
+      redirect(`/dashboard/learn/${course.slug}`)
+    }
+    
+    // ✅ FIXED: Remove updated_at - it doesn't exist in enrollments table
     const { error: enrollError } = await supabase
       .from('enrollments')
-      .insert(enrollment as any)
+      .insert({
+        user_id: user.id,
+        course_id: course.id,
+        status: 'active',
+        progress_percentage: 0,
+        enrolled_at: new Date().toISOString()
+        // ✅ updated_at removed - this was the root cause
+      })
 
     if (enrollError) {
       console.error('Error enrolling:', enrollError)
-      return
+      redirect(`/dashboard/courses/${course.id}?error=enrollment_failed`)
     }
 
-    const courseUpdate = {
-      enrollment_count: (course.enrollment_count || 0) + 1,
-      updated_at: new Date().toISOString()
-    }
+    // Get actual enrollment count
+    const { count } = await supabase
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+      .eq('course_id', course.id)
 
-    await supabase
+    // Update course enrollment count (courses table DOES have updated_at)
+    const { error: updateError } = await supabase
       .from('courses')
-      .update(courseUpdate as any)
+      .update({
+        enrollment_count: count || 0,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', course.id)
 
+    if (updateError) {
+      console.error('Error updating enrollment count:', updateError)
+    }
+
+    // ✅ Redirect to learning page on success
     redirect(`/dashboard/learn/${course.slug}`)
   }
 
