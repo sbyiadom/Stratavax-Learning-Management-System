@@ -10,20 +10,16 @@ import {
   BarChart3, Sparkles, Shield, Star
 } from 'lucide-react'
 
-// Map course slugs to local images
+// Map course slugs to local images - Using exact filenames
 const getCourseImage = (slug: string): string => {
   const imageMap: Record<string, string> = {
-    // New Leadership Courses
+    // New Courses - Exact filenames
     'effective-leadership-talent-management': '/images/Effective Leadership.jpg',
-    'power-influence-leadership': '/images/Power & Influence.jpg',
-    'leading-inclusive-workforce': '/images/Inclusive Workforce.jpg',
-    
-    // New Personal Development Courses
-    'personality-transformations': '/images/Personality Transformations.jpg',
-    'assertive-communication-eq': '/images/Assertive Communication.jpg',
-    'mental-reset-wellness': '/images/Mental Reset & Wellness.jpg',
-    
-    // New Programming Courses
+    'power-influence-leadership': '/images/Power and influence.jpg',
+    'leading-inclusive-workforce': '/images/Inlusive workforce.jpg',
+    'personality-transformations': '/images/Personality Transformation.jpg',
+    'assertive-communication-eq': '/images/Assertive communication.jpg',
+    'mental-reset-wellness': '/images/Mental reset and wellness.jpg',
     'cs50-web-programming': '/images/CS50 Web Programming.jpg',
     'cs50-computer-science': '/images/CS50 Computer Science.jpg',
     
