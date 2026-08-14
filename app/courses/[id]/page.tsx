@@ -38,22 +38,18 @@ const APPROVED_COURSE_SLUGS = [
   'basic-mechanical-engineering'
 ]
 
-// Maps course slugs to local images
+// Maps course slugs to local images - Using exact filenames
 const getLocalImage = (slug: string): string | null => {
   const imageMap: Record<string, string> = {
-    // New Leadership Courses
-    'effective-leadership-talent-management': '/images/effective-leadership.jpg',
-    'power-influence-leadership': '/images/power-influence.jpg',
-    'leading-inclusive-workforce': '/images/inclusive-workforce.jpg',
-    
-    // New Personal Development Courses
-    'personality-transformations': '/images/personality-transformations.jpg',
-    'assertive-communication-eq': '/images/assertive-communication.jpg',
-    'mental-reset-wellness': '/images/mental-reset-wellness.jpg',
-    
-    // New Programming Courses
-    'cs50-web-programming': '/images/cs50-web-programming.jpg',
-    'cs50-computer-science': '/images/cs50-computer-science.jpg',
+    // New Courses - Exact filenames
+    'effective-leadership-talent-management': '/images/Effective Leadership.jpg',
+    'power-influence-leadership': '/images/Power and influence.jpg',
+    'leading-inclusive-workforce': '/images/Inlusive workforce.jpg',
+    'personality-transformations': '/images/Personality Transformation.jpg',
+    'assertive-communication-eq': '/images/Assertive communication.jpg',
+    'mental-reset-wellness': '/images/Mental reset and wellness.jpg',
+    'cs50-web-programming': '/images/CS50 Web Programming.jpg',
+    'cs50-computer-science': '/images/CS50 Computer Science.jpg',
     
     // Existing Courses
     'business-model-design': '/images/business-model-design.jpg',
@@ -164,7 +160,7 @@ export default async function CourseDetailPage({
   const imageSource = getLocalImage(course.slug) || course.thumbnail_url
 
   // ============================================================
-  // ✅ FIXED: Enrollment Server Action
+  // ✅ FIXED: Enrollment Server Action - removed updated_at
   // ============================================================
   async function enrollInCourse() {
     'use server'
