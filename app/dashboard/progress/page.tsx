@@ -437,7 +437,7 @@ export default function ProgressPage() {
                     <div className="p-5">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <Link href={`/dashboard/learn/${course?.slug}`}>
+                          <Link href={`/dashboard/learn/${course?.id}`}>
                             <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition">
                               {course?.title}
                             </h3>
@@ -518,7 +518,7 @@ export default function ProgressPage() {
                       
                       <div className="mt-3 flex gap-2">
                         <Link
-                          href={`/dashboard/learn/${course?.slug}`}
+                          href={`/dashboard/learn/${course?.id}`}
                           className="flex-1 text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
                         >
                           {isCompleted ? 'Review Course' : 'Continue'}
