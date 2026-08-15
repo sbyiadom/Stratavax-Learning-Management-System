@@ -465,11 +465,10 @@ function CoursesPageContent({
                     const isEnrolled = enrolledCourseIds.has(course.id)
                     const courseImage = getCourseImage(course.slug, course.title)
                     
-                    // ✅ FIXED: Use course.id (UUID) for the course detail page
-                    // Enrolled courses go to learning page, not enrolled go to course detail
+                    // ✅ FIXED: Use course.id for learning page, course.id for course detail
                     const href = isEnrolled 
-                      ? `/dashboard/learn/${course.slug}` 
-                      : `/courses/${course.id}`
+                      ? `/dashboard/learn/${course.id}` 
+                      : `/dashboard/courses/${course.id}`
                     
                     return (
                       <Link
