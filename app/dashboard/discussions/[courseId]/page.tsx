@@ -14,7 +14,7 @@ import NewDiscussionButton from '@/components/dashboard/NewDiscussionButton'
 export default async function DiscussionsPage({
   params,
 }: {
-  params: { courseSlug: string }
+  params: { courseId: string }
 }) {
   const supabase = await createClient()
   
@@ -24,11 +24,11 @@ export default async function DiscussionsPage({
     return null
   }
 
-  // Get course details
+  // Get course details - fetch by ID instead of slug
   const { data: course } = await supabase
     .from('courses')
     .select('id, title, slug')
-    .eq('slug', params.courseSlug)
+    .eq('id', params.courseId)
     .single()
 
   if (!course) {
@@ -58,7 +58,7 @@ export default async function DiscussionsPage({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-4 mb-4">
             <Link
-              href={`/dashboard/learn/${params.courseSlug}`}
+              href={`/dashboard/learn/${params.courseId}`}
               className="text-gray-600 hover:text-gray-900"
             >
               <ChevronLeft size={20} />
@@ -85,7 +85,7 @@ export default async function DiscussionsPage({
           {discussions?.map((discussion) => (
             <Link
               key={discussion.id}
-              href={`/dashboard/discussions/${params.courseSlug}/${discussion.id}`}
+              href={`/dashboard/discussions/${params.courseId}/${discussion.id}`}
               className="block bg-white rounded-xl shadow-sm hover:shadow-md transition overflow-hidden"
             >
               {discussion.is_pinned && (
