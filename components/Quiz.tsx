@@ -157,7 +157,7 @@ export default function Quiz({ questions, onComplete, lessonId }: QuizProps) {
                 } ${hasAnswered ? 'cursor-default' : 'cursor-pointer'}`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
+                  <span className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
                     isSelected 
                       ? isCorrect 
                         ? 'border-green-500 text-green-500' 
