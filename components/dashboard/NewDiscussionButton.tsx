@@ -24,7 +24,10 @@ export default function NewDiscussionButton({ courseId, courseSlug }: NewDiscuss
 
     const { data: { user } } = await supabase.auth.getUser()
     
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
     const { data, error } = await supabase
       .from('discussions')
@@ -42,7 +45,8 @@ export default function NewDiscussionButton({ courseId, courseSlug }: NewDiscuss
       setIsOpen(false)
       setTitle('')
       setContent('')
-      router.push(`/dashboard/discussions/${courseSlug}/${data.id}`)
+      // ✅ FIXED: Use courseId instead of courseSlug
+      router.push(`/dashboard/discussions/${courseId}/${data.id}`)
       router.refresh()
     }
 
