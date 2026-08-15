@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase-client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Award, Download, Share2, CheckCircle, ArrowLeft, Loader2 } from 'lucide-react'
-import { PDFDownloadLink } from '@react-pdf/renderer'
+import { pdf } from '@react-pdf/renderer'
 import CertificatePDF from '@/components/CertificatePDF'
 
 export default function CertificatePage({ params }: { params: { courseId: string } }) {
@@ -15,14 +15,10 @@ export default function CertificatePage({ params }: { params: { courseId: string
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isClient, setIsClient] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   
   const supabase = createClient()
   const router = useRouter()
-  
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
   
   useEffect(() => {
     async function loadData() {
@@ -98,6 +94,9 @@ export default function CertificatePage({ params }: { params: { courseId: string
     )
   }
   
+  // ============================================================
+  // DERIVED CONSTANTS - Moved BEFORE handleDownloadPDF
+  // ============================================================
   const userName = profile?.first_name 
     ? `${profile.first_name} ${profile.last_name || ''}`.trim()
     : user?.email?.split('@')[0] || 'Learner'
@@ -117,6 +116,37 @@ export default function CertificatePage({ params }: { params: { courseId: string
       })
   
   const isComplete = enrollment?.progress_percentage === 100 || enrollment?.status === 'completed'
+  
+  // ============================================================
+  // PDF GENERATION FUNCTION
+  // ============================================================
+  const handleDownloadPDF = async () => {
+    setIsGenerating(true)
+    try {
+      const blob = await pdf(
+        <CertificatePDF
+          userName={userName}
+          courseTitle={course.title}
+          completionDate={completionDate}
+          certificateId={certificateId}
+        />
+      ).toBlob()
+      
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `certificate-${course.slug}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Error generating PDF:', err)
+      setError('Failed to generate PDF')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
   
   if (!isComplete) {
     return (
@@ -205,43 +235,23 @@ export default function CertificatePage({ params }: { params: { courseId: string
         
         {/* Actions */}
         <div className="mt-6 flex flex-wrap gap-3 justify-center">
-          {isClient && (
-            <PDFDownloadLink
-              document={
-                <CertificatePDF
-                  userName={userName}
-                  courseTitle={course.title}
-                  completionDate={completionDate}
-                  certificateId={certificateId}
-                />
-              }
-              fileName={`certificate-${course.slug}.pdf`}
-            >
-              {({ loading, error }) => {
-                if (error) {
-                  return <span className="text-red-500">Error generating PDF</span>
-                }
-                return (
-                  <button
-                    className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 size={18} className="animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Download size={18} />
-                        Download PDF
-                      </>
-                    )}
-                  </button>
-                )
-              }}
-            </PDFDownloadLink>
-          )}
+          <button
+            onClick={handleDownloadPDF}
+            disabled={isGenerating}
+            className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Download size={18} />
+                Download PDF
+              </>
+            )}
+          </button>
           
           <button 
             onClick={() => {
