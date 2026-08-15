@@ -15,14 +15,9 @@ export default function CertificatePage({ params }: { params: { courseId: string
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isClient, setIsClient] = useState(false)
   
   const supabase = createClient()
   const router = useRouter()
-  
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
   
   useEffect(() => {
     async function loadData() {
@@ -205,38 +200,33 @@ export default function CertificatePage({ params }: { params: { courseId: string
         
         {/* Actions */}
         <div className="mt-6 flex flex-wrap gap-3 justify-center">
-          {isClient && (
-            <PDFDownloadLink
-              document={
-                <CertificatePDF
-                  userName={userName}
-                  courseTitle={course.title}
-                  completionDate={completionDate}
-                  certificateId={certificateId}
-                />
-              }
-              fileName={`certificate-${course.slug}.pdf`}
-            >
-              {({ loading }) => (
-                <button
-                  className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Download size={18} />
-                      Download PDF
-                    </>
-                  )}
-                </button>
-              )}
-            </PDFDownloadLink>
-          )}
+          <PDFDownloadLink
+            document={
+              <CertificatePDF
+                userName={userName}
+                courseTitle={course.title}
+                completionDate={completionDate}
+                certificateId={certificateId}
+              />
+            }
+            fileName={`certificate-${course.slug}.pdf`}
+          >
+            {({ loading }) => (
+              <span className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer">
+                {loading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Download size={18} />
+                    Download PDF
+                  </>
+                )}
+              </span>
+            )}
+          </PDFDownloadLink>
           
           <button 
             onClick={() => {
