@@ -29,42 +29,6 @@ import {
 } from 'lucide-react'
 import EnrollButton from '@/components/dashboard/EnrollButton'
 
-// ============================================================
-// APPROVED COURSE SLUGS - All courses that are available
-// ============================================================
-const APPROVED_COURSE_SLUGS = [
-  // New Leadership Courses
-  'effective-leadership-talent-management',
-  'power-influence-leadership',
-  'leading-inclusive-workforce',
-  
-  // New Personal Development Courses
-  'personality-transformations',
-  'assertive-communication-eq',
-  'mental-reset-wellness',
-  
-  // New Programming Courses
-  'cs50-web-programming',
-  'cs50-computer-science',
-  
-  // Existing Courses
-  'electrical-engineering',
-  'microsoft-office',
-  'programming-fundamentals',
-  'web-development',
-  'data-analysis',
-  'ai-fundamentals',
-  'entrepreneurship-pathway',
-  'financial-literacy',
-  'business-model-design',
-  'business-plan-development',
-  'business-growth-strategy',
-  'marketing-sales',
-  'digital-marketing',
-  'leadership',
-  'basic-mechanical-engineering'
-]
-
 // Types
 type Lesson = {
   id: string
@@ -139,7 +103,7 @@ const lessonIcons: Record<string, any> = {
 export default async function CourseDetailPage({
   params,
 }: {
-  params: { courseSlug: string }
+  params: { courseId: string }
 }) {
   const supabase = await createClient()
   
@@ -147,11 +111,6 @@ export default async function CourseDetailPage({
   
   if (!user) {
     return null
-  }
-
-  // Check if this is an approved course
-  if (!APPROVED_COURSE_SLUGS.includes(params.courseSlug)) {
-    notFound()
   }
   
   const { data: course, error } = await supabase
@@ -173,7 +132,7 @@ export default async function CourseDetailPage({
         )
       )
     `)
-    .eq('slug', params.courseSlug)
+    .eq('id', params.courseId)
     .eq('is_published', true)
     .single()
 
@@ -332,7 +291,7 @@ export default async function CourseDetailPage({
                         </div>
                       </div>
                       <Link
-                        href={`/dashboard/learn/${typedCourse.slug}`}
+                        href={`/dashboard/learn/${typedCourse.id}`}
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium"
                       >
                         <PlayCircle size={18} />
