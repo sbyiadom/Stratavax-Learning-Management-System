@@ -284,7 +284,7 @@ export default async function DashboardPage() {
                   return (
                     <Link
                       key={enrollment.id}
-                      href={`/dashboard/learn/${course.slug}`}
+                      href={`/dashboard/learn/${course.id}`}
                       className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100"
                     >
                       <div className="relative h-44 w-full overflow-hidden bg-gray-200">
