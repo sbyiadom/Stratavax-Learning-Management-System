@@ -88,7 +88,7 @@ type Course = {
 export default async function CourseDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: { courseId: string }
 }) {
   const supabase = await createClient()
   
@@ -99,7 +99,7 @@ export default async function CourseDetailPage({
   const { data: course, error: courseError } = await supabase
     .from('courses')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', params.courseId)
     .eq('is_published', true)
     .single() as { data: Course | null, error: any }
 
@@ -191,7 +191,7 @@ export default async function CourseDetailPage({
     
     if (existingEnrollment) {
       // Already enrolled - go to learning
-      redirect(`/dashboard/learn/${course.slug}`)
+      redirect(`/dashboard/learn/${course.id}`)
     }
     
     // ✅ FIXED: Remove updated_at - it doesn't exist in enrollments table
@@ -231,7 +231,7 @@ export default async function CourseDetailPage({
     }
 
     // ✅ Redirect to learning page on success
-    redirect(`/dashboard/learn/${course.slug}`)
+    redirect(`/dashboard/learn/${course.id}`)
   }
 
   return (
@@ -296,7 +296,7 @@ export default async function CourseDetailPage({
 
               {/* Action Button */}
               {isEnrolled ? (
-                <Link href={`/dashboard/learn/${course.slug}`} className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition">
+                <Link href={`/dashboard/learn/${course.id}`} className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition">
                   <PlayCircle size={20} className="mr-2" /> Continue Learning
                 </Link>
               ) : (
@@ -382,7 +382,7 @@ export default async function CourseDetailPage({
               <h3 className="text-lg font-semibold mb-2">Ready to start?</h3>
               <p className="text-sm text-blue-100 mb-4">Join {course.enrollment_count || 0} other learners</p>
               {isEnrolled ? (
-                <Link href={`/dashboard/learn/${course.slug}`} className="block w-full px-4 py-3 bg-white text-blue-600 rounded-lg text-center font-medium hover:bg-gray-50 transition">
+                <Link href={`/dashboard/learn/${course.id}`} className="block w-full px-4 py-3 bg-white text-blue-600 rounded-lg text-center font-medium hover:bg-gray-50 transition">
                   Continue Learning
                 </Link>
               ) : (
