@@ -470,7 +470,7 @@ export default function ProgressPage() {
                           )}
                           {hasCertificate && (
                             <Link 
-                              href={`/dashboard/certificates/${enrollment.course_id}`}
+                              href={`/dashboard/certificates/${course?.slug}`}
                               className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1 hover:bg-amber-200 transition"
                             >
                               <Award size={12} />
@@ -525,7 +525,7 @@ export default function ProgressPage() {
                         </Link>
                         {isCompleted && hasCertificate && (
                           <Link
-                            href={`/dashboard/certificates/${enrollment.course_id}`}
+                            href={`/dashboard/certificates/${course?.slug}`}
                             className="px-4 py-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition text-sm flex items-center gap-1"
                           >
                             <Award size={14} />
