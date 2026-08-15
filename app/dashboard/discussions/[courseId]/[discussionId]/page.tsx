@@ -7,7 +7,7 @@ import ReplyForm from '@/components/dashboard/ReplyForm'
 export default async function DiscussionPage({
   params,
 }: {
-  params: { courseSlug: string; discussionId: string }
+  params: { courseId: string; discussionId: string }
 }) {
   const supabase = await createClient()
   
@@ -55,7 +55,7 @@ export default async function DiscussionPage({
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <Link
-            href={`/dashboard/discussions/${params.courseSlug}`}
+            href={`/dashboard/discussions/${params.courseId}`}
             className="text-gray-600 hover:text-gray-900 flex items-center gap-2 mb-4"
           >
             <ChevronLeft size={20} />
@@ -125,7 +125,7 @@ export default async function DiscussionPage({
         {/* Reply Form */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h3 className="font-semibold mb-4">Post a Reply</h3>
-          <ReplyForm discussionId={discussion.id} courseSlug={params.courseSlug} />
+          <ReplyForm discussionId={discussion.id} courseId={params.courseId} />
         </div>
       </div>
     </div>
