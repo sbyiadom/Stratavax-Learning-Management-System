@@ -212,7 +212,7 @@ export default function CertificatePage({ params }: { params: { courseId: string
             fileName={`certificate-${course.slug}.pdf`}
           >
             {({ loading }) => (
-              <span className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer">
+              <div className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition cursor-pointer">
                 {loading ? (
                   <>
                     <Loader2 size={18} className="animate-spin" />
@@ -224,7 +224,7 @@ export default function CertificatePage({ params }: { params: { courseId: string
                     Download PDF
                   </>
                 )}
-              </span>
+              </div>
             )}
           </PDFDownloadLink>
           
