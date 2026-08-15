@@ -101,7 +101,7 @@ async function enrollInCourse(formData: FormData) {
     .maybeSingle()
 
   if (existingEnrollment) {
-    redirect(`/dashboard/learn/${slug}`)
+    redirect(`/dashboard/learn/${courseId}`)
   }
 
   const { error } = await supabase
@@ -115,14 +115,14 @@ async function enrollInCourse(formData: FormData) {
     })
 
   if (!error) {
-    redirect(`/dashboard/learn/${slug}`)
+    redirect(`/dashboard/learn/${courseId}`)
   }
 }
 
 export default async function CoursePage({
   params,
 }: {
-  params: { slug: string }
+  params: { courseId: string }
 }) {
   const supabase = await createClient()
   
@@ -132,8 +132,30 @@ export default async function CoursePage({
     redirect('/login')
   }
 
-  // Check if this is an approved course
-  if (!APPROVED_COURSE_SLUGS.includes(params.slug)) {
+  // Get course details - fetch by ID instead of slug
+  const { data: course, error: courseError } = await supabase
+    .from('courses')
+    .select('*')
+    .eq('id', params.courseId)
+    .eq('is_published', true)
+    .single()
+
+  if (courseError || !course) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Course Not Found</h1>
+          <p className="text-gray-600 mb-6">The course could not be found.</p>
+          <Link href="/dashboard" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 inline-block">
+            Go to Dashboard
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  // Check if this is an approved course by slug
+  if (!APPROVED_COURSE_SLUGS.includes(course.slug)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center">
@@ -144,28 +166,6 @@ export default async function CoursePage({
           </p>
           <Link href="/dashboard/courses" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-block">
             Browse Courses
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  // Get course details
-  const { data: course, error: courseError } = await supabase
-    .from('courses')
-    .select('*')
-    .eq('slug', params.slug)
-    .eq('is_published', true)
-    .single()
-
-  if (courseError || !course) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Course Not Found</h1>
-          <p className="text-gray-600 mb-6">The course "{params.slug}" could not be found.</p>
-          <Link href="/dashboard" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 inline-block">
-            Go to Dashboard
           </Link>
         </div>
       </div>
@@ -262,7 +262,7 @@ export default async function CoursePage({
               <ChevronLeft size={20} />
               <span>Back to Dashboard</span>
             </Link>
-            <Link href={`/dashboard/learn/${params.slug}/resources`} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            <Link href={`/dashboard/learn/${params.courseId}/resources`} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
               <FileText size={20} />
               <span>View Resources</span>
             </Link>
@@ -329,7 +329,7 @@ export default async function CoursePage({
               {/* Start Button */}
               {isEnrolled && firstLesson ? (
                 <a
-                  href={`/dashboard/learn/${params.slug}/${firstLesson.id}`}
+                  href={`/dashboard/learn/${params.courseId}/${firstLesson.id}`}
                   className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition inline-flex items-center gap-2"
                 >
                   {overallProgressPercentage > 0 ? 'Continue Learning' : 'Start Course'}
@@ -338,7 +338,7 @@ export default async function CoursePage({
               ) : !isEnrolled ? (
                 <form action={enrollInCourse}>
                   <input type="hidden" name="courseId" value={course.id} />
-                  <input type="hidden" name="slug" value={params.slug} />
+                  <input type="hidden" name="slug" value={course.slug} />
                   <button
                     type="submit"
                     className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
@@ -440,7 +440,7 @@ export default async function CoursePage({
                         return (
                           <Link
                             key={lesson.id}
-                            href={`/dashboard/learn/${params.slug}/${lesson.id}`}
+                            href={`/dashboard/learn/${params.courseId}/${lesson.id}`}
                             className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition cursor-pointer"
                           >
                             <div className="flex items-center gap-3">
