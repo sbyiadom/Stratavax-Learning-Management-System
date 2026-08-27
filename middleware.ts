@@ -5,7 +5,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // ============================================================
-  // 1. SKIP: Static assets, images, and API routes
+  // 1. IMMEDIATELY SKIP: Static assets, images, API routes, and files
   // ============================================================
   if (
     pathname.startsWith('/_next') ||
@@ -14,13 +14,13 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/images') ||
     pathname.startsWith('/favicon.ico') ||
     pathname.startsWith('/robots.txt') ||
-    pathname.includes('.') // Files with extensions
+    pathname.includes('.') // Any file with extension
   ) {
     return NextResponse.next()
   }
 
   // ============================================================
-  // 2. PUBLIC ROUTES (no auth required)
+  // 2. PUBLIC ROUTES (completely skip auth check)
   // ============================================================
   const publicRoutes = [
     '/',
@@ -36,53 +36,60 @@ export async function middleware(request: NextRequest) {
     '/dashboard-debug',
     '/dashboard-no-auth',
     '/debug',
+    '/not-found',
   ]
   
+  // If it's a public route, skip auth check entirely
   if (publicRoutes.includes(pathname)) {
-    // If logged in and trying to access login/register, redirect to dashboard
-    // We'll check this below after we get the user
+    return NextResponse.next()
   }
 
   // ============================================================
-  // 3. PROTECTED ROUTES - Check auth
+  // 3. PROTECTED ROUTES - Only check auth for these
   // ============================================================
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options)
-          })
-        },
+  try {
+    const response = NextResponse.next({
+      request: {
+        headers: request.headers,
       },
+    })
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options)
+            })
+          },
+        },
+      }
+    )
+
+    // Get user
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // If user is logged in and trying to access login/register, redirect to dashboard
+    if (user && (pathname === '/login' || pathname === '/register' || pathname === '/register-supervisor')) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
     }
-  )
 
-  // Get user
-  const { data: { user } } = await supabase.auth.getUser()
+    // If no user and trying to access protected route, redirect to login
+    if (!user) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
 
-  // If logged in and trying to access login/register, redirect to dashboard
-  if (user && (pathname === '/login' || pathname === '/register' || pathname === '/register-supervisor')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
-  // If not logged in and trying to access protected routes, redirect to login
-  if (!user && !publicRoutes.includes(pathname)) {
+    return response
+  } catch (error) {
+    // If any error occurs in middleware, redirect to login instead of crashing
+    console.error('Middleware error:', error)
     return NextResponse.redirect(new URL('/login', request.url))
   }
-
-  return response
 }
 
 export const config = {
@@ -92,14 +99,6 @@ export const config = {
     '/register',
     '/register-supervisor',
     '/auth/callback',
-    '/login-debug',
-    '/login-simple',
-    '/login-test',
-    '/test-login',
-    '/test-session',
-    '/dashboard-debug',
-    '/dashboard-no-auth',
-    '/debug',
     '/dashboard/:path*',
     '/admin/:path*',
     '/learn/:path*',
