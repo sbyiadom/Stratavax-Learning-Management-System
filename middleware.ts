@@ -2,6 +2,50 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  // ============================================================
+  // 1. SKIP: Static assets, images, and API routes
+  // ============================================================
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/static') ||
+    pathname.startsWith('/images') ||
+    pathname.startsWith('/favicon.ico') ||
+    pathname.startsWith('/robots.txt') ||
+    pathname.includes('.') // Files with extensions
+  ) {
+    return NextResponse.next()
+  }
+
+  // ============================================================
+  // 2. PUBLIC ROUTES (no auth required)
+  // ============================================================
+  const publicRoutes = [
+    '/',
+    '/login',
+    '/register',
+    '/register-supervisor',
+    '/auth/callback',
+    '/login-debug',
+    '/login-simple',
+    '/login-test',
+    '/test-login',
+    '/test-session',
+    '/dashboard-debug',
+    '/dashboard-no-auth',
+    '/debug',
+  ]
+  
+  if (publicRoutes.includes(pathname)) {
+    // If logged in and trying to access login/register, redirect to dashboard
+    // We'll check this below after we get the user
+  }
+
+  // ============================================================
+  // 3. PROTECTED ROUTES - Check auth
+  // ============================================================
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -9,8 +53,8 @@ export async function middleware(request: NextRequest) {
   })
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW!,
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
@@ -25,39 +69,16 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Get user - this will refresh the session if needed
+  // Get user
   const { data: { user } } = await supabase.auth.getUser()
-  
-  const pathname = request.nextUrl.pathname
-
-  // Check if this is a Google Forms webhook
-  const isGoogleFormsWebhook = pathname.startsWith('/api/google-forms/')
-  
-  // If it's a Google Forms webhook, check for valid webhook secret
-  if (isGoogleFormsWebhook) {
-    const authHeader = request.headers.get('authorization')
-    const expectedSecret = process.env.GOOGLE_FORMS_WEBHOOK_SECRET
-    
-    if (authHeader === `Bearer ${expectedSecret}`) {
-      // Valid webhook secret, allow the request
-      return response
-    }
-    // If no valid webhook secret, continue to normal auth check below
-  }
-
-  // Define public routes
-  const isPublicRoute = pathname === '/' || 
-                        pathname === '/login' || 
-                        pathname === '/register' || 
-                        pathname === '/auth/callback'
 
   // If logged in and trying to access login/register, redirect to dashboard
-  if (user && (pathname === '/login' || pathname === '/register')) {
+  if (user && (pathname === '/login' || pathname === '/register' || pathname === '/register-supervisor')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   // If not logged in and trying to access protected routes, redirect to login
-  if (!user && !isPublicRoute && !pathname.startsWith('/_next') && !pathname.includes('.')) {
+  if (!user && !publicRoutes.includes(pathname)) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -66,6 +87,39 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/',
+    '/login',
+    '/register',
+    '/register-supervisor',
+    '/auth/callback',
+    '/login-debug',
+    '/login-simple',
+    '/login-test',
+    '/test-login',
+    '/test-session',
+    '/dashboard-debug',
+    '/dashboard-no-auth',
+    '/debug',
+    '/dashboard/:path*',
+    '/admin/:path*',
+    '/learn/:path*',
+    '/courses/:path*',
+    '/certificates/:path*',
+    '/discussions/:path*',
+    '/profile/:path*',
+    '/progress/:path*',
+    '/settings/:path*',
+    '/evaluation/:path*',
+    '/evaluation-reports/:path*',
+    '/training/:path*',
+    '/explore/:path*',
+    '/community/:path*',
+    '/assignments/:path*',
+    '/reports/:path*',
+    '/instructor/:path*',
+    '/manager/:path*',
+    '/supervisors/:path*',
+    '/users/:path*',
+    '/assessments/:path*',
   ],
 }
