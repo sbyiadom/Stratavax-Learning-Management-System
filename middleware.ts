@@ -4,9 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // ============================================================
-  // 1. IMMEDIATELY SKIP: Static assets, images, API routes, and files
-  // ============================================================
+  // Skip static assets, API routes, and images
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
@@ -14,14 +12,12 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/images') ||
     pathname.startsWith('/favicon.ico') ||
     pathname.startsWith('/robots.txt') ||
-    pathname.includes('.') // Any file with extension
+    pathname.includes('.')
   ) {
     return NextResponse.next()
   }
 
-  // ============================================================
-  // 2. PUBLIC ROUTES (completely skip auth check)
-  // ============================================================
+  // Public routes
   const publicRoutes = [
     '/',
     '/login',
@@ -38,15 +34,11 @@ export async function middleware(request: NextRequest) {
     '/debug',
     '/not-found',
   ]
-  
-  // If it's a public route, skip auth check entirely
+
   if (publicRoutes.includes(pathname)) {
     return NextResponse.next()
   }
 
-  // ============================================================
-  // 3. PROTECTED ROUTES - Only check auth for these
-  // ============================================================
   try {
     const response = NextResponse.next({
       request: {
@@ -55,8 +47,8 @@ export async function middleware(request: NextRequest) {
     })
 
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_URL_NEW!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_NEW!,
       {
         cookies: {
           getAll() {
@@ -71,22 +63,18 @@ export async function middleware(request: NextRequest) {
       }
     )
 
-    // Get user
     const { data: { user } } = await supabase.auth.getUser()
 
-    // If user is logged in and trying to access login/register, redirect to dashboard
     if (user && (pathname === '/login' || pathname === '/register' || pathname === '/register-supervisor')) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
-    // If no user and trying to access protected route, redirect to login
     if (!user) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
     return response
   } catch (error) {
-    // If any error occurs in middleware, redirect to login instead of crashing
     console.error('Middleware error:', error)
     return NextResponse.redirect(new URL('/login', request.url))
   }
